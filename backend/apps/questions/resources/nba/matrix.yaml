@@ -1,0 +1,53 @@
+# NBA — matrix questions: name the thing where a row and a column meet.
+#
+# THIS TYPE
+#   rows / columns: the headings, two or more of each, in display order.
+#   cells:          the answers, each naming its `row` and `column` BY TITLE.
+#
+# Cells reference headings by title rather than by index on purpose: inserting a
+# row at the top of the list would otherwise silently re-target every answer
+# below it. A cell naming a heading the file does not declare fails the load.
+#
+# Cells are SPARSE — you write only the intersections that have an answer. A
+# team-versus-team grid has no diagonal, and any pairing nobody has a fact about
+# is simply left out. Row and column counts are derived from the headings, never
+# authored, so they cannot disagree with the grid.
+#
+# One model covers every grid size: 2x2, 3x3, 4x2 are the same question type
+# with different counts, not different types.
+#
+# See single-answer.yaml for the fields every question carries.
+#
+# Loaded by: uv run python manage.py sync_questions
+
+category: nba
+
+questions:
+  - type: matrix
+    slug: nba-matrix-franchise-by-decade-titles
+    description: >-
+      For each franchise and decade, name a season in which they won the
+      championship.
+    level: 8
+    tags: {topic: finals, era: all-time}
+    rows: [Chicago Bulls, Los Angeles Lakers, San Antonio Spurs]
+    columns: ["1990s", "2000s"]
+    cells:
+      - {row: Chicago Bulls, column: "1990s", answer: "1996"}
+      - {row: Los Angeles Lakers, column: "2000s", answer: "2001"}
+      - {row: San Antonio Spurs, column: "1990s", answer: "1999"}
+      - {row: San Antonio Spurs, column: "2000s", answer: "2003"}
+
+  - type: matrix
+    slug: nba-matrix-player-by-team-and-position
+    description: >-
+      Name a player who played the listed position for each of these teams.
+    level: 6
+    tags: {topic: players, era: 2010s}
+    rows: [Miami Heat, Cleveland Cavaliers]
+    columns: [Point guard, Centre]
+    cells:
+      - {row: Miami Heat, column: Point guard, answer: Goran Dragic}
+      - {row: Miami Heat, column: Centre, answer: Hassan Whiteside}
+      - {row: Cleveland Cavaliers, column: Point guard, answer: Kyrie Irving}
+      - {row: Cleveland Cavaliers, column: Centre, answer: Tristan Thompson}

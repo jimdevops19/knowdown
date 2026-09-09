@@ -216,3 +216,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Knowdown — Django runtime artefacts
+backend/media/
+backend/staticfiles/*
+!backend/staticfiles/.gitkeep
+backend/logs/

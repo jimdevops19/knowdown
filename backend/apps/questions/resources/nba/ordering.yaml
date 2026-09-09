@@ -1,0 +1,47 @@
+# NBA — ordering questions: put these in the right sequence.
+#
+# THIS TYPE
+#   instruction: the rule for answering, kept separate from `description`
+#                because the client shows them in different places. "Highest to
+#                lowest" buried in the question is a direction players miss.
+#   items:       three or more, written IN THEIR CORRECT ORDER. Positions are
+#                not authored — the list order is the answer, so a file cannot
+#                have a gap or a duplicate position. The client shuffles what it
+#                draws; the correct order never leaves the server in question form.
+#
+# Pick facts with an unambiguous order that will not drift: career totals of
+# retired players and dated events are safe, "best" anything is not, and an
+# active player's totals make a question that quietly goes wrong mid-season.
+#
+# See single-answer.yaml for the fields every question carries.
+#
+# Loaded by: uv run python manage.py sync_questions
+
+category: nba
+
+questions:
+  - type: ordering
+    slug: nba-order-championship-years-bulls
+    description: The Chicago Bulls' six championship-winning seasons.
+    instruction: Put them in order, earliest first.
+    level: 5
+    tags: {topic: finals, era: 1990s}
+    items:
+      - 1991
+      - 1992
+      - 1993
+      - 1996
+      - 1997
+      - 1998
+
+  - type: ordering
+    slug: nba-order-career-points-retired-greats
+    description: Four retired scorers, by career regular-season points.
+    instruction: Order them from most points to fewest.
+    level: 7
+    tags: {topic: records, era: all-time}
+    items:
+      - Kareem Abdul-Jabbar
+      - Karl Malone
+      - Kobe Bryant
+      - Michael Jordan

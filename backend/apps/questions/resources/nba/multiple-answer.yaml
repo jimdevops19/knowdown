@@ -1,0 +1,46 @@
+# NBA — multiple-answer questions: several options are right, find them all.
+#
+# THIS TYPE
+#   options: three or more, with AT LEAST TWO marked correct and at least one
+#   not. Both bounds are enforced at load time and both are about the question
+#   being worth asking: one correct option is a single-answer wearing the wrong
+#   type, and marking every option correct turns "select all that apply" into
+#   "select everything".
+#
+# Aim for a mix a knowledgeable fan can separate — a list where the wrong
+# options are obviously wrong is answered by elimination and tests nothing.
+#
+# See single-answer.yaml for the fields every question carries.
+#
+# Loaded by: uv run python manage.py sync_questions
+
+category: nba
+
+questions:
+  - type: multiple-answer
+    slug: nba-players-with-mvp-and-finals-mvp
+    description: >-
+      Which of these players have won BOTH a regular-season MVP award and a
+      Finals MVP award?
+    level: 5
+    tags: {topic: awards, era: all-time}
+    options:
+      - {text: LeBron James, is_correct: true}
+      - {text: Michael Jordan, is_correct: true}
+      - {text: Tim Duncan, is_correct: true}
+      - {text: Allen Iverson}
+      - {text: Charles Barkley}
+
+  - type: multiple-answer
+    slug: nba-original-1946-franchises-still-active
+    description: >-
+      Which of these franchises played in the league's inaugural 1946-47 season
+      and are still active today?
+    level: 8
+    tags: {topic: history, era: 1940s}
+    options:
+      - {text: Boston Celtics, is_correct: true}
+      - {text: New York Knicks, is_correct: true}
+      - {text: Golden State Warriors, is_correct: true}
+      - {text: Los Angeles Lakers}
+      - {text: Chicago Bulls}

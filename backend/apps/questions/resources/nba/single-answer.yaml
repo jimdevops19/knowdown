@@ -1,0 +1,95 @@
+# NBA — single-answer questions: four options, exactly one right.
+#
+# FILE FORMAT
+#   category:   the folder this file sits in. Stated once, checked against the
+#               folder name on load, so a file cannot quietly load its questions
+#               into another sport.
+#   questions:  a list of entries, each naming its own `type`.
+#
+# EVERY QUESTION CARRIES
+#   slug         the permanent key this question is upserted on. Editing any
+#                other field and re-running corrects the row; changing the slug
+#                creates a new question and retires the old one. Lowercase,
+#                hyphenated, unique across EVERY question file and type.
+#   description  the question as the player reads it.
+#   level        1 (a casual fan gets it) to 10 (a statistician might).
+#   tags         free-form facets used to build themed rounds. Keys are yours;
+#                keep them consistent within a category or a filter finds nothing.
+#   image        optional, a filename in nba/images/ — a picture of what is being
+#                asked about. NOT the answer options; that is `type: image-answer`.
+#
+# THIS TYPE
+#   options: two or more, exactly one with `is_correct: true`. The order here is
+#   the authored order — the client shuffles before showing them, so writing the
+#   right answer first is fine and means nothing.
+#
+# Loaded by: uv run python manage.py sync_questions
+
+category: nba
+
+questions:
+  - type: single-answer
+    slug: nba-most-championships-franchise
+    description: Which franchise has won the most NBA championships?
+    level: 3
+    tags: {topic: teams, era: all-time}
+    options:
+      - {text: Boston Celtics, is_correct: true}
+      - {text: Los Angeles Lakers}
+      - {text: Chicago Bulls}
+      - {text: Golden State Warriors}
+
+  - type: single-answer
+    slug: nba-most-points-single-game
+    description: Who holds the record for the most points scored in a single NBA game?
+    level: 2
+    tags: {topic: records, era: 1960s}
+    options:
+      - {text: Wilt Chamberlain, is_correct: true}
+      - {text: Kobe Bryant}
+      - {text: Michael Jordan}
+      - {text: David Thompson}
+
+  - type: single-answer
+    slug: nba-2016-finals-mvp
+    description: Who was named Finals MVP of the 2016 NBA Finals?
+    level: 4
+    tags: {topic: finals, era: 2010s}
+    options:
+      - {text: LeBron James, is_correct: true}
+      - {text: Kyrie Irving}
+      - {text: Stephen Curry}
+      - {text: Draymond Green}
+
+  - type: single-answer
+    slug: nba-career-points-leader
+    description: Who is the NBA's all-time leading scorer in the regular season?
+    level: 2
+    tags: {topic: records, era: all-time}
+    options:
+      - {text: LeBron James, is_correct: true}
+      - {text: Kareem Abdul-Jabbar}
+      - {text: Karl Malone}
+      - {text: Michael Jordan}
+
+  - type: single-answer
+    slug: nba-shortest-player-ever
+    description: Who is the shortest player ever to appear in an NBA game?
+    level: 7
+    tags: {topic: players, era: 1980s}
+    options:
+      - {text: Muggsy Bogues, is_correct: true}
+      - {text: Earl Boykins}
+      - {text: Spud Webb}
+      - {text: Nate Robinson}
+
+  - type: single-answer
+    slug: nba-1996-draft-first-pick
+    description: Which player was selected first overall in the 1996 NBA Draft?
+    level: 6
+    tags: {topic: draft, era: 1990s}
+    options:
+      - {text: Allen Iverson, is_correct: true}
+      - {text: Kobe Bryant}
+      - {text: Ray Allen}
+      - {text: Stephon Marbury}

@@ -1,0 +1,50 @@
+# NBA — true/false questions.
+#
+# THIS TYPE
+#   answer: true | false. That is the whole answer; there is no options list,
+#   because "true" is a word and not a row with an id.
+#
+# Write the claim as a statement, not a question — "Michael Jordan was drafted
+# third overall" reads as something to agree or disagree with, where "Was
+# Michael Jordan drafted third?" reads as though it wants a number.
+#
+# Keep the levels honest: a 50/50 guess is worth half a mark, so a true/false a
+# coin gets right half the time is not a level 1 — it is a question that decides
+# a match by luck. Lean on claims that sound wrong and are right, or the reverse.
+#
+# See single-answer.yaml for the fields every question carries.
+#
+# Loaded by: uv run python manage.py sync_questions
+
+category: nba
+
+questions:
+  - type: true-false
+    slug: nba-jordan-drafted-third
+    description: Michael Jordan was selected third overall in the 1984 NBA Draft.
+    level: 4
+    tags: {topic: draft, era: 1980s}
+    answer: true
+
+  - type: true-false
+    slug: nba-three-point-line-since-founding
+    description: The NBA has used a three-point line since the league was founded.
+    level: 3
+    tags: {topic: rules, era: all-time}
+    answer: false
+
+  - type: true-false
+    slug: nba-toronto-only-canadian-team
+    description: The Toronto Raptors are currently the NBA's only team based in Canada.
+    level: 2
+    tags: {topic: teams, era: current}
+    answer: true
+
+  - type: true-false
+    slug: nba-2016-warriors-73-wins-title
+    description: >-
+      The 2015-16 Golden State Warriors set the record for regular-season wins
+      and went on to win the championship that year.
+    level: 4
+    tags: {topic: finals, era: 2010s}
+    answer: false

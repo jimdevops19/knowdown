@@ -1,0 +1,54 @@
+# NBA — free-text questions: the player types the answer.
+#
+# THIS TYPE
+#   accepted_answers: every spelling that counts as right. Matching is
+#   case-insensitive, so listing a name twice in different cases is a load error.
+#
+# List the SHORT forms. A player racing a ten-second clock types "Kobe", not
+# "Kobe Bryant" — and an answer that is right but too slow to type is a question
+# testing typing speed. Include surnames, nicknames a broadcaster would use, and
+# the way the answer is spelled on a jersey.
+#
+# Do not use this type where the answer has an open-ended number of phrasings
+# ("what happened in game 6?"). If you cannot enumerate the right answers, it is
+# a single-answer question.
+#
+# See single-answer.yaml for the fields every question carries.
+#
+# Loaded by: uv run python manage.py sync_questions
+
+category: nba
+
+questions:
+  - type: free-text
+    slug: nba-81-point-game-scorer
+    description: >-
+      Which player scored 81 points against the Toronto Raptors in January 2006,
+      the second-highest single-game total in NBA history?
+    level: 3
+    tags: {topic: records, era: 2000s}
+    accepted_answers:
+      - Kobe Bryant
+      - Kobe
+      - Bryant
+
+  - type: free-text
+    slug: nba-most-assists-career
+    description: Who holds the NBA record for the most career assists?
+    level: 4
+    tags: {topic: records, era: all-time}
+    accepted_answers:
+      - John Stockton
+      - Stockton
+
+  - type: free-text
+    slug: nba-team-nicknamed-splash-brothers
+    description: >-
+      Stephen Curry and Klay Thompson were nicknamed the Splash Brothers while
+      playing for which team?
+    level: 2
+    tags: {topic: teams, era: 2010s}
+    accepted_answers:
+      - Golden State Warriors
+      - Golden State
+      - Warriors

@@ -1,0 +1,24 @@
+# The subjects Knowdown can quiz people on.
+#
+# A category is *what a question is about*; how a question is answered is a
+# separate axis entirely (apps/questions/models). Adding a sport is a row here
+# plus a folder of YAML beside this file named after its slug — never a new
+# question type.
+#
+# `slug` is the identifier everything else uses: the folder name, the API path,
+# and the scope of a player's rating. It is permanent — renaming one orphans the
+# folder and re-scopes every ranking under it.
+#
+# `is_active: false` takes a category out of matchmaking without deleting it,
+# for a sport that is out of season or still being authored. Removing a category
+# from this file does the same thing (it is deactivated, never deleted), because
+# matchups already played in it point at the row.
+#
+# Loaded by: uv run python manage.py sync_questions
+
+- slug: nba
+  name: NBA
+  description: >-
+    Basketball's biggest stage — players, teams, records and the moments
+    everyone argues about.
+  is_active: true
