@@ -81,7 +81,18 @@ def update_ratings_for_matchup(*, matchup: Matchup) -> None:
     winner rather than picking one arbitrarily") — counts as an Elo draw, 0.5
     each, rather than being skipped: two evenly matched players who tie still
     played a game the ladder should reflect.
+
+    A no-op when ``matchup.is_ranked`` is ``False`` — a matchup against a CPU
+    opponent (``apps.matches.bots``), decided once at
+    ``apps.matches.services.create_matchup`` and never re-derived. Skipping
+    the whole exchange rather than one-sidedly crediting the human is what
+    keeps a bot's own ``Ranking`` (if it even has one) pinned at
+    ``DEFAULT_PLAYER_RATING`` and leaves the human's rating exactly where
+    their last *ranked* result left it.
     """
+    if not matchup.is_ranked:
+        return
+
     sides = list(matchup.players.select_related("player").order_by("joined_at"))
     if len(sides) != PLAYERS_PER_MATCHUP:
         # No opponent ever joined — cancelled before there was a result to

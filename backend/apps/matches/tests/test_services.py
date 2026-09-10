@@ -159,6 +159,21 @@ class CreateMatchupTests(TestCase):
                 question_count=4,
             )
 
+    def test_two_humans_are_ranked(self):
+        matchup = make_matchup()
+        self.assertTrue(matchup.is_ranked)
+
+    def test_a_bot_on_either_side_is_unranked(self):
+        from apps.players.models import Player
+
+        human = make_player(email="ranked-human@example.com")
+        bot = make_player(email="ranked-bot@example.com")
+        Player.objects.filter(pk=bot.pk).update(is_bot=True)
+        bot.refresh_from_db()
+
+        matchup = make_matchup(player_one=human, player_two=bot)
+        self.assertFalse(matchup.is_ranked)
+
 
 class SelectMatchQuestionsTests(TestCase):
     def test_refuses_to_redraw_a_board_already_selected(self):
@@ -206,6 +221,7 @@ class MatrixTimeLimitTests(TestCase):
 
         player_one = matchup.players.first().player
         cell = matrix.cells.first()
+        cell_answer = cell.answers.first().value
         answer = services.submit_answer(
             matchup=matchup,
             player=player_one,
@@ -213,7 +229,11 @@ class MatrixTimeLimitTests(TestCase):
             payload={
                 "type": "matrix",
                 "cells": [
-                    {"row_id": cell.row_id, "column_id": cell.column_id, "answer": cell.answer}
+                    {
+                        "row_id": cell.row_id,
+                        "column_id": cell.column_id,
+                        "answer": cell_answer,
+                    }
                 ],
             },
         )
@@ -234,6 +254,7 @@ class MatrixTimeLimitTests(TestCase):
 
         player_one = matchup.players.first().player
         cell = matrix.cells.first()
+        cell_answer = cell.answers.first().value
         with self.assertRaises(Conflict):
             services.submit_answer(
                 matchup=matchup,
@@ -245,7 +266,7 @@ class MatrixTimeLimitTests(TestCase):
                         {
                             "row_id": cell.row_id,
                             "column_id": cell.column_id,
-                            "answer": cell.answer,
+                            "answer": cell_answer,
                         }
                     ],
                 },

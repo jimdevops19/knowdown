@@ -226,3 +226,11 @@ backend/media/
 backend/staticfiles/*
 !backend/staticfiles/.gitkeep
 backend/logs/
+# manage.py spectacular's offline output — CI generates and uploads this as a
+# build artifact (.github/workflows/ci.yml); it is not source.
+backend/schema.yaml
+
+# Baked question-authoring data (scripts/bake_nba_player_teams.py). Large,
+# regenerable from the NBA stats API, and not question content — kept out of git
+# on purpose.
+backend/apps/questions/artifacts/

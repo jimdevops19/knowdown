@@ -70,7 +70,12 @@ class SeedBotsCommandTests(TestCase):
         weakest, strongest = profiles.first(), profiles.last()
         assert weakest.accuracy == 0.30
         assert strongest.accuracy == 0.90
-        assert weakest.min_response_ms > strongest.max_response_ms
+        # Speed is a fraction of whatever the question's own clock turns out
+        # to be — the weakest bot's band sits near the end of the clock, the
+        # strongest's near the start, on every question type alike.
+        assert weakest.min_response_fraction > strongest.max_response_fraction
+        assert 0.0 <= weakest.min_response_fraction <= weakest.max_response_fraction <= 1.0
+        assert 0.0 <= strongest.min_response_fraction <= strongest.max_response_fraction <= 1.0
 
 
 class MatchmakingBotFallbackTests(TransactionTestCase):
@@ -121,7 +126,7 @@ class MatchmakingBotFallbackTests(TransactionTestCase):
         # than the test waiting out the real ten seconds per question.
         await database_sync_to_async(call_command)("seed_bots", "--count", "1", stdout=StringIO())
         await database_sync_to_async(BotProfile.objects.update)(
-            accuracy=1.0, min_response_ms=1, max_response_ms=5
+            accuracy=1.0, min_response_fraction=0.01, max_response_fraction=0.02
         )
         # The default count (10) — not fewer: MATCH_QUESTION_COUNTS draws up
         # to 7, and a thinner category would make create_matchup itself

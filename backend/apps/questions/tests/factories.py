@@ -14,14 +14,20 @@ lets the evaluator and serializer suites be table-driven over
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from typing import Union
+
 from apps.categories.models import Category
 from apps.questions.models import (
+    DEFAULT_PROBABILITY_SCORE,
     ColumnsRowsQuestion,
     FreeTextAnswer,
     FreeTextQuestion,
     ImageAnswerOption,
     MatrixCell,
+    MatrixCellAnswer,
     MatrixColumn,
+    MatrixKind,
     MatrixRow,
     MultipleAnswerOption,
     MultipleAnswerQuestion,
@@ -161,6 +167,23 @@ def make_ordering(
     return question
 
 
+#: What a factory caller may write for one cell's answers: a single value,
+#: or several — each of them either a string or ``(value, probability_score)``.
+CellAnswers = Union[str, tuple[str, int], Sequence[Union[str, tuple[str, int]]]]
+
+
+def _cell_answers(answers: CellAnswers) -> list[tuple[str, int]]:
+    """Normalise a factory caller's shorthand into ``(value, score)`` pairs."""
+    if isinstance(answers, str):
+        answers = [answers]
+    elif isinstance(answers, tuple) and len(answers) == 2 and isinstance(answers[1], int):
+        answers = [answers]
+    return [
+        (answer, DEFAULT_PROBABILITY_SCORE) if isinstance(answer, str) else answer
+        for answer in answers
+    ]
+
+
 def make_matrix(
     *,
     slug: str = "grid",
@@ -168,9 +191,9 @@ def make_matrix(
     category: Category | None = None,
     rows: tuple[str, ...] = ("Bulls", "Lakers"),
     columns: tuple[str, ...] = ("1990s", "2000s"),
-    cells: tuple[tuple[str, str, str], ...] = (
+    cells: tuple[tuple[str, str, CellAnswers], ...] = (
         ("Bulls", "1990s", "1996"),
-        ("Lakers", "2000s", "2001"),
+        ("Lakers", "2000s", ("2001", "2002")),
         ("Lakers", "1990s", "1988"),
     ),
 ) -> ColumnsRowsQuestion:
@@ -179,6 +202,12 @@ def make_matrix(
     Deliberate — the fourth cell is what makes it possible to test that a player
     answering an intersection nobody asked about is refused, and that the
     per-cell denominator is the authored cells rather than rows x columns.
+
+    A cell's answer is either one string or several: one of the three defaults
+    accepts two, so the "any accepted answer takes the cell" rule is exercised
+    by every suite that builds a grid without asking for it. Each answer can
+    also be written ``(value, probability_score)`` where a test cares about the
+    grade.
     """
     question = ColumnsRowsQuestion.objects.create(
         **_base(slug, level, category),
@@ -193,12 +222,66 @@ def make_matrix(
         title: MatrixColumn.objects.create(question=question, title=title, order=order)
         for order, title in enumerate(columns, start=1)
     }
-    for row, column, answer in cells:
+    for row, column, answers in cells:
+        cell = MatrixCell.objects.create(
+            question=question,
+            row=row_rows[row],
+            column=column_rows[column],
+        )
+        for value, probability_score in _cell_answers(answers):
+            MatrixCellAnswer.objects.create(
+                cell=cell, value=value, probability_score=probability_score
+            )
+    return question
+
+
+def make_team_matrix(
+    *,
+    slug: str = "team-grid",
+    level: int = 7,
+    category: Category | None = None,
+    rows: tuple[str, ...] = ("Chicago Bulls", "Los Angeles Lakers"),
+    columns: tuple[str, ...] = ("Washington Wizards", "Miami Heat"),
+    cells: tuple[tuple[str, str], ...] | None = None,
+) -> ColumnsRowsQuestion:
+    """A ``kind: teams`` grid — cells with no answers, on purpose.
+
+    The mirror of :func:`make_matrix`, and the *only* difference that matters is
+    what is missing: no ``MatrixCellAnswer`` rows, because a team grid's answer
+    key is ``apps.questions.rosters`` and a test that seeded answers here would
+    be testing the authored path under a different name.
+
+    ``cells`` defaults to every intersection of two different franchises, which
+    is what the loader derives for headings this well-populated. Pass it to
+    build a sparser grid — a pairing left out is a pairing the evaluator must
+    refuse.
+    """
+    question = ColumnsRowsQuestion.objects.create(
+        **_base(slug, level, category),
+        row_count=len(rows),
+        column_count=len(columns),
+        kind=MatrixKind.TEAMS,
+    )
+    row_rows = {
+        title: MatrixRow.objects.create(question=question, title=title, order=order)
+        for order, title in enumerate(rows, start=1)
+    }
+    column_rows = {
+        title: MatrixColumn.objects.create(question=question, title=title, order=order)
+        for order, title in enumerate(columns, start=1)
+    }
+    if cells is None:
+        cells = tuple(
+            (row, column)
+            for row in rows
+            for column in columns
+            if row != column
+        )
+    for row, column in cells:
         MatrixCell.objects.create(
             question=question,
             row=row_rows[row],
             column=column_rows[column],
-            answer=answer,
         )
     return question
 

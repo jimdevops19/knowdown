@@ -21,6 +21,7 @@ one of those callers broadcasting the result.
 from __future__ import annotations
 
 import asyncio
+import time
 from uuid import UUID
 
 from channels.db import database_sync_to_async
@@ -175,14 +176,28 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
 
         if pairing is None:
             await self.send_json({"type": events.SEARCHING})
-            logger.info("A player joined the matchmaking pool", category=category_slug, caller="user")
+            # Journey line 1/4: "Player queued" — see CLAUDE.md's Realtime
+            # section. `action` is the queryable field ("how many players
+            # queued today"); the sentence is for a human tailing the log.
+            logger.info(
+                "Player queued for a match",
+                category=category_slug,
+                caller="user",
+                action="queued",
+            )
             if settings.FF_ENABLE_BOTS_IF_TIMEOUT:
                 self._spawn(self._fall_back_to_bot_after_timeout())
             return
 
-        await self._pair(category=category, opponent_id=pairing.opponent_id)
+        await self._pair(
+            category=category,
+            opponent_id=pairing.opponent_id,
+            opponent_queued_at=pairing.opponent_queued_at,
+        )
 
-    async def _pair(self, *, category, opponent_id: str) -> None:
+    async def _pair(
+        self, *, category, opponent_id: str, opponent_queued_at: float | None = None
+    ) -> None:
         matchup_id = await database_sync_to_async(_start_matchup_for)(
             category=category, player_one_id=self.player_id, player_two_id=opponent_id
         )
@@ -193,7 +208,23 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
             )
         await _apublish(publish.publish_match_found, player_id=self.player_id, matchup_id=matchup_id)
         await _apublish(publish.publish_match_found, player_id=opponent_id, matchup_id=matchup_id)
-        logger.info("Two players were paired", category=self.category_slug, caller="user")
+        # Journey line 2/4: "Match found". This player's own wait was ~0 (the
+        # join that just happened is what completed the pairing); the
+        # opponent's is the gap since they became the one waiting
+        # (`pool.Pairing.opponent_queued_at`) — the number "how long did
+        # players wait for an opponent" reads off of. ``None`` for a bot pair
+        # (``_pair_with_bot`` below never queued an opponent to wait on).
+        wait_ms = (
+            None if opponent_queued_at is None
+            else int((time.time() - opponent_queued_at) * 1000)
+        )
+        logger.info(
+            "Two players were matched",
+            category=self.category_slug,
+            caller="user",
+            action="matched",
+            duration_ms=wait_ms,
+        )
 
     async def _fall_back_to_bot_after_timeout(self) -> None:
         """``FF_ENABLE_BOTS_IF_TIMEOUT``'s whole mechanism: wait out
@@ -261,10 +292,17 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
         bot_controller.spawn_bot(
             bot_controller.run_bot(matchup_id=matchup_id, bot_player_id=bot_player_id)
         )
+        # Journey line 2/4, bot variant: the player waited out the whole
+        # fallback timeout (there was no human to pair with sooner) — an
+        # approximation, not `pool`'s own queued_at, but close enough for
+        # "how long did players wait" to read a bot pairing honestly rather
+        # than as a suspiciously instant match.
         logger.info(
             "A player was matched against a CPU opponent",
             category=self.category_slug,
             caller="user",
+            action="matched",
+            duration_ms=settings.MATCHMAKING_BOT_TIMEOUT_SECONDS * 1000,
         )
 
     async def receive_json(self, content: dict, **kwargs) -> None:

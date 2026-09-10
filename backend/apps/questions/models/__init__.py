@@ -13,7 +13,17 @@ from __future__ import annotations
 
 from .base import MAX_LEVEL, BaseQuestion, QuestionType
 from .free_text import FreeTextAnswer, FreeTextQuestion, TrueFalseQuestion
-from .matrix import ColumnsRowsQuestion, MatrixCell, MatrixColumn, MatrixRow
+from .matrix import (
+    DEFAULT_PROBABILITY_SCORE,
+    MAX_PROBABILITY_SCORE,
+    MIN_PROBABILITY_SCORE,
+    ColumnsRowsQuestion,
+    MatrixCell,
+    MatrixCellAnswer,
+    MatrixColumn,
+    MatrixKind,
+    MatrixRow,
+)
 from .multiple_choice import (
     ImageAnswerOption,
     MultipleAnswerOption,
@@ -37,7 +47,10 @@ QUESTION_MODELS: dict[str, type[BaseQuestion]] = {
 }
 
 __all__ = [
+    "DEFAULT_PROBABILITY_SCORE",
     "MAX_LEVEL",
+    "MAX_PROBABILITY_SCORE",
+    "MIN_PROBABILITY_SCORE",
     "QUESTION_MODELS",
     "BaseQuestion",
     "ColumnsRowsQuestion",
@@ -45,7 +58,9 @@ __all__ = [
     "FreeTextQuestion",
     "ImageAnswerOption",
     "MatrixCell",
+    "MatrixCellAnswer",
     "MatrixColumn",
+    "MatrixKind",
     "MatrixRow",
     "MultipleAnswerOption",
     "MultipleAnswerQuestion",

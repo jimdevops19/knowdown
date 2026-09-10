@@ -21,14 +21,18 @@ class Migration(migrations.Migration):
                 ('updated_at', models.DateTimeField(auto_now=True)),
                 ('deleted_at', models.DateTimeField(blank=True, db_index=True, editable=False, null=True)),
                 ('accuracy', models.FloatField()),
-                ('min_response_ms', models.PositiveIntegerField()),
-                ('max_response_ms', models.PositiveIntegerField()),
+                ('min_response_fraction', models.FloatField()),
+                ('max_response_fraction', models.FloatField()),
                 ('player', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='bot_profile', to='players.player')),
             ],
             options={
                 'ordering': ('-created_at',),
                 'abstract': False,
-                'constraints': [models.CheckConstraint(condition=models.Q(('accuracy__gte', 0.0), ('accuracy__lte', 1.0)), name='bot_profile_accuracy_in_range'), models.CheckConstraint(condition=models.Q(('max_response_ms__gte', models.F('min_response_ms'))), name='bot_profile_response_band_ordered')],
+                'constraints': [
+                    models.CheckConstraint(condition=models.Q(('accuracy__gte', 0.0), ('accuracy__lte', 1.0)), name='bot_profile_accuracy_in_range'),
+                    models.CheckConstraint(condition=models.Q(('min_response_fraction__gte', 0.0), ('max_response_fraction__lte', 1.0)), name='bot_profile_response_fraction_in_range'),
+                    models.CheckConstraint(condition=models.Q(('max_response_fraction__gte', models.F('min_response_fraction'))), name='bot_profile_response_band_ordered'),
+                ],
             },
         ),
     ]

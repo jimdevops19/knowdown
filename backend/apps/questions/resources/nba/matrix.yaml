@@ -2,7 +2,26 @@
 #
 # THIS TYPE
 #   rows / columns: the headings, two or more of each, in display order.
-#   cells:          the answers, each naming its `row` and `column` BY TITLE.
+#   cells:          the intersections that have an answer, each naming its
+#                   `row` and `column` BY TITLE, and every answer that fills it.
+#
+# A CELL HAS SEVERAL ANSWERS, and any one of them takes the cell. "Name a player
+# who played for both these teams" is satisfied by everybody the two rosters
+# share, so each cell is written as a list:
+#
+#   cells:
+#     - row: Chicago Bulls
+#       column: Washington Wizards
+#       answers:
+#         - {answer: Michael Jordan, probability_score: 2}
+#         - {answer: Bobby Portis,   probability_score: 5}
+#         - Jerian Grant            # shorthand: probability_score 5
+#
+# `probability_score` is 2..10 — how obscure the pick is, hand-graded. 2 is the
+# name everybody says (Jordan for Bulls x Wizards); 10 is the one only somebody
+# who watched that roster reaches for. Nothing scores with it yet: a cell is
+# right or it is not, and credit is the fraction of the grid filled correctly.
+# It is authored now so the grading exists when something does read it.
 #
 # Cells reference headings by title rather than by index on purpose: inserting a
 # row at the top of the list would otherwise silently re-target every answer
@@ -12,6 +31,27 @@
 # team-versus-team grid has no diagonal, and any pairing nobody has a fact about
 # is simply left out. Row and column counts are derived from the headings, never
 # authored, so they cannot disagree with the grid.
+#
+# `kind: teams` — THE GRID YOU DO NOT AUTHOR
+#   Both axes name NBA franchises, a cell is filled by anybody who played for
+#   both of them, and you write NO cells at all: the loader derives every
+#   intersection the two rosters actually shared, and the answers are looked up
+#   at scoring time in `artifacts/nba_player_teams.csv` (see
+#   `apps/questions/rosters.py`). All you author is the matchup of franchises.
+#
+#     - type: matrix
+#       kind: teams
+#       slug: ...
+#       rows: [Chicago Bulls, Boston Celtics]
+#       columns: [Los Angeles Lakers, Miami Heat]
+#
+#   Writing `cells:` under `kind: teams` is a load error rather than a merge —
+#   two answer keys for one grid is an author who thinks one of them is in
+#   charge. A heading naming no franchise in the artifact, or a set of
+#   franchises that never shared a single player, is a load error too.
+#
+#   Re-baking the CSV (`uv run python scripts/bake_nba_player_teams.py`) updates
+#   every one of these questions at once; none of them needs reloading for it.
 #
 # One model covers every grid size: 2x2, 3x3, 4x2 are the same question type
 # with different counts, not different types.
@@ -34,21 +74,53 @@ questions:
     rows: [Chicago Bulls, Los Angeles Lakers, San Antonio Spurs]
     columns: ["1990s", "2000s"]
     cells:
-      - {row: Chicago Bulls, column: "1990s", answer: "1996"}
-      - {row: Los Angeles Lakers, column: "2000s", answer: "2001"}
-      - {row: San Antonio Spurs, column: "1990s", answer: "1999"}
-      - {row: San Antonio Spurs, column: "2000s", answer: "2003"}
+      - row: Chicago Bulls
+        column: "1990s"
+        answers:
+          - {answer: "1991", probability_score: 5}
+          - {answer: "1992", probability_score: 5}
+          - {answer: "1993", probability_score: 5}
+          - {answer: "1996", probability_score: 5}
+          - {answer: "1997", probability_score: 5}
+          - {answer: "1998", probability_score: 5}
+      - row: Los Angeles Lakers
+        column: "2000s"
+        answers:
+          - {answer: "2000", probability_score: 5}
+          - {answer: "2001", probability_score: 5}
+          - {answer: "2002", probability_score: 5}
+          - {answer: "2009", probability_score: 5}
+      - row: San Antonio Spurs
+        column: "1990s"
+        answers:
+          - {answer: "1999", probability_score: 5}
+      - row: San Antonio Spurs
+        column: "2000s"
+        answers:
+          - {answer: "2003", probability_score: 5}
+          - {answer: "2005", probability_score: 5}
+          - {answer: "2007", probability_score: 5}
 
   - type: matrix
-    slug: nba-matrix-player-by-team-and-position
+    kind: teams
+    slug: nba-matrix-teams-shared-players-modern
     description: >-
-      Name a player who played the listed position for each of these teams.
-    level: 6
-    tags: {topic: players, era: 2010s}
-    rows: [Miami Heat, Cleveland Cavaliers]
-    columns: [Point guard, Centre]
-    cells:
-      - {row: Miami Heat, column: Point guard, answer: Goran Dragic}
-      - {row: Miami Heat, column: Centre, answer: Hassan Whiteside}
-      - {row: Cleveland Cavaliers, column: Point guard, answer: Kyrie Irving}
-      - {row: Cleveland Cavaliers, column: Centre, answer: Tristan Thompson}
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 7
+    tags: {topic: rosters, era: all-time}
+    time_limit_seconds: 45
+    rows: [Chicago Bulls, Boston Celtics]
+    columns: [Los Angeles Lakers, Miami Heat]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-west
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 9
+    tags: {topic: rosters, era: all-time}
+    time_limit_seconds: 45
+    rows: [Sacramento Kings, Utah Jazz]
+    columns: [Portland Trail Blazers, San Antonio Spurs]

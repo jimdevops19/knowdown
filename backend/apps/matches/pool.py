@@ -67,6 +67,12 @@ class Pairing:
     """The other player, when ``join_pool`` completes one."""
 
     opponent_id: str
+    #: When the *opponent* joined the pool (``time.time()``, wall-clock —
+    #: this crosses processes, so a monotonic clock would not compare).
+    #: ``consumers._pair`` turns this into the wait-time half of the "Match
+    #: found" journey line; this player's own wait was ~0, since joining is
+    #: what completed the pairing.
+    opponent_queued_at: float
 
 
 def _waiting_key(*, category_slug: str) -> str:
@@ -75,6 +81,12 @@ def _waiting_key(*, category_slug: str) -> str:
 
 def _lock_key(*, category_slug: str) -> str:
     return f"matchmaking:lock:{category_slug}"
+
+
+def _waiting_player_id(waiting: tuple[str, float] | None) -> str | None:
+    """The cache value is ``(player_id, queued_at)`` — this reads just the id,
+    which is most of what the lock-holding callers below want."""
+    return None if waiting is None else waiting[0]
 
 
 def join_pool(*, category_slug: str, player_id: UUID | str) -> Pairing | None:
@@ -89,17 +101,20 @@ def join_pool(*, category_slug: str, player_id: UUID | str) -> Pairing | None:
     with _mutex(category_slug=category_slug):
         waiting_key = _waiting_key(category_slug=category_slug)
         waiting = cache.get(waiting_key)
-        if waiting is None:
-            cache.set(waiting_key, player_id, timeout=POOL_WAITING_TTL_SECONDS)
+        waiting_id = _waiting_player_id(waiting)
+        if waiting_id is None:
+            cache.set(
+                waiting_key, (player_id, time.time()), timeout=POOL_WAITING_TTL_SECONDS
+            )
             return None
-        if waiting == player_id:
+        if waiting_id == player_id:
             # Same player retrying a join (e.g. a reconnect before any
-            # opponent showed up) — refresh the TTL rather than pairing
-            # someone against themselves.
-            cache.set(waiting_key, player_id, timeout=POOL_WAITING_TTL_SECONDS)
+            # opponent showed up) — refresh the TTL, but keep the original
+            # queued_at: a retry must not reset how long they have waited.
+            cache.set(waiting_key, waiting, timeout=POOL_WAITING_TTL_SECONDS)
             return None
         cache.delete(waiting_key)
-        return Pairing(opponent_id=waiting)
+        return Pairing(opponent_id=waiting_id, opponent_queued_at=waiting[1])
 
 
 def leave_pool(*, category_slug: str, player_id: UUID | str) -> None:
@@ -112,7 +127,7 @@ def leave_pool(*, category_slug: str, player_id: UUID | str) -> None:
     player_id = str(player_id)
     with _mutex(category_slug=category_slug):
         waiting_key = _waiting_key(category_slug=category_slug)
-        if cache.get(waiting_key) == player_id:
+        if _waiting_player_id(cache.get(waiting_key)) == player_id:
             cache.delete(waiting_key)
 
 
@@ -131,7 +146,7 @@ def claim_for_bot(*, category_slug: str, player_id: UUID | str) -> bool:
     player_id = str(player_id)
     with _mutex(category_slug=category_slug):
         waiting_key = _waiting_key(category_slug=category_slug)
-        if cache.get(waiting_key) != player_id:
+        if _waiting_player_id(cache.get(waiting_key)) != player_id:
             return False
         cache.delete(waiting_key)
         return True

@@ -44,15 +44,18 @@ from typing import Callable
 from pydantic import TypeAdapter, ValidationError
 
 from apps.core_common.exceptions import ValidationFailed
+from apps.questions.matching import normalise_answer as _normalise
 from apps.questions.models import (
     BaseQuestion,
     ColumnsRowsQuestion,
     FreeTextQuestion,
+    MatrixKind,
     MultipleAnswerQuestion,
     OrderingQuestion,
     QuestionType,
     TrueFalseQuestion,
 )
+from apps.questions.rosters import load_rosters
 from apps.questions.schemas.answers import (
     AnswerSubmission,
     FreeTextSubmission,
@@ -102,20 +105,6 @@ WRONG = AnswerResult(is_correct=False, score=0.0)
 RIGHT = AnswerResult(is_correct=True, score=1.0)
 
 
-def _normalise(value: str) -> str:
-    """The comparison form of a typed answer.
-
-    Casefolded and whitespace-collapsed, so ``"  kobe   BRYANT "`` matches
-    ``"Kobe Bryant"``. Applied to *both* sides, which is what lets the resource
-    files stay readable (``accepted_answers`` is authored as people spell it, not
-    as a list of lowercase keys) — and why an author cannot accidentally make an
-    answer unreachable with a trailing space.
-
-    Casefold rather than lower: it is the one that folds the non-English forms a
-    player's keyboard can produce, and a name is exactly the kind of word that
-    has them.
-    """
-    return " ".join(value.split()).casefold()
 
 
 def _refuse(question: BaseQuestion, problem: str) -> ValidationFailed:
@@ -235,26 +224,92 @@ def _evaluate_matrix(
     scores nothing and a cell nobody was asked about is malformed — the
     difference between not knowing an answer and answering a question that was
     not put.
+
+    A cell has **several** accepted answers (``models.MatrixCellAnswer``) and
+    any one of them takes the cell: "a player who played for both these teams"
+    has as many right answers as the rosters share. ``probability_score`` — how
+    obscure a pick is — is deliberately *not* read here: credit is the fraction
+    of the grid a player got right, and paying more for a rarer name would make
+    two players who both filled the grid correctly score differently.
+
+    A ``kind: teams`` grid answers the same question from the other side — the
+    accepted names are looked up rather than stored — and everything above still
+    holds: same denominator, same per-cell credit, same refusal for a cell
+    nobody was asked about.
     """
-    answers = {
-        (row_id, column_id): answer
-        for row_id, column_id, answer in question.cells.values_list(
-            "row_id", "column_id", "answer"
-        )
-    }
+    if question.kind == MatrixKind.TEAMS:
+        return _evaluate_team_matrix(question=question, submitted=submitted)
+
+    accepted: dict[tuple[int, int], set[str]] = {}
+    for row_id, column_id, value in question.cells.values_list(
+        "row_id", "column_id", "answers__value"
+    ):
+        # A cell with no answers cannot be filled in correctly by anybody, so it
+        # would silently cap the question's credit. The loader cannot author one
+        # (``MatrixCellSpec.answers`` is non-empty) and the admin can; counting
+        # it here is what keeps the denominator honest either way.
+        cell_answers = accepted.setdefault((row_id, column_id), set())
+        if value is not None:
+            cell_answers.add(_normalise(value))
 
     matched = 0
     for cell in submitted.cells:
         key = (cell.row_id, cell.column_id)
-        if key not in answers:
+        if key not in accepted:
             raise _refuse(
                 question,
                 f"row {cell.row_id} x column {cell.column_id} is not a cell it asks for",
             )
-        if _normalise(cell.answer) == _normalise(answers[key]):
+        if _normalise(cell.answer) in accepted[key]:
             matched += 1
 
-    return AnswerResult.of(matched / len(answers))
+    return AnswerResult.of(matched / len(accepted))
+
+
+def _evaluate_team_matrix(
+    *, question: ColumnsRowsQuestion, submitted: MatrixSubmission
+) -> AnswerResult:
+    """matrix, ``kind: teams``: the answer key is the roster artifact.
+
+    The cells are still rows in the database — they are what the client draws an
+    input in, and what the denominator counts — but they hold no answers, so
+    "was this cell filled in correctly?" is a question about two franchises and
+    a typed name, and ``apps.questions.rosters`` is what answers it.
+
+    The names are not read from the question, so a grid cannot go stale against
+    a trade: re-baking the CSV is the whole update, and no question needs
+    reloading for it. What *is* read from the question is which intersections it
+    asks about — a cell the loader did not write is refused here exactly as it
+    is for an authored grid, because the client should never have shown an input
+    for it.
+    """
+    rosters = load_rosters()
+    asked = {
+        (row_id, column_id): (row_title, column_title)
+        for row_id, column_id, row_title, column_title in question.cells.values_list(
+            "row_id", "column_id", "row__title", "column__title"
+        )
+    }
+
+    # A team grid with no cells is a grid nobody can score. The loader refuses
+    # to write one (``schemas.MatrixSpec`` refuses the question outright), and
+    # the admin cannot delete the last cell without deleting a heading, so this
+    # is the belt to that pair of braces rather than a case anybody has seen.
+    if not asked:
+        raise _refuse(question, "it asks for no cells at all")
+
+    matched = 0
+    for cell in submitted.cells:
+        key = (cell.row_id, cell.column_id)
+        if key not in asked:
+            raise _refuse(
+                question,
+                f"row {cell.row_id} x column {cell.column_id} is not a cell it asks for",
+            )
+        if rosters.played_for_all(name=cell.answer, titles=asked[key]):
+            matched += 1
+
+    return AnswerResult.of(matched / len(asked))
 
 
 #: One evaluator per question type, keyed the way

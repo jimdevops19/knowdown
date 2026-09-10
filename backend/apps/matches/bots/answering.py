@@ -92,11 +92,20 @@ def _ordering(*, question: BaseQuestion, correct: bool) -> dict:
 
 
 def _matrix(*, question: ColumnsRowsQuestion, correct: bool) -> dict:
-    cells = list(question.cells.values_list("row_id", "column_id", "answer"))
+    # A cell accepts several answers; a bot needs one of them, so it takes the
+    # first — ``MatrixCellAnswer`` orders by ``probability_score``, which makes
+    # that the most obvious pick rather than an arbitrary one.
     submitted = []
-    for row_id, column_id, answer in cells:
-        value = answer if correct else f"wrong-{uuid.uuid4().hex[:6]}"
-        submitted.append({"row_id": row_id, "column_id": column_id, "answer": value})
+    for cell in question.cells.prefetch_related("answers"):
+        answer = cell.answers.first()
+        value = (
+            answer.value
+            if correct and answer is not None
+            else f"wrong-{uuid.uuid4().hex[:6]}"
+        )
+        submitted.append(
+            {"row_id": cell.row_id, "column_id": cell.column_id, "answer": value}
+        )
     return {"type": QuestionType.MATRIX, "cells": submitted}
 
 

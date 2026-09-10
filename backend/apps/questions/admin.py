@@ -21,6 +21,7 @@ from .models import (
     FreeTextQuestion,
     ImageAnswerOption,
     MatrixCell,
+    MatrixCellAnswer,
     MatrixColumn,
     MatrixRow,
     MultipleAnswerOption,
@@ -84,6 +85,11 @@ class MatrixCellInline(_OptionInline):
     # The grid is read row by row, and a cell is meaningless without both
     # headings — so both are shown, and neither is a free-text field.
     autocomplete_fields = ()
+    show_change_link = True  # where its answers are edited, see MatrixCellAdmin
+
+
+class MatrixCellAnswerInline(_OptionInline):
+    model = MatrixCellAnswer
 
 
 @admin.register(SingleAnswerQuestion)
@@ -116,7 +122,36 @@ class OrderingQuestionAdmin(_QuestionAdmin):
     inlines = [OrderingOptionInline]
 
 
+@admin.register(MatrixCell)
+class MatrixCellAdmin(admin.ModelAdmin):
+    """Where a cell's accepted answers are graded.
+
+    A cell has its own page rather than being edited entirely inside the
+    question, because its answers are its *grand*children and Django has no
+    nested inline: the question lists the intersections, and each one links here
+    for the several names that fill it and how obscure each of them is.
+    """
+
+    list_display = ("question", "row", "column", "answer_count")
+    list_filter = ("question__category",)
+    search_fields = ("question__slug", "row__title", "column__title")
+    inlines = [MatrixCellAnswerInline]
+
+    @admin.display(description="answers")
+    def answer_count(self, cell: MatrixCell) -> int:
+        return cell.answers.count()
+
+
 @admin.register(ColumnsRowsQuestion)
 class ColumnsRowsQuestionAdmin(_QuestionAdmin):
-    list_display = (*_QuestionAdmin.list_display, "row_count", "column_count")
+    """A grid, and where its answers come from.
+
+    ``kind`` is on the list display because it is the difference between a cell
+    with no answers being an authoring mistake and it being the normal state of
+    a ``teams`` grid, whose answer key is ``apps.questions.rosters`` rather than
+    anything editable here.
+    """
+
+    list_display = (*_QuestionAdmin.list_display, "kind", "row_count", "column_count")
+    list_filter = (*_QuestionAdmin.list_filter, "kind")
     inlines = [MatrixRowInline, MatrixColumnInline, MatrixCellInline]

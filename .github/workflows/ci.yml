@@ -1,0 +1,74 @@
+# The backend gate on every push and PR: the suite, a dependency audit, and
+# an offline OpenAPI document a client's types can be generated from without
+# a running server.
+#
+# Three independent jobs rather than three steps in one — a red suite must
+# not hide behind (or block on) a slow audit, and the schema job needs
+# nothing the other two produce. Set `test` and `audit` as required status
+# checks on the default branch (repo Settings → Branches) for "a red suite
+# blocks a merge" to actually hold; a workflow file alone cannot make GitHub
+# enforce that.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: backend
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      # config.settings.test needs no environment — sqlite in-memory, the
+      # in-memory channel layer and cache (see that module's own comments on
+      # why a developer's exported REDIS_URL must not leak into this run).
+      - run: uv run python manage.py test --settings=config.settings.test
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      # --group dev pulls in pip-audit itself without installing it into any
+      # shipped image — see [dependency-groups] in pyproject.toml.
+      - run: uv run --group dev pip-audit
+
+  schema:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      # --fail-on-warn: the same check apps/*/CLAUDE.md's "Done when"s already
+      # ask a developer to run by hand — a warning here is a field drf-spectacular
+      # could not describe, which becomes a client type nobody can trust.
+      - run: >
+          uv run python manage.py spectacular --settings=config.settings.test
+          --fail-on-warn --file schema.yaml
+
+      # Attached to the run regardless of branch — a PR's schema is worth
+      # diffing against main's even before it merges.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openapi-schema
+          path: backend/schema.yaml

@@ -19,7 +19,16 @@ from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from apps.questions.models import MAX_LEVEL, QuestionType
+from apps.questions.models import (
+    DEFAULT_PROBABILITY_SCORE,
+    MAX_LEVEL,
+    MAX_PROBABILITY_SCORE,
+    MIN_PROBABILITY_SCORE,
+    MatrixKind,
+    QuestionType,
+)
+from apps.questions.matching import normalise_answer
+from apps.questions.rosters import load_rosters
 
 
 class _Strict(BaseModel):
@@ -191,10 +200,59 @@ class OrderingSpec(_QuestionSpec):
         return [value.strip() for value in values]
 
 
+class MatrixAnswerSpec(_Strict):
+    """One thing that counts as right at one intersection.
+
+    Written either in full::
+
+        {answer: Michael Jordan, probability_score: 2}
+
+    or as a bare string, which is the same entry graded
+    ``DEFAULT_PROBABILITY_SCORE``. The shorthand exists because a cell with a
+    single obvious answer is common and a three-key mapping to say so is noise;
+    the long form exists because ``probability_score`` is a judgement about the
+    sport, and the point of it is that an author sets it by hand.
+    """
+
+    answer: str = Field(min_length=1, max_length=255)
+    probability_score: int = Field(
+        default=DEFAULT_PROBABILITY_SCORE,
+        ge=MIN_PROBABILITY_SCORE,
+        le=MAX_PROBABILITY_SCORE,
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_a_bare_string(cls, value):
+        return {"answer": value} if isinstance(value, str) else value
+
+
 class MatrixCellSpec(_Strict):
+    """One intersection, and **every** answer that fills it.
+
+    ``answers`` is a list because most interesting grids have more than one
+    right answer per square — "a player who played for both these teams" is
+    satisfied by everybody the two rosters share — and a single ``answer:``
+    string would have made whichever name the author thought of first the only
+    one that scores.
+    """
+
     row: str = Field(min_length=1)
     column: str = Field(min_length=1)
-    answer: str = Field(min_length=1, max_length=255)
+    answers: list[MatrixAnswerSpec] = Field(min_length=1)
+
+    @field_validator("answers")
+    @classmethod
+    def _no_duplicate_answers(
+        cls, values: list[MatrixAnswerSpec]
+    ) -> list[MatrixAnswerSpec]:
+        # Compared case-insensitively for the same reason free-text spellings
+        # are: the evaluator folds case, so two entries differing only in it are
+        # one answer written twice — with, worse, two different grades.
+        folded = [value.answer.strip().casefold() for value in values]
+        if len(set(folded)) != len(folded):
+            raise ValueError("cell repeats an answer")
+        return values
 
 
 class MatrixSpec(_QuestionSpec):
@@ -204,12 +262,87 @@ class MatrixSpec(_QuestionSpec):
     row at the top of the file does not silently re-target every answer below it.
     ``row_count``/``column_count`` are derived from the headings rather than
     authored, because a count that can disagree with the thing it counts will.
+
+    ``kind`` chooses where the answers come from. The default writes them out;
+    ``kind: teams`` names two axes of NBA franchises and takes them from
+    ``apps.questions.rosters`` instead, cells and all — see ``models.MatrixKind``
+    for why that is a question type's worth of difference rather than a
+    convenience.
     """
 
     type: Literal[QuestionType.MATRIX]
+    #: Where the answer key comes from — see ``models.MatrixKind``. The default
+    #: is the authored grid, so every question written before this existed means
+    #: what it always did.
+    kind: MatrixKind = MatrixKind.AUTHORED
     rows: list[str] = Field(min_length=2)
     columns: list[str] = Field(min_length=2)
-    cells: list[MatrixCellSpec] = Field(min_length=1)
+    #: Empty for ``kind: teams``, where the grid is derived rather than written:
+    #: the loader fills in every intersection the two rosters actually share.
+    cells: list[MatrixCellSpec] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _authored_grids_author_their_cells(self) -> MatrixSpec:
+        """``cells`` is required for an authored grid and refused for a derived
+        one.
+
+        Refused rather than merged: a file that both declares ``kind: teams``
+        and writes out three cells is an author who believes one of the two is
+        in charge, and guessing which would make the other silently do nothing.
+        """
+        if self.kind == MatrixKind.AUTHORED and not self.cells:
+            raise ValueError(
+                f"matrix question {self.slug!r}: an authored grid needs at least one cell"
+            )
+        if self.kind != MatrixKind.AUTHORED and self.cells:
+            raise ValueError(
+                f"matrix question {self.slug!r}: a {self.kind.value!r} grid derives its "
+                f"cells, so it may not author them"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _team_headings_name_real_franchises(self) -> MatrixSpec:
+        """Every heading of a ``kind: teams`` grid must be a franchise the
+        roster artifact knows.
+
+        Caught here rather than at evaluation time, where a mistyped
+        ``"LA Lakers"`` would be a column no answer can fill and a player would
+        find out with the clock running. Names are matched the way a typed
+        answer is — folded — so the file may spell a franchise however reads
+        best; only a franchise that does not exist is an error.
+        """
+        if self.kind != MatrixKind.TEAMS:
+            return self
+        rosters = load_rosters()
+        unknown = [
+            title
+            for title in [*self.rows, *self.columns]
+            if rosters.canonical_team(title) is None
+        ]
+        if unknown:
+            raise ValueError(
+                f"matrix question {self.slug!r}: {', '.join(repr(t) for t in unknown)} "
+                f"name no NBA franchise in the roster artifact"
+            )
+
+        # A grid nobody can fill in anywhere is not a hard question, it is a
+        # broken one — and it is a mistake only the artifact can catch, since
+        # both axes are perfectly well-spelled franchises that simply never
+        # shared a player. Individual empty intersections are fine and expected:
+        # the grid is sparse, and the loader writes only the cells that have
+        # somebody in them.
+        if not any(
+            rosters.players_for_all((row, column))
+            for row in self.rows
+            for column in self.columns
+            if normalise_answer(row) != normalise_answer(column)
+        ):
+            raise ValueError(
+                f"matrix question {self.slug!r}: no two of these franchises ever "
+                f"shared a player, so the grid has no cell anybody could fill"
+            )
+        return self
 
     @model_validator(mode="after")
     def _headings_distinct(self) -> MatrixSpec:
@@ -276,6 +409,7 @@ __all__ = [
     "CategorySpec",
     "FreeTextSpec",
     "ImageAnswerSpec",
+    "MatrixAnswerSpec",
     "MatrixCellSpec",
     "MatrixSpec",
     "MultipleAnswerSpec",

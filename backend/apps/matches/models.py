@@ -46,6 +46,16 @@ class Matchup(BaseModel):
     #: rows a completed matchup must have.
     question_count = models.PositiveSmallIntegerField()
 
+    #: Whether this result may move a ``Ranking``. Decided once, at
+    #: ``services.create_matchup``, from whether either side is a CPU
+    #: opponent (``apps.matches.bots``) — never re-derived later, so a bot
+    #: profile edited mid-match cannot flip a game's own record of what kind
+    #: of game it was. ``services.update_ratings_for_matchup`` in
+    #: ``apps.rankings`` is the one reader: unranked is a no-op there, which
+    #: is what keeps a bot pinned at ``DEFAULT_PLAYER_RATING`` forever and
+    #: keeps the human's own rating exactly where a real opponent left it.
+    is_ranked = models.BooleanField(default=True)
+
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -257,13 +267,23 @@ class BotProfile(BaseModel):
     #: guaranteed loss for the human it is standing in for.
     accuracy = models.FloatField()
 
-    #: The band its response time is drawn uniformly from, in milliseconds —
-    #: server-measured the same way a human's is (``constants.score_answer``
-    #: never learns the difference). The seeded roster spans "under 2s" to
-    #: "over 9s" end to end; one bot's own band is narrower, which is what
-    #: makes it recognisably fast or slow rather than merely random.
-    min_response_ms = models.PositiveIntegerField()
-    max_response_ms = models.PositiveIntegerField()
+    #: The band its response time is drawn uniformly from, expressed as a
+    #: **fraction of the question's own time limit** (0.0–1.0) rather than a
+    #: fixed number of milliseconds. A fixed millisecond band (the original
+    #: shape of this field) reads as "fast" or "slow" only against the
+    #: fallback ten-second question — a matrix question's own 20-second limit
+    #: (``constants.FALLBACK_QUESTION_TIME_LIMITS_MS``) would make even the
+    #: slowest bot look instant, because it would still be answering in under
+    #: half the time given. Storing a fraction and multiplying by
+    #: ``apps.matches.constants.time_limit_ms_for(...)`` at answer time (see
+    #: ``apps.matches.bots.controller``) is what keeps a bot's *relative*
+    #: speed the same on every question type, long or short, present or
+    #: future. The seeded roster spans "answers within ~20% of the clock" to
+    #: "answers with ~90% of the clock gone" end to end; one bot's own band is
+    #: narrower, which is what makes it recognisably fast or slow rather than
+    #: merely random.
+    min_response_fraction = models.FloatField()
+    max_response_fraction = models.FloatField()
 
     class Meta(BaseModel.Meta):
         constraints = [
@@ -272,7 +292,12 @@ class BotProfile(BaseModel):
                 name="bot_profile_accuracy_in_range",
             ),
             models.CheckConstraint(
-                condition=models.Q(max_response_ms__gte=models.F("min_response_ms")),
+                condition=models.Q(min_response_fraction__gte=0.0)
+                & models.Q(max_response_fraction__lte=1.0),
+                name="bot_profile_response_fraction_in_range",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(max_response_fraction__gte=models.F("min_response_fraction")),
                 name="bot_profile_response_band_ordered",
             ),
         ]

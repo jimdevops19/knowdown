@@ -68,6 +68,9 @@ FORBIDDEN_FIELD_NAMES = frozenset(
         "correct",
         "correct_position",
         "is_correct",
+        # Not an answer, a *clue* to one: a matrix cell graded 9 says its
+        # answers are obscure, which narrows a guess before it is made.
+        "probability_score",
         "solution",
         "value",
     }
@@ -265,6 +268,11 @@ class OrderingPlaySerializer(_QuestionPlaySerializer):
 class MatrixPlaySerializer(_QuestionPlaySerializer):
     """The grid: its headings, and which intersections to fill.
 
+    ``kind: teams`` changes nothing here. Its answers live in the roster
+    artifact rather than in the database, which is a fact about where the
+    evaluator looks, not about what a player may see — the cells go out the same
+    way, naming an intersection and nothing about what fills it.
+
     Headings keep their authored order rather than being shuffled. They are not
     options to be picked but axes to be read, the sparse pattern of cells is what
     makes the grid legible, and a player reading a shuffled set of years against
@@ -274,6 +282,11 @@ class MatrixPlaySerializer(_QuestionPlaySerializer):
 
     row_count = serializers.IntegerField(read_only=True)
     column_count = serializers.IntegerField(read_only=True)
+    #: Which grid this is (``models.MatrixKind``) — a *display* fact, not a
+    #: clue: it says a client may offer player-name autocomplete for a team
+    #: grid, and says nothing about what belongs in any square. Every kind
+    #: hides its answers the same way; the cells below carry none either way.
+    kind = serializers.CharField(read_only=True)
     rows = serializers.SerializerMethodField()
     columns = serializers.SerializerMethodField()
     cells = serializers.SerializerMethodField()

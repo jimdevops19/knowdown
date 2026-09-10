@@ -112,6 +112,7 @@ LOCAL_APPS: list[str] = [
     "apps.matches",
     "apps.rankings",
     "apps.achievements",
+    "apps.ops",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -119,6 +120,12 @@ INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # The admin's door (ADMIN_GATE_ENABLED only; removes itself otherwise via
+    # MiddlewareNotUsed). Above WhiteNoise so it can refuse an admin asset
+    # before WhiteNoise serves it, and above everything that reads
+    # request.path so the path rewrite it does has already happened by the
+    # time anything looks.
+    "apps.ops.middleware.AdminGateMiddleware",
     # Serves STATIC_ROOT from gunicorn. The only static this backend has is the
     # admin's own CSS/JS — an SPA's assets are its own server's job — so this
     # exists to make the admin look like the admin, and nothing else.
@@ -272,6 +279,8 @@ MEDIA_URL = "media/"
 # Overridable so a deployment can point this at a writable volume: the runtime
 # image ships the code dir read-only by design, so the default below is only
 # correct for local dev, where BASE_DIR is the repo checkout.
+# `config/settings/production.py` overrides the default to the `/data` volume
+# `backend/Dockerfile` creates, so a deployment need not set this itself.
 #
 # `sync_questions` copies question images here out of
 # apps/questions/resources/<category>/images/ — see apps.questions.services.sync.
@@ -531,7 +540,7 @@ FF_ENABLE_BOTS_IF_TIMEOUT = env_bool("FF_ENABLE_BOTS_IF_TIMEOUT", False)
 # `apps.matches.consumers.MatchmakingConsumer`, not by the pool itself — the
 # pool only ever holds one waiting slot and does not know why a caller wants it
 # freed.
-MATCHMAKING_BOT_TIMEOUT_SECONDS = env_int("MATCHMAKING_BOT_TIMEOUT_SECONDS", 15)
+MATCHMAKING_BOT_TIMEOUT_SECONDS = env_int("MATCHMAKING_BOT_TIMEOUT_SECONDS", 8)
 
 
 # --- Outbound mail -----------------------------------------------------------
@@ -621,6 +630,15 @@ TRUSTED_PROXY_HOPS = env_int("TRUSTED_PROXY_HOPS", 0)
 
 ADMIN_ENABLED = env_bool("ADMIN_ENABLED", False)
 ADMIN_URL = resolve_admin_url()
+
+# With the gate on, ADMIN_URL stops being the secret and becomes an internal
+# implementation detail: the mounted prefix 404s from outside no matter what
+# it is, and the admin answers only under a token minted by
+# `manage.py open_admin` at `/_ops/<token>/<ADMIN_URL>` (apps.ops). Off by
+# default — `local.py` runs a plain dev admin at its mounted prefix, since a
+# solo developer has no one else who could open it. `production.py` turns it
+# on.
+ADMIN_GATE_ENABLED = env_bool("ADMIN_GATE_ENABLED", False)
 
 
 # --- Logging -----------------------------------------------------------------

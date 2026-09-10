@@ -174,7 +174,12 @@ def _next_state(
     if elapsed_ms >= deadline_ms:
         return _Skip(question.order)  # too late to land an honest answer — let it time out
 
-    target_ms = min(random.uniform(profile.min_response_ms, profile.max_response_ms), deadline_ms)
+    # min/max_response_fraction is a share of *this question's own* clock
+    # (BotProfile's docstring explains why a fixed millisecond band cannot
+    # mean the same thing on a 10s question and a 20s matrix question), so the
+    # target is drawn against time_limit_ms, not a constant.
+    target_fraction = random.uniform(profile.min_response_fraction, profile.max_response_fraction)
+    target_ms = min(target_fraction * time_limit_ms, deadline_ms)
     return _Answer(order=question.order, delay_seconds=max(0.0, (target_ms - elapsed_ms) / 1000))
 
 

@@ -14,7 +14,7 @@ from __future__ import annotations
 from django.test import TestCase
 
 from apps.core_common.exceptions import ValidationFailed
-from apps.questions.models import QUESTION_MODELS, QuestionType
+from apps.questions.models import QUESTION_MODELS, MatrixCellAnswer, QuestionType
 from apps.questions.schemas.answers import ANSWER_SUBMISSIONS
 from apps.questions.services.evaluation import ANSWER_EVALUATORS, evaluate_answer
 
@@ -22,6 +22,7 @@ from .factories import (
     QUESTION_FACTORIES,
     make_free_text,
     make_matrix,
+    make_team_matrix,
     make_multiple_answer,
     make_ordering,
     make_single_answer,
@@ -435,6 +436,42 @@ class MatrixTests(TestCase):
         self.assertAlmostEqual(result.score, 1 / 3)
         self.assertFalse(result.is_correct)
 
+    def test_any_of_a_cells_answers_takes_the_cell(self) -> None:
+        """The Lakers/2000s cell accepts 2001 *or* 2002 — the whole point of a
+        grid asking "name a player who played for both": there are several right
+        answers and a player only has to reach one of them."""
+        result = self.submit(
+            ("Bulls", "1990s", "1996"),
+            ("Lakers", "2000s", "2002"),
+            ("Lakers", "1990s", "1988"),
+        )
+        self.assertTrue(result.is_correct)
+
+    def test_a_rarer_answer_is_worth_exactly_what_the_obvious_one_is(self) -> None:
+        """``probability_score`` grades how obscure a pick is and deliberately
+        does not pay for it: credit is the fraction of the grid filled
+        correctly, so two players who both filled it in score the same."""
+        question = make_matrix(
+            slug="graded",
+            cells=(("Bulls", "1990s", (("1996", 2), ("1998", 10))),),
+        )
+        obvious = evaluate_answer(
+            question=question, submitted=cell_payload(question, ("Bulls", "1990s", "1996"))
+        )
+        deep_cut = evaluate_answer(
+            question=question, submitted=cell_payload(question, ("Bulls", "1990s", "1998"))
+        )
+        self.assertEqual(obvious, deep_cut)
+        self.assertTrue(obvious.is_correct)
+
+    def test_a_cell_with_several_answers_is_still_one_cell_of_credit(self) -> None:
+        """Two answers at one intersection are two ways to fill one square, not
+        two squares — the denominator is cells, and a grid whose first cell
+        accepts three names is not worth more than one whose first cell accepts
+        one."""
+        result = self.submit(("Lakers", "2000s", "2002"))
+        self.assertAlmostEqual(result.score, 1 / 3)
+
     def test_cell_answers_are_compared_the_way_free_text_is(self) -> None:
         result = self.submit(
             ("Bulls", "1990s", " 1996 "),
@@ -459,3 +496,98 @@ class MatrixTests(TestCase):
         payload = cell_payload(other, ("Bulls", "1990s", "1996"))
         with self.assertRaises(ValidationFailed):
             evaluate_answer(question=self.question, submitted=payload)
+
+
+class TeamMatrixTests(TestCase):
+    """``kind: teams`` — the same grid, scored against the roster artifact.
+
+    Every rule ``MatrixTests`` pins down still holds; what changes is only where
+    "is this cell right?" is answered, so these cases are about the seam rather
+    than about credit arithmetic a second time.
+
+    The fixture is a 2x2 of well-travelled franchises with one intersection left
+    out, which is what makes it possible to answer a square nobody asked about.
+    """
+
+    def setUp(self) -> None:
+        self.question = make_team_matrix(
+            rows=("Chicago Bulls", "Boston Celtics"),
+            columns=("Los Angeles Lakers", "Miami Heat"),
+            cells=(
+                ("Chicago Bulls", "Los Angeles Lakers"),
+                ("Boston Celtics", "Los Angeles Lakers"),
+                ("Boston Celtics", "Miami Heat"),
+            ),
+        )
+
+    def submit(self, *cells):
+        return evaluate_answer(
+            question=self.question, submitted=cell_payload(self.question, *cells)
+        )
+
+    def test_a_player_of_both_franchises_takes_the_cell(self) -> None:
+        result = self.submit(("Chicago Bulls", "Los Angeles Lakers", "Dennis Rodman"))
+        self.assertAlmostEqual(result.score, 1 / 3)
+
+    def test_a_player_of_neither_takes_nothing(self) -> None:
+        self.assertEqual(
+            self.submit(("Chicago Bulls", "Los Angeles Lakers", "Nobody At All")).score,
+            0.0,
+        )
+
+    def test_a_player_of_only_one_of_them_takes_nothing(self) -> None:
+        """The cell asks for both shirts, not for a name either franchise
+        recognises. Michael Jordan is as famous as a wrong answer gets here."""
+        self.assertEqual(
+            self.submit(("Boston Celtics", "Miami Heat", "Michael Jordan")).score, 0.0
+        )
+
+    def test_the_whole_grid_right_is_a_correct_answer(self) -> None:
+        result = self.submit(
+            ("Chicago Bulls", "Los Angeles Lakers", "Dennis Rodman"),
+            ("Boston Celtics", "Los Angeles Lakers", "Rajon Rondo"),
+            ("Boston Celtics", "Miami Heat", "Ray Allen"),
+        )
+        self.assertTrue(result.is_correct)
+        self.assertEqual(result.score, 1.0)
+
+    def test_names_are_compared_the_way_every_typed_answer_is(self) -> None:
+        self.assertAlmostEqual(
+            self.submit(
+                ("Chicago Bulls", "Los Angeles Lakers", "  dennis   RODMAN ")
+            ).score,
+            1 / 3,
+        )
+
+    def test_the_denominator_is_the_cells_the_loader_wrote(self) -> None:
+        """Three cells of a 2x2, so credit is thirds — the sparseness of a
+        derived grid is decided by the artifact rather than by an author, and it
+        is still the denominator."""
+        self.assertAlmostEqual(
+            self.submit(
+                ("Chicago Bulls", "Los Angeles Lakers", "Dennis Rodman"),
+                ("Boston Celtics", "Los Angeles Lakers", "Rajon Rondo"),
+            ).score,
+            2 / 3,
+        )
+
+    def test_answering_an_intersection_nobody_asked_about_is_malformed(self) -> None:
+        with self.assertRaises(ValidationFailed) as caught:
+            self.submit(("Chicago Bulls", "Miami Heat", "Dwyane Wade"))
+        self.assertIn("not a cell it asks for", caught.exception.message)
+
+    def test_a_grid_with_no_cells_is_refused_rather_than_divided_by_zero(self) -> None:
+        empty = make_team_matrix(slug="empty-team-grid", cells=())
+        other = make_team_matrix(slug="a-grid-with-cells")
+        payload = cell_payload(
+            other, ("Chicago Bulls", "Washington Wizards", "Michael Jordan")
+        )
+        with self.assertRaises(ValidationFailed):
+            evaluate_answer(question=empty, submitted=payload)
+
+    def test_it_stores_no_answers_of_its_own(self) -> None:
+        """The point of the kind: the answer key is the artifact, so a question
+        that asks about the Lakers does not carry its own copy of the Lakers."""
+        self.assertEqual(
+            MatrixCellAnswer.objects.filter(cell__question=self.question).count(), 0
+        )

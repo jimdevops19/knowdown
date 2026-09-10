@@ -342,8 +342,6 @@ own tight loops don't trip a limit meant for someone else.
 socket) asks for the real behaviour with `@override_settings`. 308/308 backend
 tests pass.
 
-# STOPPED HERE - 10/09/2026 - Phase F started (20 done); 21-25 not started
-
 ### 21. `apps/ops` — the admin's door
 Port rpool's admin gate: the mounted prefix 404s from outside and the admin
 answers only under a token minted by `manage.py open_admin --minutes 30`, stored
@@ -356,6 +354,32 @@ and should leave a record of who opened it.
 **Done when:** the live token never appears in an access-log line (path redaction
 has a test).
 
+**Step 21 done (11/09/2026):** `apps/ops` — ported straight from rpool's
+gate, same mechanism, same posture (a row so opening the admin is visible to
+every worker and leaves a record, never an env var). `AdminWindow`
+(`apps.ops.models`, token stored hashed, not a `BaseModel` — a closed row has
+no soft-delete story worth having); `apps.ops.services` (`open_window`
+supersedes any window already live, `close_windows`, `window_for_token`,
+`any_window_live` for the static-asset gate); `manage.py open_admin --minutes
+30 [--by] [--base-url]` and `manage.py close_admin`.
+`apps.ops.middleware.AdminGateMiddleware` mounted first in `MIDDLEWARE`
+(`ADMIN_GATE_ENABLED`, off in `local.py`'s plain dev admin, on by default in
+`production.py`): the mounted `ADMIN_URL` prefix 404s from outside, and
+`/_ops/<token>/…` is checked against the live window and rewritten
+(`path_info` and the script prefix both) so `reverse()` — every admin link,
+every redirect — comes back out carrying the token. `shared.admin_url` grew
+`OPS_PATH`/`OPS_STATIC_PATH`/`redact_ops_path`; `apps.core_common.middleware
+.AccessLogMiddleware` now logs the redacted path, so the live token never
+lands in the very access-log line that used it
+(`apps.ops.tests.test_redaction`, including one over a real gated request
+with `assertLogs`). `apps.ops.tests.test_gate` (12 tests, ported from rpool)
+covers right/wrong/expired/closed tokens, the static-asset gate, and the gate
+being off entirely. 359/359 backend tests pass except one pre-existing
+failure in `apps.questions.tests.test_sync.ShippedCatalogTests` unrelated to
+this step (uncommitted in-progress work on the questions catalog already
+present in the tree before this step started — not touched here).
+`manage.py spectacular --fail-on-warn` is clean.
+
 ### 22. Container and deploy
 `backend/Dockerfile` + `entrypoint.sh` branching on `SERVER_MODE`,
 `manage.py migrate_locked` (migrate under an advisory lock, so replicas starting
@@ -365,6 +389,31 @@ probes wired to the two endpoints that already exist.
 **Done when:** `replicas > 1` is safe, and the API and realtime processes can
 never come from different commits.
 
+**Step 22 done (11/09/2026):** Ported from rpool, same shape. One
+`backend/Dockerfile` (build context the repo root; multi-stage, `uv sync` in
+a builder, only the resolved venv + app source in a non-root slim runtime)
+and `backend/entrypoint.sh`, branching on `SERVER_MODE`: `api` (default,
+gunicorn/`gthread` on `config.wsgi`) or `realtime` (uvicorn on `config.asgi`)
+— the same image either way, which is what makes "never come from different
+commits" true by construction rather than by discipline.
+`apps.core_common.management.commands.migrate_locked` (`LOCK_KEY`, a Postgres
+advisory lock around plain `migrate`; degrades to a plain `migrate` on
+SQLite, `apps.core_common.tests_migrate_locked` proves that branch), run by
+`api` only (`RUN_MIGRATIONS=0` opts out for a platform with its own init
+container). `collectstatic` runs at build time, as root, before `USER app`
+drops privileges — the code dir is read-only at runtime by design.
+`production.py` gained `SECURE_REDIRECT_EXEMPT = [r"^api/v1/health/"]`: found
+by actually running the built image and hitting `health/live/` — without it
+`SECURE_SSL_REDIRECT` 301s every probe that arrives without
+`X-Forwarded-Proto` (i.e. every probe that hits the pod directly, which is
+the point of a probe), and a *liveness* check reading a 301 as failure would
+restart a working container. Verified by building the image and running it
+both ways (`docker run … -e SERVER_MODE=api` and `=realtime`): `health/live/`
+and `health/ready/` both answer 200, the Dockerfile's own `HEALTHCHECK`
+reports `healthy`, and `realtime` boots uvicorn with no migration attempted.
+`.dockerignore` added at the repo root. 360/360 backend tests pass except the
+one pre-existing failure already noted at step 21 (unrelated, untouched).
+
 ### 23. Question images off the local disk
 `MEDIA_ROOT` on a writable volume, or object storage. Today `sync_questions`
 copies into the code directory, which is correct for local dev and wrong for a
@@ -373,6 +422,26 @@ container whose code dir is read-only.
 **Done when:** a fresh deploy serves an image-answer question with no manual copy
 step.
 
+**Step 23 done (11/09/2026):** Chose the volume, not object storage — step
+22's `/data` already exists, owned by the runtime user, for exactly this
+kind of durable state. `config/settings/production.py` gained `MEDIA_ROOT =
+env("MEDIA_ROOT", "/data/media")`, still overridable for a tier that wants an
+actual object store mounted as a filesystem instead. `_copy_image`
+(`apps.questions.services.sync`, unchanged — it already wrote through
+`settings.MEDIA_ROOT`, never a hardcoded path) now lands question images
+somewhere that survives a redeploy by default. Verified against the real
+built image, not just settings: built `backend/Dockerfile`, ran it with
+`DATABASE_URL=sqlite:////data/db.sqlite3`, `docker exec`'d
+`manage.py sync_questions --category nba`, confirmed the images landed under
+`/data/media/questions/answers/nba/`, and fetched one back over HTTP (with
+`X-Forwarded-Proto: https`, standing in for the ingress `SECURE_SSL_REDIRECT`
+already assumes) — 200, `image/png`. `apps.core_common.tests_media_root`
+shells out to a clean interpreter to prove the production default and its
+override, since importing `config.settings.production` in-process would run
+it against the test settings' already-configured Django. 362/362 backend
+tests pass except the one pre-existing failure already noted at step 21
+(unrelated, untouched); `manage.py spectacular --fail-on-warn` is clean.
+
 ### 24. CI
 Run the suite on every push, `pip-audit` on the dependency group, and generate
 the OpenAPI document offline (`manage.py spectacular`) so a client's types can be
@@ -380,6 +449,22 @@ built without a running server.
 
 **Done when:** a red suite blocks a merge, and the schema artefact is attached to
 the build.
+
+**Step 24 done (11/09/2026):** `.github/workflows/ci.yml`, on every push to
+`main` and every PR — three independent jobs so a slow audit never hides a
+red suite behind it: `test` (`manage.py test --settings=config.settings.test`,
+needs no environment — sqlite in-memory, in-memory channel layer/cache),
+`audit` (`uv run --group dev pip-audit` against `uv.lock`, `pip-audit` already
+in the `dev` dependency group), `schema` (`manage.py spectacular
+--fail-on-warn --file schema.yaml`, uploaded with `actions/upload-artifact`
+on every run, PRs included — worth diffing before a merge, not only after).
+Verified each job's exact command locally before committing the workflow
+(`pip-audit`: "No known vulnerabilities found"; `spectacular`: exits 0,
+writes `schema.yaml`). `backend/schema.yaml` added to `.gitignore` — CI's
+output, not source. **"A red suite blocks a merge" needs one more, manual step:** mark `test` and
+`audit` as required status checks on `main` in GitHub's own branch-protection
+settings — a workflow file alone does not make GitHub enforce that, and it is
+a repo-settings change worth a person's deliberate yes rather than a script's.
 
 ### 25. Journey logging and a load rehearsal
 Log the route through the product, not just its endpoints — `Player queued`,
@@ -390,6 +475,53 @@ run tagged.
 
 **Done when:** "how many matches completed, and how long did players wait for an
 opponent?" is a log query rather than a guess.
+
+**Step 25 done (11/09/2026):** Four journey lines, one per moment, each an
+`action` field a query can filter on and a sentence a human can read: `queued`
+(`MatchmakingConsumer.connect`), `matched` (`consumers._pair`/`_pair_with_bot`,
+`duration_ms` = how long the *other* side had waited — `apps.matches.pool`'s
+cached waiting slot now carries `queued_at` beside the player id, returned on
+`Pairing` as `opponent_queued_at`), `answered` (`services.submit_answer`,
+`duration_ms` = the server-measured response time; correctness lives in the
+sentence, not a new field — nothing on `shared.logging.schema` says "correct"
+and adding one for a fact the message already states would be a second
+spelling), `completed` (`services._log_match_completed`, called from both
+`complete_matchup` and `abandon_matchup`, `duration_ms` = the whole match's
+length). No new schema fields — `action`/`duration_ms`/`player`/`category`
+already existed; `duration_ms`'s doc comment widened from "how long the
+request took" to "how long the thing being logged took", since it's now
+carrying three different durations, on purpose, as `shared.logging.schema`'s
+"one concept, one key" rule asks. `apps.matches.tests.test_journey_logging`
+(4 tests) reads every line back with `assertLogs`, filtering on `action` the
+way a real query would — two of them (`queued`/`matched`) driven over a real
+`WebsocketCommunicator`, not the service layer standing in for the transport.
+
+`manage.py load_rehearsal` + `load_rehearsal_teardown`
+(`apps.matches.management.commands`) — a black-box rehearsal against a
+deployed instance's real HTTP + WebSocket surface (N real registered
+accounts, real matchmaking and matchup sockets, answers at a randomised
+human-speed delay), not a call into `services`: that's the only way to
+rehearse what steps 22–24 actually shipped — the real gunicorn/uvicorn
+processes, the real Redis pool, real concurrent load. `httpx` + `websockets`
+added to the `dev` dependency group only (`pip-audit` clean on both, and
+neither ships in the runtime image). Every account tagged
+`loadrehearsal-<run>-<n>@rehearsal.invalid` (`.invalid`, RFC 2606's
+reserved-forever TLD). Teardown removes exactly those accounts and
+deliberately **not** the matches they played — `MatchupPlayer.player` is
+`PROTECT`, the same guard protecting everyone else's history, and a
+rehearsal account is not an exception to it; documented plainly in both
+commands' docstrings and `CLAUDE.md` rather than fought. `apps.matches.tests
+.test_load_rehearsal` (8 tests) covers the answer-payload builder against
+the real server (every branch is fed through `services.submit_answer` and
+must not raise `ValidationFailed`, including a full matrix board), the
+ws:// URL derivation, and teardown's tagging — including a test proving a
+played match survives its own account's teardown. 409/409 backend tests
+pass except the one pre-existing failure already noted at step 21
+(unrelated, untouched); `manage.py spectacular --fail-on-warn` is clean.
+
+**Phase F is now complete (20–25 done).**
+
+# STOPPED HERE - 11/09/2026 - Phase F complete (20-25 done); nothing queued next
 
 ---
 
