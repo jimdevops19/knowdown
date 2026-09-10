@@ -223,6 +223,28 @@ class LoadEveryTypeTests(ResourceTreeTestCase):
             QuestionType.SINGLE_ANSWER,
         )
 
+    def test_a_question_that_does_not_author_a_time_limit_stores_none(self) -> None:
+        # "single" (above) never mentions time_limit_seconds — the row must say
+        # so explicitly, rather than default to some number of its own, so
+        # apps.matches's fallbacks are the only place that decides one.
+        self.assertIsNone(SingleAnswerQuestion.objects.get(slug="single").time_limit_seconds)
+
+
+class TimeLimitSecondsTests(ResourceTreeTestCase):
+    """A question may author its own ``time_limit_seconds`` — the override
+    ``apps.matches.constants.time_limit_ms_for`` reads ahead of every
+    fallback."""
+
+    def test_an_authored_time_limit_reaches_the_row(self) -> None:
+        self.write_file("timed.yaml", [single_answer("timed", time_limit_seconds=45)])
+        self.load()
+        self.assertEqual(SingleAnswerQuestion.objects.get(slug="timed").time_limit_seconds, 45)
+
+    def test_a_time_limit_outside_the_allowed_range_is_refused(self) -> None:
+        self.write_file("too-long.yaml", [single_answer("too-long", time_limit_seconds=601)])
+        with self.assertRaises(ValidationFailed):
+            self.load()
+
 
 class IdempotencyTests(ResourceTreeTestCase):
     """Re-running is how a question is *edited*, so a second load must correct

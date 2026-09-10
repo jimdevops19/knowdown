@@ -376,6 +376,7 @@ def _write_question(*, spec, category: Category, folder: Path) -> bool:
         "category": category,
         "tags": spec.tags,
         "level": spec.level,
+        "time_limit_seconds": spec.time_limit_seconds,
         "image": _question_image(spec=spec, folder=folder),
         "is_active": True,
         # Revive rather than insert beside it — see sync_categories.

@@ -90,6 +90,15 @@ class BaseQuestion(BaseModel):
     #: pointing at the row: deleting it would edit a game that has been played.
     is_active = models.BooleanField(default=True)
 
+    #: Overrides how long a matchup leaves this question open, in seconds.
+    #: ``None`` — the common case — means "no override": a matchup falls back
+    #: to ``apps.matches.constants.time_limit_ms_for``'s per-type default, and
+    #: below that, its default of last resort. Authored per question, in YAML,
+    #: the same as ``level`` or ``tags`` — this app only carries the number;
+    #: deciding what it is *worth* is ``apps.matches``' the same way scoring is
+    #: (``backend/CLAUDE.md``).
+    time_limit_seconds = models.PositiveSmallIntegerField(null=True, blank=True)
+
     class Meta:
         abstract = True
         ordering = ("slug",)

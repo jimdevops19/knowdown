@@ -14,15 +14,15 @@ from apps.questions.models import QuestionType
 
 __all__ = [
     "DEFAULT_PLAYER_RATING",
+    "FALLBACK_QUESTION_TIME_LIMIT_MS",
+    "FALLBACK_QUESTION_TIME_LIMIT_SECONDS",
+    "FALLBACK_QUESTION_TIME_LIMITS_MS",
     "MATCH_QUESTION_COUNTS",
     "MAX_QUESTION_POINTS",
     "MIN_SPEED_FACTOR",
     "PLAYERS_PER_MATCHUP",
     "POOL_WAITING_TTL_SECONDS",
     "PRESENCE_TTL_SECONDS",
-    "QUESTION_TIME_LIMIT_MS",
-    "QUESTION_TIME_LIMIT_SECONDS",
-    "QUESTION_TIME_LIMITS_MS",
     "RECONNECT_GRACE_SECONDS",
     "score_answer",
     "time_limit_ms_for",
@@ -45,35 +45,45 @@ PLAYERS_PER_MATCHUP = 2
 DEFAULT_PLAYER_RATING = 1000
 
 #: How long a question stays open once ``start_question`` stamps it, in
-#: server time. The client displays a countdown from this number; it is never
-#: read back from the client. This is the *default* — the per-type override
-#: below is what most questions get.
-QUESTION_TIME_LIMIT_SECONDS = 10
-QUESTION_TIME_LIMIT_MS = QUESTION_TIME_LIMIT_SECONDS * 1000
+#: server time, when *nothing more specific* says otherwise. The client
+#: displays a countdown from this number; it is never read back from the
+#: client. "Fallback" because two more specific numbers outrank it — see
+#: ``time_limit_ms_for``.
+FALLBACK_QUESTION_TIME_LIMIT_SECONDS = 10
+FALLBACK_QUESTION_TIME_LIMIT_MS = FALLBACK_QUESTION_TIME_LIMIT_SECONDS * 1000
 
-#: Per-``QuestionType`` overrides of the above. A matrix question is several
-#: sparse, independent claims read off a grid (``evaluation`` scores it "per
-#: authored cell" for the same reason) rather than one glance-and-answer
-#: claim, so it earns more clock than the default — a type absent here just
-#: falls back to ``QUESTION_TIME_LIMIT_MS`` in ``time_limit_ms_for``. Keyed by
+#: Per-``QuestionType`` fallbacks, used when a question does not author its
+#: own ``time_limit_seconds``. A matrix question is several sparse,
+#: independent claims read off a grid (``evaluation`` scores it "per authored
+#: cell" for the same reason) rather than one glance-and-answer claim, so it
+#: gets more clock than a type left out here, which falls all the way back to
+#: ``FALLBACK_QUESTION_TIME_LIMIT_MS`` in ``time_limit_ms_for``. Keyed by
 #: type, not by category: a board is drawn from one category but categories
 #: are independent of question types on purpose (``backend/CLAUDE.md``), so
 #: this has to live wherever "how long is fair" is decided, not wherever
 #: "what is this about" is decided.
-QUESTION_TIME_LIMITS_MS: dict[QuestionType, int] = {
+FALLBACK_QUESTION_TIME_LIMITS_MS: dict[QuestionType, int] = {
     QuestionType.MATRIX: 20_000,
 }
 
 
-def time_limit_ms_for(question_type: QuestionType) -> int:
-    """How long a question of this type stays open, in server time.
+def time_limit_ms_for(*, question_type: QuestionType, override_seconds: int | None = None) -> int:
+    """How long one question stays open, in server time.
 
-    The one place both ``services`` (measuring an answer against the clock)
-    and the realtime transport (telling a client how long to count down from,
-    and how long its own watchdog should sleep) ask this question, so the two
-    can never quietly disagree about when a question closes.
+    Three tiers, most specific first: ``override_seconds`` — the question's
+    own authored ``time_limit_seconds``, straight off its row, ``None`` when
+    the author left it unset; the type's fallback
+    (``FALLBACK_QUESTION_TIME_LIMITS_MS``); and, absent both, the fallback of
+    last resort, ``FALLBACK_QUESTION_TIME_LIMIT_MS``. This is the one place
+    both ``services`` (measuring an answer against the clock) and the
+    realtime transport (telling a client how long to count down from, and how
+    long its own watchdog should sleep) ask the question, so the two can
+    never quietly disagree about when a question closes.
     """
-    return QUESTION_TIME_LIMITS_MS.get(question_type, QUESTION_TIME_LIMIT_MS)
+    if override_seconds is not None:
+        return override_seconds * 1000
+    return FALLBACK_QUESTION_TIME_LIMITS_MS.get(question_type, FALLBACK_QUESTION_TIME_LIMIT_MS)
+
 
 #: What a fully correct, instant answer is worth.
 MAX_QUESTION_POINTS = 100
@@ -104,7 +114,9 @@ PRESENCE_TTL_SECONDS = 30
 RECONNECT_GRACE_SECONDS = 20
 
 
-def score_answer(*, credit: float, response_time_ms: int, time_limit_ms: int = QUESTION_TIME_LIMIT_MS) -> int:
+def score_answer(
+    *, credit: float, response_time_ms: int, time_limit_ms: int = FALLBACK_QUESTION_TIME_LIMIT_MS
+) -> int:
     """Points for one answer: correctness first, speed second.
 
     ``credit`` is ``AnswerResult.score`` — 0.0 to 1.0, already decided by

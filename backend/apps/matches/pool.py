@@ -39,7 +39,14 @@ from shared.logging import get_logger
 
 logger = get_logger(__name__)
 
-__all__ = ["Pairing", "PoolTimeout", "join_pool", "leave_pool", "pool_size"]
+__all__ = [
+    "Pairing",
+    "PoolTimeout",
+    "claim_for_bot",
+    "join_pool",
+    "leave_pool",
+    "pool_size",
+]
 
 _LOCK_TIMEOUT_SECONDS = 5
 _LOCK_RETRY_SECONDS = 0.02
@@ -107,6 +114,27 @@ def leave_pool(*, category_slug: str, player_id: UUID | str) -> None:
         waiting_key = _waiting_key(category_slug=category_slug)
         if cache.get(waiting_key) == player_id:
             cache.delete(waiting_key)
+
+
+def claim_for_bot(*, category_slug: str, player_id: UUID | str) -> bool:
+    """Atomically withdraw ``player_id`` so ``apps.matches.bots`` may pair
+    them against a CPU opponent instead of a human.
+
+    Same mutex as ``join_pool``/``leave_pool``, and the same reason: the 15
+    second wait (``FF_ENABLE_BOTS_IF_TIMEOUT``) and a human's own arrival race
+    each other, so whichever caller actually holds the waiting slot when this
+    runs must win outright rather than both firing. Returns ``False`` — a
+    no-op, not an error — for a player who is no longer the one waiting: a
+    human already claimed them (the ordinary, better outcome) or they left the
+    pool on their own.
+    """
+    player_id = str(player_id)
+    with _mutex(category_slug=category_slug):
+        waiting_key = _waiting_key(category_slug=category_slug)
+        if cache.get(waiting_key) != player_id:
+            return False
+        cache.delete(waiting_key)
+        return True
 
 
 def pool_size(*, category_slug: str) -> int:

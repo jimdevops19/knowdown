@@ -194,7 +194,12 @@ def submit_answer(
             code="question_already_completed",
         )
 
-    time_limit_ms = time_limit_ms_for(question.question_type)
+    concrete_question = get_concrete_question(
+        ref=QuestionRef(question.question_type, question.question_id)
+    )
+    time_limit_ms = time_limit_ms_for(
+        question_type=question.question_type, override_seconds=concrete_question.time_limit_seconds
+    )
     now = timezone.now()
     elapsed_ms = int((now - question.started_at).total_seconds() * 1000)
     if elapsed_ms > time_limit_ms:
@@ -204,9 +209,6 @@ def submit_answer(
         )
     response_time_ms = max(0, min(elapsed_ms, time_limit_ms))
 
-    concrete_question = get_concrete_question(
-        ref=QuestionRef(question.question_type, question.question_id)
-    )
     result = evaluate_answer(question=concrete_question, submitted=payload)
     points = score_answer(credit=result.score, response_time_ms=response_time_ms, time_limit_ms=time_limit_ms)
 
@@ -258,10 +260,15 @@ def complete_question(*, matchup: Matchup, order: int) -> MatchupQuestion:
 
     answered = question.answers.count()
     total_players = matchup.players.count()
+    concrete_question = get_concrete_question(
+        ref=QuestionRef(question.question_type, question.question_id)
+    )
+    time_limit_ms = time_limit_ms_for(
+        question_type=question.question_type, override_seconds=concrete_question.time_limit_seconds
+    )
     deadline_passed = (
         question.started_at is not None
-        and (timezone.now() - question.started_at).total_seconds() * 1000
-        >= time_limit_ms_for(question.question_type)
+        and (timezone.now() - question.started_at).total_seconds() * 1000 >= time_limit_ms
     )
     if answered < total_players and not deadline_passed:
         raise Conflict(

@@ -202,7 +202,7 @@ class MatchupPlayTests(TransactionTestCase):
         # ``apps.matches.constants`` at call time, so patching the one
         # default it falls back to is enough to make both agree time has run
         # out immediately.
-        with mock.patch("apps.matches.constants.QUESTION_TIME_LIMIT_MS", 0):
+        with mock.patch("apps.matches.constants.FALLBACK_QUESTION_TIME_LIMIT_MS", 0):
             matchup_id, sock_one, sock_two = await self._paired_players()
             await sock_one.receive_json_from(timeout=5)
             await sock_two.receive_json_from(timeout=5)

@@ -24,6 +24,12 @@ ADMIN_ENABLED = True
 # rather than sent, so the flow is walkable end to end with no relay configured.
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
+# On here, and only here (base.py defaults every tier to off): a solo dev
+# running just this process has nobody else to be matched against, so
+# matchmaking would otherwise hang forever waiting on a second human. Run
+# `manage.py seed_bots` once to populate the roster this pairs against.
+FF_ENABLE_BOTS_IF_TIMEOUT = True
+
 # --- Development-only API affordances ----------------------------------------
 # base.py ships hardened defaults (JSON-only, admin-only schema) since the
 # deployed tiers inherit them. Relaxed only here, patched after the import

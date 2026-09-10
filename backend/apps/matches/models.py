@@ -230,3 +230,52 @@ assert PLAYERS_PER_MATCHUP == 2, (
     "MatchupPlayer's model and constraints assume exactly two sides; a "
     "different value here needs a matching change to both."
 )
+
+
+class BotProfile(BaseModel):
+    """How one CPU opponent plays: how often it is right, and how long it
+    takes to answer. One row per bot ``Player`` (``player.is_bot=True``),
+    authored by ``manage.py seed_bots`` rather than a resource file — a bot
+    profile is game-balance data, not content, and there are only 50 of them.
+
+    ``apps.matches.bots.controller`` is the only reader: it draws one
+    ``(correct?, delay)`` decision per question from these two numbers.
+    Nothing in ``apps.questions`` or ``apps.rankings`` knows a bot is
+    different from any other player — the same reason ``Player.is_bot`` is a
+    plain flag on an ordinary row rather than a second player table.
+    """
+
+    player = models.OneToOneField(
+        "players.Player",
+        on_delete=models.CASCADE,
+        related_name="bot_profile",
+    )
+
+    #: Probability, per question, that the bot's submission is deliberately
+    #: built correct (``apps.matches.bots.answering.build_bot_answer``). 0.30
+    #: to 0.90 across the seeded roster — a bot is never a guaranteed win or a
+    #: guaranteed loss for the human it is standing in for.
+    accuracy = models.FloatField()
+
+    #: The band its response time is drawn uniformly from, in milliseconds —
+    #: server-measured the same way a human's is (``constants.score_answer``
+    #: never learns the difference). The seeded roster spans "under 2s" to
+    #: "over 9s" end to end; one bot's own band is narrower, which is what
+    #: makes it recognisably fast or slow rather than merely random.
+    min_response_ms = models.PositiveIntegerField()
+    max_response_ms = models.PositiveIntegerField()
+
+    class Meta(BaseModel.Meta):
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(accuracy__gte=0.0) & models.Q(accuracy__lte=1.0),
+                name="bot_profile_accuracy_in_range",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(max_response_ms__gte=models.F("min_response_ms")),
+                name="bot_profile_response_band_ordered",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Bot profile for {self.player.display_name} ({self.accuracy:.0%} accurate)"

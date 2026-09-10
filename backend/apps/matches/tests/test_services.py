@@ -10,10 +10,12 @@ from django.utils import timezone
 
 from apps.core_common.exceptions import Conflict, ValidationFailed
 from apps.matches import selectors, services
-from apps.matches.constants import QUESTION_TIME_LIMIT_MS, score_answer
+from apps.matches.constants import FALLBACK_QUESTION_TIME_LIMIT_MS, score_answer, time_limit_ms_for
 from apps.matches.models import Matchup
 from apps.matches.tests.factories import make_matchup, stock_category
 from apps.players.tests.factories import make_player
+from apps.questions.models import QuestionType
+from apps.questions.tests.factories import make_matrix
 
 
 def _correct_option_id(question) -> int:
@@ -88,7 +90,7 @@ class ScoringTests(TestCase):
 
     def test_a_correct_last_moment_answer_still_earns_the_floor(self):
         self.assertEqual(
-            score_answer(credit=1.0, response_time_ms=QUESTION_TIME_LIMIT_MS), 50
+            score_answer(credit=1.0, response_time_ms=FALLBACK_QUESTION_TIME_LIMIT_MS), 50
         )
 
     def test_partial_credit_scales_the_same_curve(self):
@@ -118,7 +120,7 @@ class ServerAuthoritativeTimingTests(TestCase):
         )
 
         self.assertGreaterEqual(answer.response_time_ms, 3900)
-        self.assertLessEqual(answer.response_time_ms, QUESTION_TIME_LIMIT_MS)
+        self.assertLessEqual(answer.response_time_ms, FALLBACK_QUESTION_TIME_LIMIT_MS)
 
     def test_a_payload_that_tries_to_smuggle_a_time_field_is_refused(self):
         matchup = make_matchup(question_count=3)
@@ -163,3 +165,111 @@ class SelectMatchQuestionsTests(TestCase):
         matchup = make_matchup(question_count=3)
         with self.assertRaises(Conflict):
             services.select_match_questions(matchup=matchup)
+
+
+class MatrixTimeLimitTests(TestCase):
+    """A matrix question gets more clock than the default
+    (``apps.matches.constants.FALLBACK_QUESTION_TIME_LIMITS_MS``) — several sparse,
+    independent cells read off a grid take longer to work through than one
+    glance-and-answer claim."""
+
+    def test_matrix_is_given_more_time_than_the_default(self):
+        self.assertGreater(
+            time_limit_ms_for(question_type=QuestionType.MATRIX),
+            time_limit_ms_for(question_type=QuestionType.SINGLE_ANSWER),
+        )
+        self.assertEqual(
+            time_limit_ms_for(question_type=QuestionType.SINGLE_ANSWER),
+            FALLBACK_QUESTION_TIME_LIMIT_MS,
+        )
+
+    def test_a_question_s_own_time_limit_outranks_its_type_s_fallback(self):
+        self.assertEqual(
+            time_limit_ms_for(question_type=QuestionType.MATRIX, override_seconds=5), 5_000
+        )
+        self.assertEqual(
+            time_limit_ms_for(question_type=QuestionType.SINGLE_ANSWER, override_seconds=5), 5_000
+        )
+
+    def test_an_answer_past_the_default_limit_but_within_the_matrix_limit_still_counts(self):
+        matchup = make_matchup(question_count=3)
+        services.start_matchup(matchup=matchup)
+        question = selectors.get_matchup_question(matchup=matchup, order=1)
+
+        matrix = make_matrix(slug="grid-time-limit-test", category=matchup.category)
+        question.question_type = QuestionType.MATRIX
+        question.question_id = matrix.id
+        question.started_at = timezone.now() - timedelta(
+            milliseconds=FALLBACK_QUESTION_TIME_LIMIT_MS + 1
+        )
+        question.save(update_fields=["question_type", "question_id", "started_at"])
+
+        player_one = matchup.players.first().player
+        cell = matrix.cells.first()
+        answer = services.submit_answer(
+            matchup=matchup,
+            player=player_one,
+            order=1,
+            payload={
+                "type": "matrix",
+                "cells": [
+                    {"row_id": cell.row_id, "column_id": cell.column_id, "answer": cell.answer}
+                ],
+            },
+        )
+        self.assertGreater(answer.points, 0)
+
+    def test_an_answer_past_the_matrix_limit_is_refused(self):
+        matchup = make_matchup(question_count=3)
+        services.start_matchup(matchup=matchup)
+        question = selectors.get_matchup_question(matchup=matchup, order=1)
+
+        matrix = make_matrix(slug="grid-time-limit-test-2", category=matchup.category)
+        question.question_type = QuestionType.MATRIX
+        question.question_id = matrix.id
+        question.started_at = timezone.now() - timedelta(
+            milliseconds=time_limit_ms_for(question_type=QuestionType.MATRIX) + 1
+        )
+        question.save(update_fields=["question_type", "question_id", "started_at"])
+
+        player_one = matchup.players.first().player
+        cell = matrix.cells.first()
+        with self.assertRaises(Conflict):
+            services.submit_answer(
+                matchup=matchup,
+                player=player_one,
+                order=1,
+                payload={
+                    "type": "matrix",
+                    "cells": [
+                        {
+                            "row_id": cell.row_id,
+                            "column_id": cell.column_id,
+                            "answer": cell.answer,
+                        }
+                    ],
+                },
+            )
+
+    def test_a_question_s_own_time_limit_is_honoured_end_to_end(self):
+        """A single-answer question authored with ``time_limit_seconds: 1``
+        gets one second, not the type's ten — the row's own value outranks
+        every fallback."""
+        matchup = make_matchup(question_count=3)
+        services.start_matchup(matchup=matchup)
+        question = selectors.get_matchup_question(matchup=matchup, order=1)
+        concrete = _resolve(question)
+        concrete.time_limit_seconds = 1
+        concrete.save(update_fields=["time_limit_seconds"])
+
+        question.started_at = timezone.now() - timedelta(milliseconds=1_500)
+        question.save(update_fields=["started_at"])
+
+        player_one = matchup.players.first().player
+        with self.assertRaises(Conflict):
+            services.submit_answer(
+                matchup=matchup,
+                player=player_one,
+                order=1,
+                payload={"type": "single-answer", "option_id": _correct_option_id(concrete)},
+            )

@@ -25,6 +25,7 @@ from uuid import UUID
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
+from django.conf import settings
 from django.core.cache import cache
 
 from apps.categories import selectors as category_selectors
@@ -32,8 +33,10 @@ from apps.core_common.exceptions import DomainError
 from apps.matches import abuse, events, groups, presence, publish
 from apps.matches import selectors as match_selectors
 from apps.matches import services as match_services
+from apps.matches.bots import controller as bot_controller
+from apps.matches.bots.selection import pick_bot_player_id
 from apps.matches.constants import RECONNECT_GRACE_SECONDS, time_limit_ms_for
-from apps.matches.pool import PoolTimeout, join_pool, leave_pool
+from apps.matches.pool import PoolTimeout, claim_for_bot, join_pool, leave_pool
 from apps.players.services import ensure_player_for_user
 from apps.questions.api.serializers import serialize_for_play
 from apps.questions.selectors import QuestionRef
@@ -110,15 +113,21 @@ class _WatchdogMixin:
         await database_sync_to_async(_close_question_if_ready)(matchup_id=matchup_id, order=order)
 
 
-class MatchmakingConsumer(AsyncJsonWebsocketConsumer):
+class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
     """One category's queue. A socket here does nothing but wait for
     ``events.MATCH_FOUND`` — the pairing itself is ``apps.matches.pool``, and
-    the matchup that comes out of it is played over ``MatchupConsumer``."""
+    the matchup that comes out of it is played over ``MatchupConsumer``.
+
+    Also inherits ``_WatchdogMixin`` for its ``_spawn`` bookkeeping alone —
+    the bot-fallback timer below is the one loose task this consumer starts,
+    and holding it the way a question watchdog is held is what keeps it from
+    being garbage-collected mid-wait (see the mixin's own docstring)."""
 
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.player_id: str | None = None
         self.category_slug: str | None = None
+        self._category = None
         self._matched = False
         self._registered = False
 
@@ -139,6 +148,7 @@ class MatchmakingConsumer(AsyncJsonWebsocketConsumer):
         player = await database_sync_to_async(ensure_player_for_user)(user=user)
         self.player_id = str(player.id)
         self.category_slug = category_slug
+        self._category = category
 
         try:
             await database_sync_to_async(_admit_matchmaking_socket)(player_id=self.player_id)
@@ -166,6 +176,8 @@ class MatchmakingConsumer(AsyncJsonWebsocketConsumer):
         if pairing is None:
             await self.send_json({"type": events.SEARCHING})
             logger.info("A player joined the matchmaking pool", category=category_slug, caller="user")
+            if settings.FF_ENABLE_BOTS_IF_TIMEOUT:
+                self._spawn(self._fall_back_to_bot_after_timeout())
             return
 
         await self._pair(category=category, opponent_id=pairing.opponent_id)
@@ -182,6 +194,78 @@ class MatchmakingConsumer(AsyncJsonWebsocketConsumer):
         await _apublish(publish.publish_match_found, player_id=self.player_id, matchup_id=matchup_id)
         await _apublish(publish.publish_match_found, player_id=opponent_id, matchup_id=matchup_id)
         logger.info("Two players were paired", category=self.category_slug, caller="user")
+
+    async def _fall_back_to_bot_after_timeout(self) -> None:
+        """``FF_ENABLE_BOTS_IF_TIMEOUT``'s whole mechanism: wait out
+        ``MATCHMAKING_BOT_TIMEOUT_SECONDS``, and if this player is still the
+        one waiting, claim them for a CPU opponent instead.
+
+        ``pool.claim_for_bot`` is what makes the race with a human arriving in
+        the same instant safe — see its own docstring — so the only thing
+        this coroutine has to get right is not doing anything once
+        ``self._matched`` is already true, which a human pairing sets before
+        this sleep could plausibly still be running.
+        """
+        await asyncio.sleep(settings.MATCHMAKING_BOT_TIMEOUT_SECONDS)
+        if self._matched:
+            return
+
+        claimed = await database_sync_to_async(claim_for_bot)(
+            category_slug=self.category_slug, player_id=self.player_id
+        )
+        if not claimed:
+            return  # a human claimed this slot, or the player already left
+
+        bot_player_id = await database_sync_to_async(pick_bot_player_id)()
+        if bot_player_id is None:
+            # No bots seeded (`manage.py seed_bots`) — put the player back
+            # rather than stranding them silently out of the pool.
+            logger.warning(
+                "Bot fallback fired with no bots seeded", category=self.category_slug
+            )
+            await database_sync_to_async(join_pool)(
+                category_slug=self.category_slug, player_id=self.player_id
+            )
+            return
+
+        await self._pair_with_bot(bot_player_id=bot_player_id)
+
+    async def _pair_with_bot(self, *, bot_player_id: str) -> None:
+        """The bot-opponent half of ``_pair``: same matchup creation, but the
+        opponent has no socket to notify and needs a
+        ``apps.matches.bots.controller`` task instead to play its side."""
+        try:
+            matchup_id = await database_sync_to_async(_start_matchup_for)(
+                category=self._category, player_one_id=self.player_id, player_two_id=bot_player_id
+            )
+        except DomainError as exc:
+            # A thin category (create_matchup drew a question_count the
+            # catalog cannot fill — see questions_report) is the one way this
+            # can fail once a bot has already been chosen. Logged rather than
+            # raised: the player is still connected and waiting, and this is
+            # exactly the case ``join_pool`` handles for a human pairing too
+            # — surface it, do not leave them stranded with no explanation.
+            logger.warning(
+                "Bot pairing failed", category=self.category_slug, code=exc.code, reason=exc.message
+            )
+            await self.send_json(
+                {"type": events.ERROR, "code": exc.code, "message": exc.message}
+            )
+            await self.close(code=1011)
+            return
+        self._matched = True
+        await database_sync_to_async(presence.set_state)(
+            player_id=self.player_id, state=presence.State.MATCHED
+        )
+        await _apublish(publish.publish_match_found, player_id=self.player_id, matchup_id=matchup_id)
+        bot_controller.spawn_bot(
+            bot_controller.run_bot(matchup_id=matchup_id, bot_player_id=bot_player_id)
+        )
+        logger.info(
+            "A player was matched against a CPU opponent",
+            category=self.category_slug,
+            caller="user",
+        )
 
     async def receive_json(self, content: dict, **kwargs) -> None:
         if content.get("type") == events.PING:
@@ -476,7 +560,9 @@ def _current_state(*, matchup) -> dict | None:
     return {
         "order": question.order,
         "question": board,
-        "time_limit_ms": time_limit_ms_for(question.question_type),
+        "time_limit_ms": time_limit_ms_for(
+            question_type=question.question_type, override_seconds=concrete.time_limit_seconds
+        ),
     }
 
 
@@ -576,16 +662,17 @@ def _try_close_question(*, matchup_id: str, order: int) -> dict | None:
     else:
         upcoming = match_selectors.current_question(matchup=matchup)
         if upcoming is not None and upcoming.order != order:
-            board = serialize_for_play(
-                question=get_concrete_question(
-                    ref=QuestionRef(upcoming.question_type, upcoming.question_id)
-                ),
-                matchup_id=matchup.id,
+            upcoming_concrete = get_concrete_question(
+                ref=QuestionRef(upcoming.question_type, upcoming.question_id)
             )
+            board = serialize_for_play(question=upcoming_concrete, matchup_id=matchup.id)
             next_question = {
                 "order": upcoming.order,
                 "question": board,
-                "time_limit_ms": time_limit_ms_for(upcoming.question_type),
+                "time_limit_ms": time_limit_ms_for(
+                    question_type=upcoming.question_type,
+                    override_seconds=upcoming_concrete.time_limit_seconds,
+                ),
             }
 
     return {"results": results, "next": next_question, "summary": summary}

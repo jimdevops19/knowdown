@@ -56,6 +56,12 @@ class _QuestionSpec(_Strict):
     #: A picture of what is being asked about — a file under the category's
     #: ``images/`` folder. Not the answer options; see ImageOptionSpec for those.
     image: str | None = None
+    #: Overrides how long a matchup leaves this question open, in seconds.
+    #: Rare — most questions take their type's fallback
+    #: (``apps.matches.constants.time_limit_ms_for``) — but an unusually
+    #: fiddly question can ask for more without every question of its type
+    #: getting it too. Unset (``None``) is the ordinary case.
+    time_limit_seconds: int | None = Field(default=None, ge=1, le=600)
 
 
 class _TextOptionSpec(_Strict):

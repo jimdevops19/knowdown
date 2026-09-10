@@ -30,6 +30,7 @@ questions:
       championship.
     level: 8
     tags: {topic: finals, era: all-time}
+    time_limit_seconds: 35
     rows: [Chicago Bulls, Los Angeles Lakers, San Antonio Spurs]
     columns: ["1990s", "2000s"]
     cells:

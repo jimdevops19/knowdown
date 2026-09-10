@@ -516,6 +516,24 @@ MAX_CONCURRENT_SOCKETS_PER_PLAYER = env_int("MAX_CONCURRENT_SOCKETS_PER_PLAYER",
 CONCURRENT_SOCKET_TTL_SECONDS = env_int("CONCURRENT_SOCKET_TTL_SECONDS", 6 * 60 * 60)
 
 
+# --- CPU (bot) opponents ------------------------------------------------------
+# Matchmaking normally waits for a second human. This flag lets it give up on
+# that and pair the waiting player against one of the 50 seeded CPU players
+# instead (`manage.py seed_bots`, `apps.matches.bots`) rather than leaving them
+# in the pool indefinitely. Off by default everywhere — a bot opponent affects
+# ratings and match history exactly like a human one, so it is not something a
+# production or test run should get for free; `local.py` turns it on so the
+# solo-dev loop of "open the app, get a game" works with nobody else online.
+FF_ENABLE_BOTS_IF_TIMEOUT = env_bool("FF_ENABLE_BOTS_IF_TIMEOUT", False)
+
+# How long a player waits in a category's pool before the fallback above may
+# claim them for a bot match, in seconds. Read by
+# `apps.matches.consumers.MatchmakingConsumer`, not by the pool itself — the
+# pool only ever holds one waiting slot and does not know why a caller wants it
+# freed.
+MATCHMAKING_BOT_TIMEOUT_SECONDS = env_int("MATCHMAKING_BOT_TIMEOUT_SECONDS", 15)
+
+
 # --- Outbound mail -----------------------------------------------------------
 # Today there is exactly one message: the forgot-password link
 # (accounts.services.password_reset). Django's stock SMTP backend aimed at
