@@ -5,18 +5,20 @@ from __future__ import annotations
 
 from django.urls import path
 
-from .views import DisplayNameAvailableView, PlayerMeView
+from .views import DisplayNameAvailableView, PlayerMeView, PlayerProfileView
 
 app_name = "players"
 
 urlpatterns = [
     path("me/", PlayerMeView.as_view(), name="me"),
-    # Before `me/`'s sibling routes rather than after: a literal path and a
-    # future `<str:display_name>/` must not compete, and the literal wins by
-    # being declared first.
+    # Both literal, and both before `<str:display_name>/`: a literal path and
+    # a variable one must not compete, and the literal wins by being declared
+    # first — otherwise `/players/me/` would resolve as somebody's profile
+    # with the display name "me".
     path(
         "display-name-available/",
         DisplayNameAvailableView.as_view(),
         name="display-name-available",
     ),
+    path("<str:display_name>/", PlayerProfileView.as_view(), name="profile"),
 ]

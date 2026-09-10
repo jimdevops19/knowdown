@@ -146,7 +146,7 @@ class UpdateRatingsForMatchupTests(TestCase):
         self.assertEqual(alice_after.games_played, 1)
 
     def test_a_tie_counts_as_a_draw_for_both_sides(self):
-        matchup = make_matchup(question_count=1)
+        matchup = make_matchup(question_count=3)
         first, second = matchup.players.all()
         for side in (first, second):
             side.score = 50
@@ -180,8 +180,9 @@ class UpdateRatingsForMatchupTests(TestCase):
 class LadderSelectorTests(TestCase):
     def test_ladder_orders_by_rating_descending_in_one_query(self):
         matchup, alice, bob = _play_to_completion(winner_correct=True)  # alice wins
+        category = matchup.category
         with self.assertNumQueries(1):
-            standings = list(selectors.ladder(category=matchup.category))
+            standings = list(selectors.ladder(category=category))
         self.assertEqual([entry.player for entry in standings], [alice, bob])
 
     def test_unrated_players_excludes_anyone_already_seeded(self):

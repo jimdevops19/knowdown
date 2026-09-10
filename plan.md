@@ -257,7 +257,15 @@ ladder read is one query rather than one per player.
 
 **Important: the rating calculation should follow the same mechanism like in the repo of rpool - ratings start for 1200 each and each matchup after completion of the best of X rises or falls the rating, depending on the rating numberp played, inspect ~/repos/rpool/backend/apps/rankings/ to capture the logic - pay attention that rpool has competitive logic for rankings addition substraction, here in knodown it's not relevant, ratings are counted in each matchup**
 
-# STOPPED HERE - 10/09/2026 - 13:00
+**Step 17 done (10/09/2026):** `Ranking` (player × category, `DEFAULT_PLAYER_RATING`
+still living in `apps.matches.constants`), `apps/rankings/services/ratings.py`
+(`expected_score` / `update_rating`, `K_FACTOR` in `apps/rankings/constants.py`,
+no rpool-style guest/race-length/audit-trail machinery — every completed
+matchup counts once, a tie is a 0.5/0.5 draw), `ensure_ranking` as the seeding
+hook, `manage.py backfill_rankings`, and `selectors.ladder` as the one-query
+read. Wired into `apps.matches.services.complete_matchup` and
+`abandon_matchup`, both now updating both sides' ratings once terminal. 266/266
+backend tests pass (`apps.rankings` adds 49 of them).
 
 ### 18. `apps/achievements`
 `Achievement` + `PlayerAchievement` with the unique constraint from the plan, the
@@ -272,12 +280,36 @@ in one module and not a line added to five.
 **Done when:** re-running the loader is idempotent, and awarding is idempotent —
 a replayed completion cannot grant "First Win" twice.
 
+**Step 18 done (10/09/2026):** `Achievement` (`SluggedModel` + `BaseModel`, like
+`Category`) + `PlayerAchievement` (plain `models.Model`, like `PlayerAnswer` —
+no independent existence). The eight badges in
+`apps/achievements/resources/achievements.yaml`, loaded by
+`manage.py sync_achievements` (upsert on slug, deactivate-not-delete, same
+shape as `sync_questions` at a tenth of the size). `services/evaluation.py`'s
+`ACHIEVEMENT_RULES` registry (slug → rule function) is the one place a badge
+is checked; `award_achievements_for_matchup` is the hook, called from
+`apps.matches.services.complete_matchup`/`abandon_matchup` **before**
+`apps.rankings.services.update_ratings_for_matchup` so "Beat a Higher Rated
+Player" reads each side's pre-match `Ranking`. Awarding idempotent via
+`PlayerAchievement`'s unique constraint + `get_or_create`.
+
 ### 19. Profile and leaderboards
 `GET /players/{name}/` (public profile: rating per category, record, badges) and
 `GET /rankings/{category}/` (the ladder, paginated). Both read-only, both through
 selectors that already filter to what a caller may see.
 
 **Done when:** a profile is one round trip and the ladder is paginated by default.
+
+**Step 19 done (10/09/2026):** `GET /api/v1/players/{display_name}/`
+(`AllowAny`, case-insensitive lookup, one query per embedded list via
+`rankings.selectors.list_rankings_for_player` /
+`achievements.selectors.list_earned_for_player`) and
+`GET /api/v1/rankings/{category}/` (`AllowAny`,
+`apps.core_common.pagination.DefaultPagination`, best rating first). Phase E
+is now complete: 297/297 backend tests pass, `manage.py spectacular
+--fail-on-warn` is clean.
+
+# STOPPED HERE - 10/09/2026 - Phase E complete (18, 19 done); Phase F not started
 
 ---
 

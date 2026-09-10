@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- viewport-fit=cover lets the app paint under the notch and the home
+         indicator; the safe-area utilities in index.css keep content out of
+         them. `maximum-scale` is deliberately NOT set — pinch-zoom stays
+         available, and a quiz with a ten-second clock is exactly the kind of
+         app somebody may need to zoom into. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>knowdown</title>
+    <meta
+      name="description"
+      content="Real-time 1v1 trivia. Get paired with a stranger and race them through NBA questions."
+    />
+
+    <!-- theme-color tints the Android status bar and the desktop title bar;
+         the apple-* tags are Safari's older, manifest-ignoring equivalents. -->
+    <meta name="theme-color" content="#09090b" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <!-- black-translucent: the page draws behind the status bar (paired with
+         viewport-fit=cover above), so the dark app background runs edge to edge. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="knowdown" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="knowdown" />
+    <meta property="og:title" content="knowdown — real-time 1v1 trivia" />
+    <meta
+      property="og:description"
+      content="Two players. Seven questions. One clock."
+    />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

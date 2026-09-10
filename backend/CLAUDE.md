@@ -34,7 +34,9 @@ The question authoring pipeline and the scaffolding under it:
   `/auth/me/` — the one endpoint in the API that may emit an email address.
 - **`apps/players`** — the **competitor**: a display name (unique
   case-insensitively, in the database as well as in a validator), an avatar,
-  and `GET/PATCH /players/me/`.
+  `GET/PATCH /players/me/`, and the public profile,
+  `GET /players/{display_name}/` (rating per category, record, badges — one
+  round trip, `AllowAny`).
 - **`apps/core_common`**, **`shared/`** — the platform-wide contracts (below).
 - **`apps/matches`** — the **match engine**: `Matchup`, `MatchupPlayer`,
   `MatchupQuestion`, `PlayerAnswer`, and every rule of a game as a `services`
@@ -45,9 +47,31 @@ The question authoring pipeline and the scaffolding under it:
   (`apps.matches.pool`), presence (`apps.matches.presence`), and two
   WebSocket consumers (`consumers.py`) that turn the same service calls into
   `events.py`'s live protocol. See "Realtime" below.
-- **`apps/rankings`, `apps/achievements`** — **scaffolds**. Directory layout
-  and an `AppConfig`, no models. The tables in `initial-plan.md` land with the
-  increment that uses them.
+- **`apps/rankings`** — a rating per player, **per category** (`Ranking`).
+  Elo-style (`services/ratings.py`, `K_FACTOR` in `constants.py`), moved once
+  per matchup: `apps.matches.services.complete_matchup` and `abandon_matchup`
+  both call `update_ratings_for_matchup` after deciding the winner, so a
+  played-out match and an abandoned one move the ladder the same way. A tie
+  counts as an Elo draw (0.5 each) rather than being skipped. No audit trail —
+  unlike a tournament ladder, nothing here is ever replayed or unwound.
+  `manage.py backfill_rankings` seeds a category's missing players (one who
+  predates it, or predates the seeding hook itself) at `DEFAULT_PLAYER_RATING`
+  — which lives in `apps.matches.constants`, not here, because seeding happens
+  the moment a matchup needs a rating that is not there yet. Read-only,
+  paginated leaderboard: `GET /rankings/{category}/`.
+- **`apps/achievements`** — the badge catalog (`Achievement`,
+  `PlayerAchievement`), authored the same way a question is:
+  `resources/achievements.yaml` + `manage.py sync_achievements`, upserted on
+  `slug`, deactivated rather than deleted. `services/evaluation
+  .ACHIEVEMENT_RULES` is the one registry a badge's rule lives in; every rule
+  is checked from `award_achievements_for_matchup`, the hook
+  `apps.matches.services.complete_matchup`/`abandon_matchup` call **before**
+  `apps.rankings.services.update_ratings_for_matchup` — "Beat a Higher Rated
+  Player" needs each side's pre-match rating, which the ratings call is what
+  moves. Awarding is idempotent (`PlayerAchievement`'s unique constraint backs
+  a `get_or_create`), so a matchup that cannot complete twice cannot grant a
+  badge twice either. Embedded in the player profile
+  (`GET /players/{display_name}/`); no standalone list endpoint yet.
 
 ## Commands
 

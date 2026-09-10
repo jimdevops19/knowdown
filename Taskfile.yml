@@ -1,0 +1,33 @@
+# knowdown — https://taskfile.dev  (install: brew install go-task)
+#
+#   task                list every task
+#   task run            backend + frontend, local, no containers
+#
+# Modeled on rpool's Taskfile.yml, trimmed to just the local dev-run tasks.
+version: '3'
+
+tasks:
+  default:
+    desc: List available tasks
+    cmds:
+      - task --list
+    silent: true
+
+  run:
+    desc: Run backend + frontend locally (no containers), both in the foreground
+    deps: [run:backend, run:frontend]
+
+  run:backend:
+    desc: Django dev server on :8000 (migrates first)
+    dir: backend
+    cmds:
+      - uv run python manage.py migrate
+      - uv run python manage.py runserver
+
+  run:frontend:
+    desc: Vite dev server on :5173, proxying /api and /ws to the local backend
+    dir: frontend
+    env:
+      VITE_PROXY_TARGET: http://127.0.0.1:8000
+    cmds:
+      - npm run dev

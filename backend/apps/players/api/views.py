@@ -3,15 +3,20 @@
 from __future__ import annotations
 
 from drf_spectacular.utils import OpenApiParameter, extend_schema
+from rest_framework.generics import RetrieveAPIView
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.core_common.exceptions import NotFound, ValidationFailed
 from apps.players import selectors, services, validators
 
-from .serializers import DisplayNameAvailabilitySerializer, PlayerMeSerializer
+from .serializers import (
+    DisplayNameAvailabilitySerializer,
+    PlayerMeSerializer,
+    PlayerProfileSerializer,
+)
 
 
 class PlayerMeView(APIView):
@@ -95,3 +100,27 @@ class DisplayNameAvailableView(APIView):
                 available=False, reason=refusal.code, message=refusal.message
             )
         return Response(DisplayNameAvailabilitySerializer(answer).data)
+
+
+class PlayerProfileView(RetrieveAPIView):
+    """``GET /api/v1/players/{display_name}/`` — anybody's public profile.
+
+    ``AllowAny``, the same as the category list and the ladder: a profile is
+    what a scoreboard already shows both players mid-match, made reachable on
+    its own. Looked up case-insensitively, the way the uniqueness constraint
+    behind ``display_name`` is (``apps.players.selectors
+    .get_player_by_display_name``), so ``/players/Kobe/`` and
+    ``/players/kobe/`` cannot answer two different people.
+    """
+
+    permission_classes = [AllowAny]
+    serializer_class = PlayerProfileSerializer
+
+    @extend_schema(tags=["players"], responses=PlayerProfileSerializer)
+    def get(self, request, *args, **kwargs) -> Response:
+        return super().get(request, *args, **kwargs)
+
+    def get_object(self):
+        return selectors.get_player_by_display_name(
+            display_name=self.kwargs["display_name"]
+        )

@@ -15,7 +15,11 @@ from __future__ import annotations
 
 from rest_framework import serializers
 
+from apps.achievements import selectors as achievement_selectors
+from apps.achievements.api.serializers import PlayerAchievementSerializer
 from apps.players import selectors
+from apps.rankings import selectors as ranking_selectors
+from apps.rankings.api.serializers import RankingSerializer
 
 
 class PlayerSerializer(serializers.Serializer):
@@ -38,6 +42,30 @@ class PlayerMeSerializer(PlayerSerializer):
 
     has_auto_name = serializers.BooleanField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
+
+
+class PlayerProfileSerializer(PlayerSerializer):
+    """``GET /api/v1/players/{display_name}/`` — the public profile: a name
+    and a picture, a rating per category the player has played, and the
+    badges they have earned. One round trip: ``rankings`` and ``badges`` are
+    resolved from the same queries the ladder and a profile's badge case
+    already use (``apps.rankings.selectors.list_rankings_for_player``,
+    ``apps.achievements.selectors.list_earned_for_player``), not fetched by
+    the client one at a time.
+    """
+
+    rankings = serializers.SerializerMethodField()
+    badges = serializers.SerializerMethodField()
+
+    def get_rankings(self, player) -> list[dict]:
+        return RankingSerializer(
+            ranking_selectors.list_rankings_for_player(player=player), many=True
+        ).data
+
+    def get_badges(self, player) -> list[dict]:
+        return PlayerAchievementSerializer(
+            achievement_selectors.list_earned_for_player(player=player), many=True
+        ).data
 
 
 class DisplayNameAvailabilitySerializer(serializers.Serializer):

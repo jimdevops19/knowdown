@@ -1,0 +1,51 @@
+# The badge catalog. Authored the same way a question is: reviewed in a pull
+# request, loaded with `uv run python manage.py sync_achievements`.
+#
+# `slug` is the identifier `apps.achievements.services.evaluation
+# .ACHIEVEMENT_RULES` looks a badge's rule up by — see
+# `apps.achievements.constants` for the matching constant. A slug in this file
+# with no rule behind it is loaded but can never be earned; a rule with no
+# entry here is dead code. The two lists are meant to match exactly.
+#
+# `is_active: false` retires a badge without deleting it — a player who
+# already earned it keeps it.
+
+- slug: first-win
+  name: First Win
+  description: Win your first matchup.
+  is_active: true
+
+- slug: five-wins
+  name: Five Wins
+  description: Win five matchups.
+  is_active: true
+
+- slug: ten-wins
+  name: Ten Wins
+  description: Win ten matchups.
+  is_active: true
+
+- slug: five-win-streak
+  name: Five Win Streak
+  description: Win five matchups in a row.
+  is_active: true
+
+- slug: perfect-match
+  name: Perfect Match
+  description: Answer every question correctly in one matchup.
+  is_active: true
+
+- slug: hundred-questions-answered
+  name: Hundred Questions Answered
+  description: Answer one hundred questions.
+  is_active: true
+
+- slug: fastest-answer
+  name: Fastest Answer
+  description: Answer a question correctly in under 1.5 seconds.
+  is_active: true
+
+- slug: beat-higher-rated
+  name: Beat a Higher Rated Player
+  description: Win a matchup against an opponent rated higher than you.
+  is_active: true

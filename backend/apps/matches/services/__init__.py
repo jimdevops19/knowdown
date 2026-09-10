@@ -19,9 +19,13 @@ its own elapsed time — accepting one would make every match winnable with a
 patched client.
 
 ``complete_matchup`` and ``abandon_matchup`` — the two ways a matchup becomes
-``COMPLETED`` — both call ``apps.rankings.services.update_ratings_for_matchup``
-once they have decided the winner, so a match, played out or left mid-way,
-always moves both sides' rating in ``matchup.category`` exactly once.
+``COMPLETED`` — both call, in order, ``apps.achievements.services
+.award_achievements_for_matchup`` and then ``apps.rankings.services
+.update_ratings_for_matchup``, once they have decided the winner. The order is
+deliberate: achievements are checked while each side's ``Ranking`` still holds
+the rating they took into this result, which is what "Beat a Higher Rated
+Player" reads. Either way, a match, played out or left mid-way, always checks
+badges and moves ratings exactly once.
 """
 
 from __future__ import annotations
@@ -31,6 +35,7 @@ import random
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
+from apps.achievements.services import award_achievements_for_matchup
 from apps.categories.models import Category
 from apps.core_common.exceptions import Conflict, NotFound, ValidationFailed
 from apps.matches import selectors
@@ -306,6 +311,7 @@ def complete_matchup(*, matchup: Matchup) -> Matchup:
     matchup.outcome = Matchup.Outcome.PLAYED
     matchup.completed_at = timezone.now()
     matchup.save(update_fields=["status", "outcome", "completed_at"])
+    award_achievements_for_matchup(matchup=matchup)
     update_ratings_for_matchup(matchup=matchup)
     return matchup
 
@@ -353,6 +359,7 @@ def abandon_matchup(*, matchup: Matchup, leaving_player: Player) -> Matchup:
     matchup.outcome = Matchup.Outcome.ABANDONED
     matchup.completed_at = now
     matchup.save(update_fields=["status", "outcome", "completed_at"])
+    award_achievements_for_matchup(matchup=matchup)
     update_ratings_for_matchup(matchup=matchup)
     return matchup
 

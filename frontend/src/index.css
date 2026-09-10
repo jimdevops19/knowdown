@@ -1,0 +1,551 @@
+/* Tailwind v4: one import pulls in the framework. */
+@import 'tailwindcss';
+
+/* Self-hosted, offline-safe. Space Grotesk carries the display voice — a
+   geometric grotesk with enough character to read as a *game* rather than a
+   dashboard; Inter carries everything that has to be read fast under a clock. */
+@import '@fontsource/space-grotesk/500.css';
+@import '@fontsource/space-grotesk/600.css';
+@import '@fontsource/space-grotesk/700.css';
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+
+/* ── Phone chrome vs. desktop chrome ──────────────────────────────────────
+ * This is a phone game first, and a phone in landscape is still a phone: at
+ * 2400x1080 it reports ~800x360 CSS pixels, which sails past Tailwind's `md`
+ * and would hand a rotated phone the laptop layout — a full-height sidebar
+ * eating the width and a 64px header eating a fifth of the height, on the one
+ * screen (the question board) where every pixel is being read against a clock.
+ *
+ * So the sidebar-vs-bottom-bar decision is not a width question. It is "is this
+ * viewport phone-shaped", which is *narrow OR short*:
+ *
+ *   phone → bottom tab bar, compact header   (below md, or under ~560px tall)
+ *   desk  → sidebar, full header             (the exact inverse)
+ *   short → the height-driven half alone, for the landscape-only trims
+ *
+ * `phone` and `desk` must stay exact complements — every piece of chrome is
+ * shown by one and hidden by the other, and any gap between them would show
+ * both navs at once or neither.
+ *
+ * Spelled as two nested rules rather than the shorthand's comma list: Tailwind
+ * compiles `(@media a, b)` into one good rule plus one malformed one, so the
+ * second half of the query — landscape, the very case this variant exists for —
+ * silently never matches.
+ */
+@custom-variant phone {
+  @media (max-width: 767px) {
+    @slot;
+  }
+  @media (max-height: 559px) {
+    @slot;
+  }
+}
+@custom-variant desk (@media (min-width: 768px) and (min-height: 560px));
+@custom-variant short (@media (max-height: 559px));
+
+/*
+ * ── knowdown design tokens ───────────────────────────────────────────────
+ * "Futuristic sports": violet primary, cyan accent, near-black layered
+ * surfaces, and a verdict palette that has to be legible in the half-second
+ * between a question closing and the next one opening.
+ *
+ * Token *names* are semantic, not literal ("violet", "cyan"), so the whole app
+ * restyles from this one file — the values change, the class names used across
+ * every component don't:
+ *   court      → primary / violet (buttons, the active thing, *your* side)
+ *   volt       → accent / cyan (live pulses, the clock, links, focus)
+ *   gold       → winners, ladder positions, badges (used sparingly)
+ *   correct / wrong → the two verdicts, and nothing else
+ *   rival      → the opponent's side of every scoreboard
+ *
+ * Anything under @theme becomes utilities automatically:
+ *   --color-court     → bg-court / text-court / border-court
+ *   --radius-card     → rounded-card
+ *   --shadow-glow-violet → shadow-glow-violet
+ *   --animate-slide-up   → animate-slide-up
+ */
+@theme {
+  /* Brand + surfaces */
+  --color-court: #7c3aed; /* primary — violet */
+  --color-deep-court: #6d28d9; /* primary hover / pressed */
+  --color-volt: #22d3ee; /* accent — cyan */
+  --color-deep-volt: #06b6d4;
+  --color-gold: #fbbf24; /* winners, ladder, badges — used sparingly */
+
+  /* Text */
+  --color-chalk: #ffffff;
+  --color-ash: #a1a1aa; /* secondary text */
+
+  /* Backgrounds, darkest to lightest */
+  --color-void: #050506; /* deepest surface — behind everything */
+  --color-court-black: #09090b; /* app background */
+  --color-panel: #131318; /* cards / secondary surface */
+  --color-raised: #1c1c23; /* elevated: inputs, table headers, hovered rows */
+
+  /* Verdicts. Deliberately *not* the generic success/error pair: these two say
+     "you got it" and "you didn't", and nothing in this app should borrow them
+     to mean "saved" or "network down" — a green flash on a question board can
+     only mean one thing. */
+  --color-correct: #34d399;
+  --color-wrong: #f43f5e;
+
+  /* The opponent. Amber rather than a second violet: the whole live screen is
+     two sides being told apart at a glance, and two tints of the primary is
+     exactly the distinction that fails on a phone at arm's length. */
+  --color-rival: #fb923c;
+
+  /* Everything that is neither verdict nor side: waiting, idle, disabled. */
+  --color-idle: #71717a;
+
+  /* Typography. Display for headings, scores and the clock; body for prose. */
+  --font-display: 'Space Grotesk', system-ui, sans-serif;
+  --font-sans: 'Inter', system-ui, sans-serif;
+
+  /* Border radius scale. Softer than rpool's: a trivia board is a stack of big
+     tappable answer tiles, and a 12px answer tile reads as a form field. */
+  --radius-btn: 14px;
+  --radius-input: 12px;
+  --radius-tile: 18px; /* an answer option — the app's signature shape */
+  --radius-card: 20px;
+  --radius-modal: 24px;
+
+  /* Depth + glow. Elevation reads as layered, not floating; glow is reserved
+     for the interactive and the live. */
+  --shadow-card: 0 4px 20px -6px rgba(0, 0, 0, 0.6);
+  --shadow-elevated: 0 18px 44px -12px rgba(0, 0, 0, 0.75);
+  --shadow-glow-violet: 0 0 0 1px rgba(124, 58, 237, 0.4), 0 8px 30px -8px rgba(124, 58, 237, 0.65);
+  --shadow-glow-cyan: 0 0 0 1px rgba(34, 211, 238, 0.4), 0 8px 30px -8px rgba(34, 211, 238, 0.6);
+  --shadow-glow-gold: 0 0 0 1px rgba(251, 191, 36, 0.4), 0 8px 30px -8px rgba(251, 191, 36, 0.55);
+  --shadow-glow-correct: 0 0 0 1px rgba(52, 211, 153, 0.45), 0 8px 30px -8px rgba(52, 211, 153, 0.6);
+  --shadow-glow-wrong: 0 0 0 1px rgba(244, 63, 94, 0.45), 0 8px 30px -8px rgba(244, 63, 94, 0.6);
+
+  /* ── Animation utilities ──────────────────────────────────────────────
+     Registering here emits the matching `animate-*` classes. Gate motion at the
+     call site with `motion-safe:` and rely on the reduced-motion reset below.
+
+     The durations are deliberately shorter than a dashboard's: a question is
+     open for ten seconds, so an entrance that takes 400ms has spent 4% of the
+     round on itself. */
+  --animate-fade-in: fade-in 0.18s ease-out both;
+  --animate-slide-up: slide-up 0.26s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-pop-in: pop-in 0.18s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-live-pulse: live-pulse 1.6s ease-in-out infinite;
+  --animate-skeleton: skeleton 1.4s ease-in-out infinite;
+
+  /* The matchmaking radar, while the pool looks for an opponent. Two rings
+     pushing out of the avatar on the same clock, half a period apart, so the
+     wait reads as *searching* rather than as a spinner that might be stuck. */
+  --animate-seek-ping: seek-ping 2.2s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+
+  /* The clock's last three seconds (see Countdown). Only then — a bar that
+     pulses for the whole ten seconds is a bar nobody looks at on second nine. */
+  --animate-clock-urgent: clock-urgent 0.6s ease-in-out infinite;
+
+  /* A verdict landing on an answer tile. `correct` settles; `wrong` shakes and
+     stops, because the two need to be told apart without reading the color —
+     roughly 1 in 12 men cannot separate this particular green from this red. */
+  --animate-verdict-correct: verdict-correct 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-verdict-wrong: verdict-wrong 0.4s ease-in-out both;
+
+  /* The score counting up at the end of a question, and the winner's banner. */
+  --animate-score-pop: score-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-rise-in: rise-in 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-shimmer: shimmer 3s ease-in-out infinite;
+
+  /* The three-two-one before question one, so both players start on the same
+     beat rather than whenever their board finished painting. */
+  --animate-count-in: count-in 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pop-in {
+  from { opacity: 0; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* A pulsing "live" dot. */
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+/* Loading skeleton shimmer sweep. */
+@keyframes skeleton {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* A ring pushing out of the searching player's avatar and fading. Scaled
+   rather than grown by width, so it composites on the GPU instead of laying
+   out a circle sixty times a second on a mid-range phone. */
+@keyframes seek-ping {
+  0% { opacity: 0.55; transform: scale(0.85); }
+  70% { opacity: 0; transform: scale(2.2); }
+  100% { opacity: 0; transform: scale(2.2); }
+}
+
+/* The clock in its last seconds: a heartbeat, not a strobe. */
+@keyframes clock-urgent {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.72; transform: scale(1.04); }
+}
+
+/* Right: the tile settles into place, once. */
+@keyframes verdict-correct {
+  0% { transform: scale(1); }
+  45% { transform: scale(1.045); }
+  100% { transform: scale(1); }
+}
+
+/* Wrong: a short horizontal shake. The *motion* is the second channel the
+   color-blind read, which is why this is not simply the green keyframe in red. */
+@keyframes verdict-wrong {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-7px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(2px); }
+}
+
+/* Points arriving on the scoreboard. */
+@keyframes score-pop {
+  0% { opacity: 0; transform: translateY(10px) scale(0.8); }
+  60% { opacity: 1; transform: translateY(0) scale(1.12); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* A bright band sweeping across the winner's banner. */
+@keyframes shimmer {
+  0% { transform: translateX(-160%); }
+  60%, 100% { transform: translateX(360%); }
+}
+
+/* One beat of the pre-match countdown: the numeral arrives oversize and
+   shrinks away, one per second, so the two clients land on the same beat. */
+@keyframes count-in {
+  0% { opacity: 0; transform: scale(1.9); filter: blur(8px); }
+  30% { opacity: 1; transform: scale(1); filter: blur(0); }
+  70% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.7); }
+}
+
+/* ── Custom utilities ─────────────────────────────────────────────────────
+   Reusable helpers so components don't re-declare the same style clusters. */
+
+/* Brand gradient text (violet → cyan) for display headings. */
+@utility text-gradient {
+  background-image: linear-gradient(100deg, var(--color-chalk), var(--color-volt));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* "This row is you" on a ladder. Opaque on purpose: a ladder freezes its first
+   columns on a phone, and a translucent tint would let the scrolled cells
+   underneath show through them. */
+@utility bg-row-highlight {
+  background-color: color-mix(in oklab, var(--color-volt) 14%, var(--color-panel));
+}
+
+/* A glassmorphism surface: translucent panel + blur + hairline border. */
+@utility glass {
+  background-color: color-mix(in oklab, var(--color-panel) 78%, transparent);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+/* The animated shimmer fill used by <Skeleton />. */
+@utility skeleton-fill {
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.04) 25%,
+    rgba(255, 255, 255, 0.1) 37%,
+    rgba(255, 255, 255, 0.04) 63%
+  );
+  background-size: 200% 100%;
+}
+
+/* Tabular figures, so a counting score and a ticking clock don't jitter in
+   width. Every number that changes while being looked at wants this. */
+@utility nums {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* Hide the scrollbar on horizontally-scrollable strips. */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ── Safe-area utilities ──────────────────────────────────────────────────
+ * With `viewport-fit=cover` (index.html) the page extends under the notch, the
+ * status bar and the home indicator. `env(safe-area-inset-*)` is the size of
+ * each of those strips — 0px on every desktop and most phones, non-zero exactly
+ * where it matters, so these are safe to apply unconditionally.
+ *
+ *   pt-safe  → sticky top chrome clears the status bar / notch.
+ *   pb-safe  → bottom content clears the home indicator.
+ *   px-safe  → landscape: content clears the notch on whichever side it lands.
+ *
+ * `pb-safe`/`px-safe` keep a floor of the app's normal padding via max(), so
+ * they can replace `p-4` rather than fight with it. That floor is 1rem unless
+ * `--pad-b` / `--pad-x` say otherwise, which is how a responsive gutter is
+ * spelled here: set the variable per breakpoint (`sm:[--pad-x:1.5rem]`) rather
+ * than adding `sm:px-6` beside it. A plain padding utility would *replace* the
+ * max(), and with it the notch clearance — which is exactly what a landscape
+ * phone needs, since that is where the notch lands on a side edge.
+ *
+ * `pt-safe` deliberately has no floor: its consumer is the header, which
+ * already folds the inset into its own height, so a floor there would push the
+ * header's contents off centre. Because of that it does NOT compose with `p-4`
+ * — it is a padding-top longhand, which beats the `padding` shorthand whatever
+ * the class order, so pairing them silently zeroes the top padding on desktop.
+ * Anything wanting "normal padding, plus the notch" spells out its own floor:
+ * `pt-[max(1rem,env(safe-area-inset-top))]`.
+ */
+@utility pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+@utility pb-safe {
+  padding-bottom: max(var(--pad-b, 1rem), env(safe-area-inset-bottom));
+}
+@utility px-safe {
+  padding-left: max(var(--pad-x, 1rem), env(safe-area-inset-left));
+  padding-right: max(var(--pad-x, 1rem), env(safe-area-inset-right));
+}
+
+/* ── Bottom nav clearance ────────────────────────────────────────────────
+ * On phone-shaped viewports (narrow *or* short — see the `phone` variant) the
+ * navigation is a bar fixed to the bottom edge (MobileTabBar), so the foot of
+ * the viewport is chrome, not free space. Anything else that pins itself down
+ * there — toasts, the devtools button — has to start above it or it lands
+ * behind the bar.
+ *
+ * One variable so the bar's height is stated once, and 0px wherever the sidebar
+ * is showing instead and the corner is genuinely free.
+ */
+:root {
+  --nav-bar-inset: 0px;
+}
+@media (max-width: 767px) {
+  :root {
+    --nav-bar-inset: calc(4.75rem + env(safe-area-inset-bottom));
+  }
+}
+/* Landscape: the bar goes to one short row of icons (labels move beside the
+   glyph), because height is the scarce axis there. Last wins, so a viewport
+   that is both narrow and short gets this one — which is the row it renders. */
+@media (max-height: 559px) {
+  :root {
+    --nav-bar-inset: calc(3rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* ── Height a page has to work with ──────────────────────────────────────
+ * What's left of the viewport once AppShell has taken its share: the sticky
+ * header (and the notch above it), <main>'s top padding, its safe-area bottom
+ * padding, and the tab-bar clearance below.
+ *
+ * The live question board is the reason this exists. That screen must not
+ * scroll — an answer tile below the fold is an answer the clock runs out on —
+ * so it caps itself at this and shrinks its own parts instead (see MatchPage).
+ *
+ * `dvh`, so a retracting URL bar doesn't leave the board mis-sized mid-question.
+ * The bottom gutter is taken at 2rem: <main> sets `--pad-b` per breakpoint, but
+ * that lives on <main> and a var() inside this one resolves against :root, so
+ * the widest value it can take is the honest figure. A board a few pixels short
+ * of the screen is invisible; one a few pixels over has a scrollbar.
+ */
+:root {
+  --page-fit: calc(
+    100dvh - 4rem - env(safe-area-inset-top) - 1rem - max(2rem, env(safe-area-inset-bottom)) -
+      var(--nav-bar-inset)
+  );
+}
+@media (max-height: 559px) {
+  :root {
+    --page-fit: calc(
+      100dvh - 3rem - env(safe-area-inset-top) - 0.75rem - max(2rem, env(safe-area-inset-bottom)) -
+        var(--nav-bar-inset)
+    );
+  }
+}
+
+/* React Query's devtools button (dev only) parks itself in a bottom corner,
+ * which on phone chrome is a tab of the nav bar — it would swallow every tap on
+ * whichever tab it lands on. Lift it clear of the bar there, and only there. */
+@media (max-width: 767px), (max-height: 559px) {
+  .tsqd-open-btn-container {
+    bottom: var(--nav-bar-inset) !important;
+  }
+}
+
+/* ── Global base: a dark-only app over a layered background ─────────────── */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--color-chalk);
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+
+  background-color: var(--color-court-black);
+
+  /* Phone-scroll hygiene, all of it invisible until it's missing:
+     - tap-highlight: kills the grey flash iOS paints over anything tapped —
+       which on an answer tile would fire on every single question.
+     - text-size-adjust: stops Safari inflating text when a phone rotates.
+     - overscroll-behavior-y: no rubber-band chaining into the page behind, and
+       (installed, on Android) no pull-down that reloads the whole app — the
+       single worst thing that can happen with six seconds on the clock. */
+  -webkit-tap-highlight-color: transparent;
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior-y: contain;
+}
+
+/* Layered depth instead of a flat fill: two spotlights over near-black, held
+ * still while content scrolls.
+ *
+ * A fixed layer rather than `background-attachment: fixed` on <body>. Mobile
+ * Safari doesn't honour fixed attachment against the scrolling viewport; it
+ * either pins the gradients to the document (so they scroll away) or
+ * re-rasterizes the whole backdrop every frame, which is exactly the "not quite
+ * smooth" scroll a phone shows and a desktop never does. A composited fixed
+ * layer is painted once and left alone. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1100px 620px at 10% -14%, rgba(124, 58, 237, 0.2), transparent 60%),
+    radial-gradient(1000px 560px at 100% 0%, rgba(34, 211, 238, 0.1), transparent 55%),
+    radial-gradient(900px 700px at 50% 120%, rgba(124, 58, 237, 0.08), transparent 60%);
+}
+
+/* The dynamic viewport unit tracks the mobile URL bar as it hides and shows, so
+   a full-height page stops being 60px too tall (and stops jumping) on a phone. */
+#root {
+  min-height: 100dvh;
+}
+
+/* Display face for anything meant to be *seen* rather than read: headings, the
+   clock, scores. Applied here rather than per-component so a heading is a
+   heading without every file remembering the font token. */
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  letter-spacing: -0.01em;
+}
+
+/* Touch targets: `manipulation` opts out of double-tap-to-zoom, which is what
+   the browser's ~300ms "is this a double tap?" wait is for. Every answer tile
+   registers immediately instead of a third of a second late — on a ten-second
+   question that delay is 3% of the round, and it is the difference between two
+   players' response times. Pinch-zoom stays intact. */
+button,
+a,
+[role='button'],
+input,
+select,
+textarea,
+summary {
+  touch-action: manipulation;
+}
+
+/* Installed, there is no browser chrome to fall back on, so the app owns the
+   whole screen — including the strips behind the notch and the home indicator.
+   The shell pads itself out of them (AppShell); this catches the rest. */
+@media (display-mode: standalone) {
+  body {
+    /* No text selection on a long-press of app chrome — and, more to the point,
+       none on an answer tile, where a slightly-held tap must read as "answered"
+       rather than as "started selecting a paragraph". Content areas opt back
+       in below. */
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  main,
+  input,
+  textarea,
+  [contenteditable] {
+    -webkit-user-select: auto;
+    user-select: auto;
+  }
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-volt) 40%, transparent);
+  color: var(--color-chalk);
+}
+
+/* Slim, themed scrollbars. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(161, 161, 170, 0.28) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background-color: rgba(161, 161, 170, 0.28);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(161, 161, 170, 0.45);
+}
+
+/* Consistent focus ring: a cyan halo on keyboard focus. */
+:focus-visible {
+  outline: 2px solid var(--color-volt);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Accessibility: honour reduced-motion by neutralizing animation/transition.
+   Components still gate decorative motion behind `motion-safe:`, but this is
+   the backstop for anything that slips through. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
