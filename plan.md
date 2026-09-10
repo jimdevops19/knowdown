@@ -351,13 +351,23 @@ than after:
   `AnswerResult` carries `is_correct` *and* `score` (credit 0.0–1.0) so the two
   can disagree, which they do only for a matrix. Step 10 combines that credit
   with speed; it does not re-decide it.
-- **Abandonment.** Win awarded, match voided, or loss recorded? Does it touch
-  rating? (Step 11)
+- ~~**Abandonment.**~~ — **settled (step 11)**: the remaining player is awarded
+  the win (`services.abandon_matchup`), never a void — voiding would erase
+  whatever they had already earned. The matchup reaches `COMPLETED` with
+  `outcome=abandoned`, which is what lets `apps.rankings` (step 17) touch both
+  sides' ratings exactly the way any other result does, once.
+- ~~**Scoring.**~~ — **settled (step 10)**, in `apps.matches.constants.score_answer`:
+  one curve, not a separate pool. A wrong (or partially wrong) answer earns
+  nothing regardless of speed; a correct one is worth
+  `MAX_QUESTION_POINTS × credit × speed_factor`, floored at `MIN_SPEED_FACTOR`
+  so a hard question worked out right at the wire is not scored like a guess.
 - **Whether a match is single-category.** `Matchup.category` says yes; that means
   matchmaking is per category, and the "one global pool" is really one pool per
   active category the moment there are two. (Step 14)
 - **Rematch.** Both players return to the global pool — is there a "play again
-  with the same opponent" path, and does it skip the queue? (Step 9)
+  with the same opponent" path, and does it skip the queue?
+  `services.return_player_to_matchmaking` exists today only as the validated
+  seam Phase D's pool will call; it decides nothing about rematch itself. (Step 14)
 - **Question repetition.** Should a player be able to draw a question they have
   already seen this week? Answering "no" needs a per-player seen-set, which is a
-  Redis structure and a decision about how long it lives. (Step 9)
+  Redis structure and a decision about how long it lives. (Step 14, once a pool exists)

@@ -1,0 +1,76 @@
+"""The numbers the match engine is measured against.
+
+Sits beside ``apps.questions.constants`` in spirit — a statement about the
+*game* rather than the catalog — and the two are independent for the same
+reason ``evaluation`` and ``matches`` are: this module decides what a verdict
+is *worth*, never what is true. ``apps.questions.services.evaluation`` hands
+back ``AnswerResult(is_correct, score)``; everything below turns that plus a
+server-measured response time into points.
+"""
+
+from __future__ import annotations
+
+__all__ = [
+    "DEFAULT_PLAYER_RATING",
+    "MATCH_QUESTION_COUNTS",
+    "MAX_QUESTION_POINTS",
+    "MIN_SPEED_FACTOR",
+    "PLAYERS_PER_MATCHUP",
+    "QUESTION_TIME_LIMIT_MS",
+    "QUESTION_TIME_LIMIT_SECONDS",
+    "score_answer",
+]
+
+#: How many questions a matchup plays. Chosen once per matchup
+#: (``random.choice``), for both players — never per question, or the length
+#: of a game would depend on how the dice landed on question one.
+MATCH_QUESTION_COUNTS: tuple[int, ...] = (3, 5, 7)
+
+#: A matchup is a race between exactly two players. Enforced by a DB
+#: constraint on ``MatchupPlayer`` as well as here, the way display-name
+#: uniqueness is enforced twice in ``apps.players``.
+PLAYERS_PER_MATCHUP = 2
+
+#: A player entering a category with no ``apps.rankings.Ranking`` row yet
+#: starts here. Lives beside the match numbers rather than in ``rankings``
+#: because seeding happens the moment a matchup needs a rating that is not
+#: there yet, not on a schedule ``rankings`` owns.
+DEFAULT_PLAYER_RATING = 1000
+
+#: How long a question stays open once ``start_question`` stamps it, in
+#: server time. The client displays a countdown from this number; it is never
+#: read back from the client.
+QUESTION_TIME_LIMIT_SECONDS = 10
+QUESTION_TIME_LIMIT_MS = QUESTION_TIME_LIMIT_SECONDS * 1000
+
+#: What a fully correct, instant answer is worth.
+MAX_QUESTION_POINTS = 100
+
+#: The floor of the speed multiplier. Even an answer submitted with one
+#: millisecond left on the clock is still worth this fraction of
+#: ``MAX_QUESTION_POINTS`` — a hard question worked out right up to the wire
+#: is not scored as though it were a guess, and a wrong answer is never made
+#: worse by taking the full ten seconds to be wrong.
+MIN_SPEED_FACTOR = 0.5
+
+
+def score_answer(*, credit: float, response_time_ms: int, time_limit_ms: int = QUESTION_TIME_LIMIT_MS) -> int:
+    """Points for one answer: correctness first, speed second.
+
+    ``credit`` is ``AnswerResult.score`` — 0.0 to 1.0, already decided by
+    ``apps.questions`` — never ``is_correct``, so the one shape where they
+    disagree (a matrix) is paid for the cells actually right rather than
+    rounded down to zero.
+
+    A wrong answer (``credit == 0``) is worth nothing, whatever the speed —
+    speed only multiplies an answer that was already worth something, so
+    guessing fast is never better than answering right slowly. ``response_time_ms``
+    is clamped to ``[0, time_limit_ms]`` by the caller (``services.submit_answer``);
+    this function does not re-derive it from a clock, so it can be called from a
+    test with any number and stay honest about what it is measuring.
+    """
+    if credit <= 0:
+        return 0
+    remaining_fraction = max(0.0, (time_limit_ms - response_time_ms) / time_limit_ms)
+    speed_factor = MIN_SPEED_FACTOR + (1 - MIN_SPEED_FACTOR) * remaining_fraction
+    return round(MAX_QUESTION_POINTS * credit * speed_factor)

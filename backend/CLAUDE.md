@@ -36,9 +36,15 @@ The question authoring pipeline and the scaffolding under it:
   case-insensitively, in the database as well as in a validator), an avatar,
   and `GET/PATCH /players/me/`.
 - **`apps/core_common`**, **`shared/`** — the platform-wide contracts (below).
-- **`apps/matches`, `apps/rankings`, `apps/achievements`** — **scaffolds**.
-  Directory layout and an `AppConfig`, no models. The tables in
-  `initial-plan.md` land with the increment that uses them.
+- **`apps/matches`** — the **match engine, without sockets**: `Matchup`,
+  `MatchupPlayer`, `MatchupQuestion`, `PlayerAnswer`, and every rule of a game
+  as a `services` function callable from a test (`create_matchup` through
+  `abandon_matchup`), plus read-only match history
+  (`GET /api/v1/matches/`, `GET /api/v1/matches/{id}/`). Phase D adds a
+  WebSocket transport over the top; nothing here imports `channels`.
+- **`apps/rankings`, `apps/achievements`** — **scaffolds**. Directory layout
+  and an `AppConfig`, no models. The tables in `initial-plan.md` land with the
+  increment that uses them.
 
 ## Commands
 
@@ -57,6 +63,7 @@ uv run python manage.py test --settings=config.settings.test
 uv run python manage.py test apps.questions --settings=config.settings.test
 uv run python manage.py test apps.questions.tests.test_evaluation --settings=config.settings.test
 uv run python manage.py test apps.accounts apps.players --settings=config.settings.test
+uv run python manage.py test apps.matches --settings=config.settings.test
 ```
 
 `apps/questions/tests/` is a **package**, not a `tests.py` — the loader's
@@ -329,6 +336,55 @@ service, so no payload shape reaches the column. Uniqueness is enforced twice �
 a validator for the message, and a `UniqueConstraint` on `Lower("display_name")`
 for the truth — which is what makes a rename to your own capitalisation legal
 and a lost race a `Conflict` rather than a 500.
+
+### matches — the whole game, without a socket in sight
+
+`Matchup` → `MatchupQuestion` → `PlayerAnswer` is what happened; `MatchupQuestion`
+stores `(question_type, question_id)` — the `QuestionRef` pair
+`apps.questions.selectors` already returns — rather than a foreign key into one
+of the seven question tables, for the same reason `questions` keeps evaluation
+away from `matches`: this app must stay independent of every answer shape, and
+that pair is what a since-deactivated question still resolves through
+(`selectors.get_question`) when a finished matchup is replayed over REST.
+
+Every rule lives in `services/`, keyword-only and `@transaction.atomic`, and is
+playable start-to-finish from a test: `create_matchup` draws the question count
+(`random.choice(MATCH_QUESTION_COUNTS)`) and the board once, for both players;
+`start_matchup`/`start_question` stamp the server's own clock; `submit_answer`
+asks `apps.questions.services.evaluate_answer` for a verdict and combines it with
+a **server-measured** response time (`constants.score_answer`) — there is no
+parameter anywhere in this app a client could use to report its own elapsed
+time, which is what makes a patched client unable to win a question by lying
+about its stopwatch. `complete_question` refuses to close a question early
+unless every player has answered or the time limit has actually elapsed, so a
+client cannot race the opponent's clock by asking the server to call time.
+
+**Decided once, here, because `plan.md` left them open:**
+
+- **Scoring** is a single curve, not a separate points pool: a wrong (or
+  partially wrong) answer earns nothing regardless of speed, and a correct one
+  is worth `MAX_QUESTION_POINTS × credit × speed_factor`, floored at
+  `MIN_SPEED_FACTOR` so a hard question worked out right at the wire is not
+  scored like a guess.
+- **Abandonment** (`services.abandon_matchup`) awards the remaining player the
+  win rather than voiding the match or leaving it open — voiding would erase
+  whatever they had already earned, and the matchup still needs to reach
+  `COMPLETED` so `apps.rankings` (step 17) can update both sides' ratings
+  exactly once, the same as any other result. `Matchup.outcome` (`played` /
+  `abandoned`) is how a caller tells the two apart without inferring it from
+  which rows exist.
+- **Idempotency** is doubled the way display-name uniqueness is in
+  `apps.players`: `submit_answer` looks up an existing `PlayerAnswer` before
+  scoring, and a `UniqueConstraint` on `(matchup_question, player)` is the
+  backstop if two attempts still race.
+
+`GET /api/v1/matches/` and `/{id}/` are read-only on purpose — scoring happens
+through `services`, over a socket once Phase D exists, and a REST write path
+would be a second implementation of the same rules. The detail serializer
+reuses `questions.api.serializers.serialize_for_play` for each question's board
+rather than inventing a second payload shape, so a box score inherits the
+anti-cheat guarantee instead of re-deciding it; each player's own submission is
+shown beside it, never the opponent's.
 
 ### core_common — shared conventions (read before touching cross-cutting behavior)
 

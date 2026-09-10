@@ -18,6 +18,7 @@ api_v1_patterns = [
     path("categories/", include("apps.categories.api.urls")),
     path("auth/", include("apps.accounts.api.urls")),
     path("players/", include("apps.players.api.urls")),
+    path("matches/", include("apps.matches.api.urls")),
 ]
 
 urlpatterns = [
