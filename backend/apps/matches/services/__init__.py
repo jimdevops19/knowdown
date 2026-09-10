@@ -42,8 +42,8 @@ from apps.matches import selectors
 from apps.matches.constants import (
     MATCH_QUESTION_COUNTS,
     PLAYERS_PER_MATCHUP,
-    QUESTION_TIME_LIMIT_MS,
     score_answer,
+    time_limit_ms_for,
 )
 from apps.matches.models import Matchup, MatchupPlayer, MatchupQuestion, PlayerAnswer
 from apps.players.models import Player
@@ -194,20 +194,21 @@ def submit_answer(
             code="question_already_completed",
         )
 
+    time_limit_ms = time_limit_ms_for(question.question_type)
     now = timezone.now()
     elapsed_ms = int((now - question.started_at).total_seconds() * 1000)
-    if elapsed_ms > QUESTION_TIME_LIMIT_MS:
+    if elapsed_ms > time_limit_ms:
         raise Conflict(
             f"Question {order} of matchup {matchup.pk} timed out before this answer arrived.",
             code="question_time_expired",
         )
-    response_time_ms = max(0, min(elapsed_ms, QUESTION_TIME_LIMIT_MS))
+    response_time_ms = max(0, min(elapsed_ms, time_limit_ms))
 
     concrete_question = get_concrete_question(
         ref=QuestionRef(question.question_type, question.question_id)
     )
     result = evaluate_answer(question=concrete_question, submitted=payload)
-    points = score_answer(credit=result.score, response_time_ms=response_time_ms)
+    points = score_answer(credit=result.score, response_time_ms=response_time_ms, time_limit_ms=time_limit_ms)
 
     try:
         with transaction.atomic():
@@ -260,7 +261,7 @@ def complete_question(*, matchup: Matchup, order: int) -> MatchupQuestion:
     deadline_passed = (
         question.started_at is not None
         and (timezone.now() - question.started_at).total_seconds() * 1000
-        >= QUESTION_TIME_LIMIT_MS
+        >= time_limit_ms_for(question.question_type)
     )
     if answered < total_players and not deadline_passed:
         raise Conflict(

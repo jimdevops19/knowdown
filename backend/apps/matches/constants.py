@@ -10,6 +10,8 @@ server-measured response time into points.
 
 from __future__ import annotations
 
+from apps.questions.models import QuestionType
+
 __all__ = [
     "DEFAULT_PLAYER_RATING",
     "MATCH_QUESTION_COUNTS",
@@ -20,8 +22,10 @@ __all__ = [
     "PRESENCE_TTL_SECONDS",
     "QUESTION_TIME_LIMIT_MS",
     "QUESTION_TIME_LIMIT_SECONDS",
+    "QUESTION_TIME_LIMITS_MS",
     "RECONNECT_GRACE_SECONDS",
     "score_answer",
+    "time_limit_ms_for",
 ]
 
 #: How many questions a matchup plays. Chosen once per matchup
@@ -42,9 +46,34 @@ DEFAULT_PLAYER_RATING = 1000
 
 #: How long a question stays open once ``start_question`` stamps it, in
 #: server time. The client displays a countdown from this number; it is never
-#: read back from the client.
+#: read back from the client. This is the *default* — the per-type override
+#: below is what most questions get.
 QUESTION_TIME_LIMIT_SECONDS = 10
 QUESTION_TIME_LIMIT_MS = QUESTION_TIME_LIMIT_SECONDS * 1000
+
+#: Per-``QuestionType`` overrides of the above. A matrix question is several
+#: sparse, independent claims read off a grid (``evaluation`` scores it "per
+#: authored cell" for the same reason) rather than one glance-and-answer
+#: claim, so it earns more clock than the default — a type absent here just
+#: falls back to ``QUESTION_TIME_LIMIT_MS`` in ``time_limit_ms_for``. Keyed by
+#: type, not by category: a board is drawn from one category but categories
+#: are independent of question types on purpose (``backend/CLAUDE.md``), so
+#: this has to live wherever "how long is fair" is decided, not wherever
+#: "what is this about" is decided.
+QUESTION_TIME_LIMITS_MS: dict[QuestionType, int] = {
+    QuestionType.MATRIX: 20_000,
+}
+
+
+def time_limit_ms_for(question_type: QuestionType) -> int:
+    """How long a question of this type stays open, in server time.
+
+    The one place both ``services`` (measuring an answer against the clock)
+    and the realtime transport (telling a client how long to count down from,
+    and how long its own watchdog should sleep) ask this question, so the two
+    can never quietly disagree about when a question closes.
+    """
+    return QUESTION_TIME_LIMITS_MS.get(question_type, QUESTION_TIME_LIMIT_MS)
 
 #: What a fully correct, instant answer is worth.
 MAX_QUESTION_POINTS = 100

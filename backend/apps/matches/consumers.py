@@ -32,7 +32,7 @@ from apps.core_common.exceptions import DomainError
 from apps.matches import abuse, events, groups, presence, publish
 from apps.matches import selectors as match_selectors
 from apps.matches import services as match_services
-from apps.matches.constants import QUESTION_TIME_LIMIT_SECONDS, RECONNECT_GRACE_SECONDS
+from apps.matches.constants import RECONNECT_GRACE_SECONDS, time_limit_ms_for
 from apps.matches.pool import PoolTimeout, join_pool, leave_pool
 from apps.players.services import ensure_player_for_user
 from apps.questions.api.serializers import serialize_for_play
@@ -103,8 +103,10 @@ class _WatchdogMixin:
         task.add_done_callback(tasks.discard)
         return task
 
-    async def _watch_question_timeout(self, *, matchup_id: UUID | str, order: int) -> None:
-        await asyncio.sleep(QUESTION_TIME_LIMIT_SECONDS + 0.5)  # a small margin over the server clock
+    async def _watch_question_timeout(
+        self, *, matchup_id: UUID | str, order: int, time_limit_ms: int
+    ) -> None:
+        await asyncio.sleep(time_limit_ms / 1000 + 0.5)  # a small margin over the server clock
         await database_sync_to_async(_close_question_if_ready)(matchup_id=matchup_id, order=order)
 
 
@@ -290,7 +292,11 @@ class MatchupConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
         state = await database_sync_to_async(_current_state)(matchup=matchup)
         if state is not None:
             await self.send_json({"type": events.QUESTION_STARTED, **state})
-            self._spawn(self._watch_question_timeout(matchup_id=self.matchup_id, order=state["order"]))
+            self._spawn(
+                self._watch_question_timeout(
+                    matchup_id=self.matchup_id, order=state["order"], time_limit_ms=state["time_limit_ms"]
+                )
+            )
 
     async def receive_json(self, content: dict, **kwargs) -> None:
         message_type = content.get("type")
@@ -384,9 +390,18 @@ class MatchupConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
 
     async def question_started(self, message: dict) -> None:
         await self.send_json(
-            {"type": events.QUESTION_STARTED, "order": message["order"], "question": message["question"]}
+            {
+                "type": events.QUESTION_STARTED,
+                "order": message["order"],
+                "question": message["question"],
+                "time_limit_ms": message["time_limit_ms"],
+            }
         )
-        self._spawn(self._watch_question_timeout(matchup_id=self.matchup_id, order=message["order"]))
+        self._spawn(
+            self._watch_question_timeout(
+                matchup_id=self.matchup_id, order=message["order"], time_limit_ms=message["time_limit_ms"]
+            )
+        )
 
     async def player_answered(self, message: dict) -> None:
         await self.send_json(
@@ -458,7 +473,11 @@ def _current_state(*, matchup) -> dict | None:
         return None
     concrete = get_concrete_question(ref=QuestionRef(question.question_type, question.question_id))
     board = serialize_for_play(question=concrete, matchup_id=matchup.id)
-    return {"order": question.order, "question": board}
+    return {
+        "order": question.order,
+        "question": board,
+        "time_limit_ms": time_limit_ms_for(question.question_type),
+    }
 
 
 def _matchup_is_active(*, matchup_id: str) -> bool:
@@ -505,7 +524,12 @@ def _close_question_if_ready(*, matchup_id: str, order: int) -> None:
         return
     publish.publish_question_result(matchup_id=matchup_id, order=order, results=outcome["results"])
     if outcome["next"] is not None:
-        publish.publish_question_started(matchup_id=matchup_id, order=outcome["next"]["order"], board=outcome["next"]["question"])
+        publish.publish_question_started(
+            matchup_id=matchup_id,
+            order=outcome["next"]["order"],
+            board=outcome["next"]["question"],
+            time_limit_ms=outcome["next"]["time_limit_ms"],
+        )
     if outcome["summary"] is not None:
         publish.publish_match_completed(matchup_id=matchup_id, summary=outcome["summary"])
 
@@ -558,6 +582,10 @@ def _try_close_question(*, matchup_id: str, order: int) -> dict | None:
                 ),
                 matchup_id=matchup.id,
             )
-            next_question = {"order": upcoming.order, "question": board}
+            next_question = {
+                "order": upcoming.order,
+                "question": board,
+                "time_limit_ms": time_limit_ms_for(upcoming.question_type),
+            }
 
     return {"results": results, "next": next_question, "summary": summary}

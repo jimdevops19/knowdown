@@ -36,16 +36,22 @@ def publish_match_found(*, player_id: UUID | str, matchup_id: UUID | str) -> Non
     )
 
 
-def publish_question_started(*, matchup_id: UUID | str, order: int, board: dict) -> None:
+def publish_question_started(
+    *, matchup_id: UUID | str, order: int, board: dict, time_limit_ms: int
+) -> None:
     """One question opened. ``board`` is already play-time-serialized
     (``questions.api.serializers.serialize_for_play``) — this module does not
-    know a question's shape, only that it must forward whatever it is given."""
+    know a question's shape, only that it must forward whatever it is given.
+    ``time_limit_ms`` (``apps.matches.constants.time_limit_ms_for``) is what a
+    client counts down from — it varies by question type, so it has to ride
+    the broadcast rather than be assumed client-side."""
     _send_to_matchup(
         matchup_id=matchup_id,
         message={
             "type": events.QUESTION_STARTED,
             "order": order,
             "question": board,
+            "time_limit_ms": time_limit_ms,
         },
     )
 

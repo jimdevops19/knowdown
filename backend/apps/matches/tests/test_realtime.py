@@ -198,13 +198,11 @@ class MatchupPlayTests(TransactionTestCase):
 
     async def test_a_question_nobody_answers_still_closes(self):
         # Both the watchdog's own clock (consumers) and the deadline the
-        # service checks against (services, via apps.matches.constants) have
-        # to be short — the first controls when the watchdog wakes up, the
-        # second is what makes the server agree time has actually run out.
-        with (
-            mock.patch("apps.matches.consumers.QUESTION_TIME_LIMIT_SECONDS", 0),
-            mock.patch("apps.matches.services.QUESTION_TIME_LIMIT_MS", 0),
-        ):
+        # service checks against (services) read ``time_limit_ms_for`` from
+        # ``apps.matches.constants`` at call time, so patching the one
+        # default it falls back to is enough to make both agree time has run
+        # out immediately.
+        with mock.patch("apps.matches.constants.QUESTION_TIME_LIMIT_MS", 0):
             matchup_id, sock_one, sock_two = await self._paired_players()
             await sock_one.receive_json_from(timeout=5)
             await sock_two.receive_json_from(timeout=5)
