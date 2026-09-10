@@ -309,8 +309,6 @@ selectors that already filter to what a caller may see.
 is now complete: 297/297 backend tests pass, `manage.py spectacular
 --fail-on-warn` is clean.
 
-# STOPPED HERE - 10/09/2026 - Phase E complete (18, 19 done); Phase F not started
-
 ---
 
 ## Phase F — hardening and shipping (6 steps)
@@ -322,6 +320,29 @@ real on the day the limit is switched on.
 
 **Done when:** enforcement is off in the test settings and the limit tests ask for
 it back explicitly.
+
+**Step 20 done (10/09/2026):** `apps/matches/abuse.py` — the WebSocket half of
+the family `apps.accounts.services.lockout` started, same posture (count
+first, refuse second, fail open), different primitive: `cache.incr`/`cache.add`
+rather than `ScopedRateThrottle`, since there is no request/response cycle for
+DRF's throttle to hang a scope off. Three limits, all keyed on the player id:
+`check_answer_submit_rate` (checked in `MatchupConsumer.receive_json` before a
+payload reaches `services.submit_answer`), `check_matchmaking_join_rate`
+(checked in `MatchmakingConsumer.connect` before `pool.join_pool`), and a
+**budget**, not a rate — `register_socket`/`unregister_socket` capping how many
+sockets (matchmaking and matchup combined) one player may hold open at once,
+paired with every `connect`/`disconnect`. A `connect`-time refusal closes with
+`CLOSE_RATE_LIMITED` (4429); a mid-match refusal sends `events.ERROR` rather
+than closing the socket — a burst is not a reason to end the game.
+`MATCH_ABUSE_LIMITS_ENFORCED` is off in `config.settings.test` the way
+`LOGIN_LOCKOUT_ENFORCED` is: counted, never enforced, so `test_realtime.py`'s
+own tight loops don't trip a limit meant for someone else.
+`apps.matches.tests.test_abuse` (11 tests, incl. one over a real
+`WebsocketCommunicator` proving the concurrent-socket cap closes a second
+socket) asks for the real behaviour with `@override_settings`. 308/308 backend
+tests pass.
+
+# STOPPED HERE - 10/09/2026 - Phase F started (20 done); 21-25 not started
 
 ### 21. `apps/ops` — the admin's door
 Port rpool's admin gate: the mounted prefix 404s from outside and the admin

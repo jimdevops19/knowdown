@@ -479,6 +479,43 @@ LOGIN_LOCKOUT_SECONDS = env_int("LOGIN_LOCKOUT_SECONDS", 15 * 60)
 LOGIN_LOCKOUT_BY_IP = env_bool("LOGIN_LOCKOUT_BY_IP", False)
 
 
+# --- Match abuse limits -------------------------------------------------------
+# The WebSocket half of the same idea: answering and joining the matchmaking
+# pool are the two actions a live match costs the platform for, and a
+# concurrent socket is a budget rather than a rate. Mechanism is
+# apps.matches.abuse — see its module docstring. Counting only, when off:
+# every hit is still tallied and logged, nobody is turned away, which is how
+# the numbers become real before the limit starts refusing anyone. The test
+# settings switch this off so a suite that opens many sockets in a tight loop
+# does not trip its own limit.
+MATCH_ABUSE_LIMITS_ENFORCED = env_bool("MATCH_ABUSE_LIMITS_ENFORCED", True)
+
+# Answer frames one player may send per window, across every matchup they are
+# in. Sized well above "one per question" (a client answers each question
+# once) so a slow connection retrying a frame is never mistaken for abuse.
+ANSWER_SUBMIT_RATE_LIMIT = env_int("ANSWER_SUBMIT_RATE_LIMIT", 20)
+ANSWER_SUBMIT_RATE_WINDOW_SECONDS = env_int("ANSWER_SUBMIT_RATE_WINDOW_SECONDS", 60)
+
+# Matchmaking-pool joins one player may make per window. Joining costs nothing
+# a real match would (no question is drawn until two players are paired),
+# which is what makes it the cheapest way to hammer apps.matches.pool's
+# pairing mutex.
+MATCHMAKING_JOIN_RATE_LIMIT = env_int("MATCHMAKING_JOIN_RATE_LIMIT", 10)
+MATCHMAKING_JOIN_RATE_WINDOW_SECONDS = env_int("MATCHMAKING_JOIN_RATE_WINDOW_SECONDS", 60)
+
+# Sockets one player may hold open at once, matchmaking and matchup combined.
+# A budget, not a rate: an idle open socket still costs the channel layer and
+# apps.matches.presence one slot each, whether or not it ever sends a frame.
+MAX_CONCURRENT_SOCKETS_PER_PLAYER = env_int("MAX_CONCURRENT_SOCKETS_PER_PLAYER", 4)
+
+# Safety net for the concurrent-socket counter: how long a slot survives with
+# no refresh before it is freed on its own. Longer than any single connection
+# should plausibly live without apps.matches.abuse.register_socket refreshing
+# it, so it only ever fires for a process that died between registering a
+# socket and the disconnect that would have released it.
+CONCURRENT_SOCKET_TTL_SECONDS = env_int("CONCURRENT_SOCKET_TTL_SECONDS", 6 * 60 * 60)
+
+
 # --- Outbound mail -----------------------------------------------------------
 # Today there is exactly one message: the forgot-password link
 # (accounts.services.password_reset). Django's stock SMTP backend aimed at

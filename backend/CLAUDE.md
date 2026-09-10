@@ -42,7 +42,9 @@ The question authoring pipeline and the scaffolding under it:
   `MatchupQuestion`, `PlayerAnswer`, and every rule of a game as a `services`
   function callable from a test (`create_matchup` through `abandon_matchup`) —
   `services/` still imports nothing from `channels`. Read-only match history
-  over REST (`GET /api/v1/matches/`, `GET /api/v1/matches/{id}/`), and the
+  over REST for **finished** matches only (`GET /api/v1/matches/`,
+  `GET /api/v1/matches/{id}/` — see "matches" below for why live ones are
+  refused), and the
   **realtime transport** over the top: a global matchmaking pool
   (`apps.matches.pool`), presence (`apps.matches.presence`), and two
   WebSocket consumers (`consumers.py`) that turn the same service calls into
@@ -410,8 +412,33 @@ through `services`, over a socket once Phase D exists, and a REST write path
 would be a second implementation of the same rules. The detail serializer
 reuses `questions.api.serializers.serialize_for_play` for each question's board
 rather than inventing a second payload shape, so a box score inherits the
-anti-cheat guarantee instead of re-deciding it; each player's own submission is
-shown beside it, never the opponent's.
+anti-cheat guarantee instead of re-deciding it.
+
+**Both are about *finished* matches, and that is anti-cheat, not tidiness.**
+`serialize_for_play` guarantees no board names its answer; it cannot guarantee
+anything about *which* boards, or *whose* answers, a caller is handed. A player
+in a live match is a legitimate party to it and knows its id — it is in the URL
+of the screen they are on — so every ownership check on `/{id}/` passes while
+the clock is running. Three gates close what that left open:
+
+- `selectors.list_matchups_for_player` filters to `FINISHED_STATUSES`. A row
+  carries both sides' `score` and `correct_answers`, and `services.submit_
+  answer` increments those when an answer *lands*, not when the question
+  closes — so an unfiltered list, polled through a ten-second window, reported
+  whether the opponent's answer was right. `events.PLAYER_ANSWERED` refuses to
+  say that on purpose.
+- `MatchHistoryDetailView` answers 409 `matchup_in_progress` unless the matchup
+  is finished. Not 403: the right person is asking at the wrong time.
+- The detail serializer is the second mechanism behind that view, so a future
+  caller reaching it another way leaks nothing either — `get_questions` emits
+  only questions with a `completed_at`, and `get_answers` returns `{}` for one
+  still open. Filtering unplayed questions matters past the final whistle too:
+  an abandoned match's undrawn questions go back in the category pool and can
+  be dealt to that player again, which made "abandon, then read the box score"
+  a way to farm boards.
+
+Each player's own submission is shown beside a played question, never the
+opponent's until the question that produced it has closed.
 
 ### core_common — shared conventions (read before touching cross-cutting behavior)
 
@@ -524,6 +551,28 @@ container deployment with more than one replica.
 harmless** — `asgiref`'s test harness cancels the underlying consumer task the
 moment a wait times out. A timeout is "this socket is done," not "nothing yet,
 ask again."
+
+**Abuse limits on the paths that cost something** (`apps.matches.abuse`) — the
+WebSocket half of the family `apps.accounts.services.lockout` started, same
+posture (count first, refuse second, fail open), different mechanism: there is
+no request/response cycle here for `ScopedRateThrottle` to hang a scope off, so
+this reuses `apps.matches.pool`'s "one atomic counter behind whatever `CACHES`
+is" primitive instead. Three limits, all keyed on the player id: how many
+`events.ANSWER_SUBMIT` frames one player may send per window
+(`check_answer_submit_rate`, checked in `MatchupConsumer.receive_json` before a
+payload ever reaches `services.submit_answer`); how many times one player may
+join a category's pool per window (`check_matchmaking_join_rate`, checked in
+`MatchmakingConsumer.connect` before `pool.join_pool`); and a **budget**, not a
+rate — how many sockets (matchmaking and matchup, added together) one player
+may hold open at once (`register_socket`/`unregister_socket`, paired with
+every `connect`/`disconnect`). A refusal at `connect` closes with
+`CLOSE_RATE_LIMITED` (4429); a refusal mid-match sends `events.ERROR` with
+`code="rate_limited"` rather than closing the socket, since a burst is not a
+reason to end the game. `MATCH_ABUSE_LIMITS_ENFORCED` is off in the test
+settings the way `LOGIN_LOCKOUT_ENFORCED` is — counted, never enforced, so
+`test_realtime.py`'s own tight request loops do not trip a limit meant for
+someone else; `apps.matches.tests.test_abuse` asks for it back with
+`@override_settings`.
 
 ## Conventions
 

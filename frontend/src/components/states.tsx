@@ -31,7 +31,14 @@ export function Loading({
 }
 
 export function ErrorState({ error }: { error: unknown }) {
-  const message = error instanceof ApiError ? error.message : 'Something went wrong.'
+  // A plain `Error`'s message counts too. Not every failure worth showing comes
+  // back from axios — a socket that closed with a reason is an `Error` carrying
+  // a sentence somebody wrote for a player to read, and discarding it in favour
+  // of "Something went wrong." turns four distinct, actionable failures into
+  // one unactionable one. `ApiError` is checked first only because it is the
+  // narrower type, not because it is the more trustworthy one.
+  const message =
+    error instanceof ApiError || error instanceof Error ? error.message : 'Something went wrong.'
   return (
     <Card border="border-wrong/40" className="flex items-center gap-3 p-6">
       <AlertTriangle className="shrink-0 text-wrong" size={20} />

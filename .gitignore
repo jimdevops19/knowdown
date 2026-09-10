@@ -14,8 +14,12 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
-lib64/
+# Anchored to the repo root. Unanchored, `lib/` matches at *any* depth — which
+# silently untracked the whole of `frontend/src/lib/` (the API client, the error
+# model, the domain types, the realtime layer). These entries come from the
+# Python template and mean a setuptools build directory here, at the top.
+/lib/
+/lib64/
 parts/
 sdist/
 var/

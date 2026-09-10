@@ -58,6 +58,14 @@ EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 # testing the URLconf rather than the view.
 PERMIT_PASSWORD_AUTH = True
 
+# Match abuse limits: counted, never enforced. Same reasoning as
+# LOGIN_LOCKOUT_ENFORCED below — test_realtime.py opens many sockets and sends
+# many answer frames in a tight loop by design, and the counters are not
+# cleared between tests. The limit tests ask for the real behaviour back with
+# @override_settings(MATCH_ABUSE_LIMITS_ENFORCED=True) and clear the cache
+# themselves.
+MATCH_ABUSE_LIMITS_ENFORCED = False
+
 # Sign-in lockout: counted, never enforced. The counters live in the LocMem
 # cache above and are not cleared between tests, so the addresses the suite
 # signs in wrong with on purpose would accumulate across a run and start 429ing

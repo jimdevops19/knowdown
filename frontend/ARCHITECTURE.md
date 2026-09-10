@@ -176,6 +176,39 @@ the bootstrap refresh behind itself would deadlock.
 
 Two sockets, both under `/ws/v1/`, both authenticated by JWT.
 
+### 4.0 How a socket authenticates
+
+**The token goes in the query string: `/ws/v1/…/?token=<access token>`.** Not a
+preference — a browser's `WebSocket` constructor accepts no headers, so the
+`Authorization: Bearer` every REST call uses is simply unavailable, and
+`?token=` is the contract `apps.matches.authentication.JWTAuthMiddleware`
+reads. The cost is that the token can land in a proxy access log, which is why
+the backend redacts query strings; know that before copying the pattern
+anywhere else.
+
+Three consequences the socket layer has to carry, none of which REST does:
+
+- **It waits for the session.** Only the access token is in memory, so a reload
+  starts with none and has to refresh for one. A REST call that goes out in
+  that window takes a 401 and is replayed; a socket that does takes a **4401
+  close, which is permanent**, and the player is told to sign in while signed
+  in. `Connection.open` awaits `waitForAuthReady()` first, for the same reason
+  the axios request interceptor does — but where that is a convenience, this is
+  the difference between a game and an error screen.
+- **It re-reads the token on every connect.** The URL is rebuilt inside `open`,
+  not cached on the `Connection`, so a socket reconnecting twenty minutes in
+  presents the token the session holds *now*.
+- **A 4401 gets exactly one refresh-and-retry.** An access token that expired
+  mid-question is refusable and refreshable, and a player six seconds into a
+  clock should not be signed out over it. Once per connection, and reset only
+  after a connection has proved a token good by reaching `live`. A refresh that
+  *rejects* is a network problem, not an expired session — it backs off and
+  retries rather than logging anybody out, the same distinction the auth store
+  draws.
+
+`socket.test.ts` pins all four behaviours, because losing the token from the
+URL is a one-line regression that nothing else would notice.
+
 ### 4.1 `matchmaking/{category}/`
 
 Connecting joins the pool; **disconnecting leaves it**. There is no leave
@@ -216,7 +249,10 @@ tunnel.
   exponential backoff and **full jitter** (without it, every client of a pod
   that just rolled reconnects in the same millisecond). A 25s ping and a 70s
   silence watchdog catch half-open connections that never fire `onclose`.
-  Permanent close codes (4401, 4404, 4200) stop the retry loop.
+  Permanent close codes (4401, 4404, 4200, 4429) stop the retry loop. 4429 is
+  the counter-intuitive member: the connection was refused *because* this client
+  has been connecting too much (`apps.matches.abuse`), so backing off would
+  still be reconnecting — the player retries by hand.
 - **`useMatchup.ts`** — the state machine, as a **reducer**. Events arrive in
   bursts (a result, the next question and sometimes the final summary in one
   tick), and every transition must apply in order from the previous state with

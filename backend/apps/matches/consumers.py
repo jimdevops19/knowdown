@@ -29,7 +29,7 @@ from django.core.cache import cache
 
 from apps.categories import selectors as category_selectors
 from apps.core_common.exceptions import DomainError
-from apps.matches import events, groups, presence, publish
+from apps.matches import abuse, events, groups, presence, publish
 from apps.matches import selectors as match_selectors
 from apps.matches import services as match_services
 from apps.matches.constants import QUESTION_TIME_LIMIT_SECONDS, RECONNECT_GRACE_SECONDS
@@ -51,6 +51,10 @@ logger = get_logger(__name__)
 CLOSE_UNAUTHENTICATED = 4401
 CLOSE_NOT_FOUND = 4404
 CLOSE_MATCHED = 4200  # normal: the pool socket's one job is done
+#: apps.matches.abuse refused this connection — too many recent joins, or too
+#: many sockets already open for this account. 4429 mirrors HTTP 429 the way
+#: 4401/4404 mirror their own status codes.
+CLOSE_RATE_LIMITED = 4429
 
 #: See the comment at its one call site (``MatchupConsumer.disconnect``): the
 #: reconnect flag's TTL has to outlast the watchdog's own sleep, which starts
@@ -114,6 +118,7 @@ class MatchmakingConsumer(AsyncJsonWebsocketConsumer):
         self.player_id: str | None = None
         self.category_slug: str | None = None
         self._matched = False
+        self._registered = False
 
     async def connect(self) -> None:
         user = self.scope.get("user")
@@ -132,6 +137,14 @@ class MatchmakingConsumer(AsyncJsonWebsocketConsumer):
         player = await database_sync_to_async(ensure_player_for_user)(user=user)
         self.player_id = str(player.id)
         self.category_slug = category_slug
+
+        try:
+            await database_sync_to_async(_admit_matchmaking_socket)(player_id=self.player_id)
+        except abuse.RateLimited:
+            await self.accept()
+            await self.close(code=CLOSE_RATE_LIMITED)
+            return
+        self._registered = True
 
         await self.channel_layer.group_add(groups.player_group(self.player_id), self.channel_name)
         await self.accept()
@@ -175,6 +188,8 @@ class MatchmakingConsumer(AsyncJsonWebsocketConsumer):
             await self.close(code=1000)
 
     async def disconnect(self, code: int) -> None:
+        if self._registered:
+            await database_sync_to_async(abuse.unregister_socket)(player_id=self.player_id)
         if self.player_id is None:
             return
         await self.channel_layer.group_discard(groups.player_group(self.player_id), self.channel_name)
@@ -201,6 +216,7 @@ class MatchupConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
         self.matchup_id: str | None = None
         self.player_id: str | None = None
         self.player = None
+        self._registered = False
 
     async def connect(self) -> None:
         user = self.scope.get("user")
@@ -224,6 +240,19 @@ class MatchupConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
             await self.accept()
             await self.close(code=CLOSE_NOT_FOUND)
             return
+
+        # Checked, and registered, before any of this consumer's state is set —
+        # ``disconnect`` treats a set ``self.matchup_id`` as "this player was
+        # really in the match," which a refused connection must not trigger
+        # (it would open the reconnect-grace/abandon path for a player who
+        # never actually joined).
+        try:
+            await database_sync_to_async(abuse.register_socket)(player_id=str(player.id))
+        except abuse.RateLimited:
+            await self.accept()
+            await self.close(code=CLOSE_RATE_LIMITED)
+            return
+        self._registered = True
 
         self.matchup_id = str(matchup_id)
         self.player = player
@@ -280,6 +309,19 @@ class MatchupConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
             return
 
         try:
+            await database_sync_to_async(abuse.check_answer_submit_rate)(player_id=self.player_id)
+        except abuse.RateLimited as exc:
+            await self.send_json(
+                {
+                    "type": events.ERROR,
+                    "code": "rate_limited",
+                    "message": "Too many answers submitted — slow down.",
+                    "retry_after": exc.retry_after,
+                }
+            )
+            return
+
+        try:
             await database_sync_to_async(_submit_answer)(
                 matchup_id=self.matchup_id, player=self.player, order=order, payload=payload
             )
@@ -296,6 +338,8 @@ class MatchupConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
         await database_sync_to_async(_close_question_if_ready)(matchup_id=self.matchup_id, order=order)
 
     async def disconnect(self, code: int) -> None:
+        if self._registered:
+            await database_sync_to_async(abuse.unregister_socket)(player_id=self.player_id)
         if self.matchup_id is None:
             return
         await self.channel_layer.group_discard(groups.matchup_group(self.matchup_id), self.channel_name)
@@ -368,6 +412,16 @@ class MatchupConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
 # Plain functions rather than consumer methods: they touch only the ORM and
 # apps.matches.services/selectors, so they are what a future test can call
 # directly without opening a socket, the same promise Phase C made.
+
+
+def _admit_matchmaking_socket(*, player_id: str) -> None:
+    """Both matchmaking-specific abuse checks, in the order a refusal should
+    happen: the join-rate limit first (cheapest, and the one a script hammers
+    hardest by repeatedly joining and leaving), then the concurrent-socket
+    budget this player shares with every ``MatchupConsumer`` they also have
+    open. Raises ``apps.matches.abuse.RateLimited`` from whichever refuses."""
+    abuse.check_matchmaking_join_rate(player_id=player_id)
+    abuse.register_socket(player_id=player_id)
 
 
 def _get_category_or_none(*, slug: str):

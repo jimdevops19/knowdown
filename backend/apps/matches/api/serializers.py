@@ -49,6 +49,15 @@ class MatchupQuestionSerializer(serializers.Serializer):
         return serialize_for_play(question=question, matchup_id=matchup_question.matchup_id)
 
     def get_answers(self, matchup_question) -> dict:
+        # An open question publishes nobody's answer. The view above already
+        # refuses a live matchup outright, and this is the second mechanism
+        # behind that one: the first player to answer does so while the second
+        # player's clock is still running, so `submitted` + `is_correct` on an
+        # unclosed question is the answer key handed to the person still
+        # thinking. A future caller that serializes a matchup without checking
+        # its status gets an empty dict rather than a leak.
+        if matchup_question.completed_at is None:
+            return {}
         return {
             answer.player.display_name: PlayerAnswerSerializer(answer).data
             for answer in matchup_question.answers.select_related("player").all()
@@ -86,4 +95,14 @@ class MatchupDetailSerializer(MatchupListSerializer):
     questions = serializers.SerializerMethodField()
 
     def get_questions(self, matchup) -> list[dict]:
-        return MatchupQuestionSerializer(matchup.questions.order_by("order"), many=True).data
+        # Only questions that have been played. A question the server has not
+        # started yet is one neither player has seen, and its board is the next
+        # round of a race in progress — the same reason `get_answers` above
+        # withholds an open question's verdicts. Paired with the view's status
+        # gate this is belt and braces on a finished matchup, where every
+        # question is closed anyway; it is the whole guard for any caller that
+        # reaches this serializer another way.
+        return MatchupQuestionSerializer(
+            matchup.questions.filter(completed_at__isnull=False).order_by("order"),
+            many=True,
+        ).data
