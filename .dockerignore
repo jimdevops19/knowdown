@@ -1,0 +1,29 @@
+# Backend image build context is the repo root; keep it small and never ship
+# local dev state, secrets, or the frontend tree into the backend image.
+.git
+.venv
+.idea
+.claude
+**/.claude
+**/__pycache__
+**/*.py[cod]
+**/.DS_Store
+*.log
+
+# Local dev database + user uploads — must not be baked into the image.
+backend/db.sqlite3
+backend/media
+backend/staticfiles
+
+# Docs / notes / helper scripts not needed at runtime.
+*.md
+backend/*.md
+scripts
+
+# Env files never belong in an image layer.
+.env
+.env.*
+!.env.example
+
+# The frontend has its own image/build context.
+frontend

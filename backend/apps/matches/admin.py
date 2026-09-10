@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Matchup, MatchupPlayer, MatchupQuestion, PlayerAnswer
+from .models import BotProfile, Matchup, MatchupPlayer, MatchupQuestion, PlayerAnswer
 
 
 class MatchupPlayerInline(admin.TabularInline):
@@ -30,10 +30,24 @@ class MatchupAdmin(admin.ModelAdmin):
     # Read-only everywhere: every field here is written by
     # `apps.matches.services`, never by hand — the admin is a window onto a
     # match, not a second way to referee one.
-    list_display = ("id", "category", "question_count", "status", "outcome", "created_at")
-    list_filter = ("status", "outcome", "category")
+    list_display = (
+        "id", "category", "question_count", "status", "outcome", "is_ranked", "created_at"
+    )
+    list_filter = ("status", "outcome", "is_ranked", "category")
     readonly_fields = [f.name for f in Matchup._meta.fields]
     inlines = [MatchupPlayerInline, MatchupQuestionInline]
+
+    def has_add_permission(self, request) -> bool:
+        return False
+
+
+@admin.register(BotProfile)
+class BotProfileAdmin(admin.ModelAdmin):
+    # Written by `manage.py seed_bots`, not by hand — the admin is a window
+    # onto the roster's balance, the same posture MatchupAdmin takes.
+    list_display = ("player", "accuracy", "min_response_fraction", "max_response_fraction")
+    readonly_fields = [f.name for f in BotProfile._meta.fields]
+    raw_id_fields = ("player",)
 
     def has_add_permission(self, request) -> bool:
         return False

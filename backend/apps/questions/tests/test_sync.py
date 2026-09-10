@@ -25,9 +25,12 @@ from django.test import TestCase, override_settings
 from apps.categories.models import Category
 from apps.core_common.exceptions import ValidationFailed
 from apps.questions.models import (
+    DEFAULT_PROBABILITY_SCORE,
     QUESTION_MODELS,
     ColumnsRowsQuestion,
     FreeTextQuestion,
+    MatrixCellAnswer,
+    MatrixKind,
     OrderingQuestion,
     QuestionType,
     SingleAnswerImageQuestion,
@@ -169,8 +172,15 @@ class LoadEveryTypeTests(ResourceTreeTestCase):
                     "rows": ["Bulls", "Lakers"],
                     "columns": ["1990s", "2000s"],
                     "cells": [
-                        {"row": "Bulls", "column": "1990s", "answer": "1996"},
-                        {"row": "Lakers", "column": "2000s", "answer": "2001"},
+                        {
+                            "row": "Bulls",
+                            "column": "1990s",
+                            "answers": [
+                                {"answer": "1996", "probability_score": 2},
+                                "1998",
+                            ],
+                        },
+                        {"row": "Lakers", "column": "2000s", "answers": ["2001"]},
                     ],
                 },
             ],
@@ -202,6 +212,24 @@ class LoadEveryTypeTests(ResourceTreeTestCase):
         # Sparse: two of the four intersections were authored.
         self.assertEqual(question.cells.count(), 2)
 
+    def test_a_cell_keeps_every_answer_it_was_authored_with(self) -> None:
+        question = ColumnsRowsQuestion.objects.get(slug="grid")
+        cell = question.cells.get(row__title="Bulls", column__title="1990s")
+        self.assertEqual(
+            [(a.value, a.probability_score) for a in cell.answers.all()],
+            # Ordered by grade: the graded 1996 before the shorthand 1998, which
+            # took DEFAULT_PROBABILITY_SCORE for want of a grade.
+            [("1996", 2), ("1998", DEFAULT_PROBABILITY_SCORE)],
+        )
+
+    def test_a_cells_answers_land_on_the_cell_they_were_authored_under(self) -> None:
+        """The loader pairs bulk-created cells with their spec by position, so a
+        grid whose cells are written out of row order would be the way that
+        pairing breaks."""
+        question = ColumnsRowsQuestion.objects.get(slug="grid")
+        cell = question.cells.get(row__title="Lakers", column__title="2000s")
+        self.assertEqual([a.value for a in cell.answers.all()], ["2001"])
+
     def test_true_false_stores_its_answer_without_options(self) -> None:
         self.assertIs(TrueFalseQuestion.objects.get(slug="claim").answer, True)
 
@@ -222,6 +250,28 @@ class LoadEveryTypeTests(ResourceTreeTestCase):
             SingleAnswerQuestion.objects.get(slug="single").question_type,
             QuestionType.SINGLE_ANSWER,
         )
+
+    def test_a_question_that_does_not_author_a_time_limit_stores_none(self) -> None:
+        # "single" (above) never mentions time_limit_seconds — the row must say
+        # so explicitly, rather than default to some number of its own, so
+        # apps.matches's fallbacks are the only place that decides one.
+        self.assertIsNone(SingleAnswerQuestion.objects.get(slug="single").time_limit_seconds)
+
+
+class TimeLimitSecondsTests(ResourceTreeTestCase):
+    """A question may author its own ``time_limit_seconds`` — the override
+    ``apps.matches.constants.time_limit_ms_for`` reads ahead of every
+    fallback."""
+
+    def test_an_authored_time_limit_reaches_the_row(self) -> None:
+        self.write_file("timed.yaml", [single_answer("timed", time_limit_seconds=45)])
+        self.load()
+        self.assertEqual(SingleAnswerQuestion.objects.get(slug="timed").time_limit_seconds, 45)
+
+    def test_a_time_limit_outside_the_allowed_range_is_refused(self) -> None:
+        self.write_file("too-long.yaml", [single_answer("too-long", time_limit_seconds=601)])
+        with self.assertRaises(ValidationFailed):
+            self.load()
 
 
 class IdempotencyTests(ResourceTreeTestCase):
@@ -327,6 +377,164 @@ class DeactivationTests(ResourceTreeTestCase):
         self.assertTrue(SingleAnswerQuestion.objects.get(slug="cars").is_active)
 
 
+class TeamMatrixTests(ResourceTreeTestCase):
+    """``kind: teams`` — the grid whose cells the loader derives.
+
+    Loaded through a resource tree rather than built by a factory, because what
+    is being tested *is* the loader: which intersections it writes, which it
+    leaves out, and that it writes no answers at all.
+    """
+
+    def _grid(self, **overrides) -> dict:
+        return {
+            "type": "matrix",
+            "kind": "teams",
+            "slug": "team-grid",
+            "description": "Name a player who played for both.",
+            "level": 6,
+            "rows": ["Chicago Bulls", "Boston Celtics"],
+            "columns": ["Los Angeles Lakers", "Miami Heat"],
+            **overrides,
+        }
+
+    def load_grid(self, **overrides) -> ColumnsRowsQuestion:
+        self.write_file("q.yaml", [self._grid(**overrides)])
+        self.load()
+        return ColumnsRowsQuestion.objects.get(slug=overrides.get("slug", "team-grid"))
+
+    def test_the_cells_are_derived_rather_than_authored(self) -> None:
+        question = self.load_grid()
+        self.assertEqual(question.kind, MatrixKind.TEAMS)
+        self.assertEqual(
+            {(cell.row.title, cell.column.title) for cell in question.cells.all()},
+            {
+                ("Chicago Bulls", "Los Angeles Lakers"),
+                ("Chicago Bulls", "Miami Heat"),
+                ("Boston Celtics", "Los Angeles Lakers"),
+                ("Boston Celtics", "Miami Heat"),
+            },
+        )
+
+    def test_it_writes_no_answers(self) -> None:
+        """The whole point of the kind: the answer key is the artifact, not tens
+        of thousands of rows per question."""
+        question = self.load_grid()
+        self.assertEqual(
+            MatrixCellAnswer.objects.filter(cell__question=question).count(), 0
+        )
+
+    def test_a_franchise_against_itself_is_not_a_cell(self) -> None:
+        """Its answer is everybody who ever wore the shirt, which is not a
+        question."""
+        question = self.load_grid(
+            rows=["Chicago Bulls", "Boston Celtics"],
+            columns=["Chicago Bulls", "Miami Heat"],
+        )
+        self.assertNotIn(
+            ("Chicago Bulls", "Chicago Bulls"),
+            {(cell.row.title, cell.column.title) for cell in question.cells.all()},
+        )
+
+    def test_a_pairing_that_never_shared_a_player_is_not_a_cell(self) -> None:
+        """Sparse, decided by the artifact rather than by an author — so a
+        player is never given an input for a square nobody can fill."""
+        question = self.load_grid(
+            rows=["Anderson Packers", "Chicago Bulls"],
+            columns=["Miami Heat", "Los Angeles Lakers"],
+        )
+        pairs = {(cell.row.title, cell.column.title) for cell in question.cells.all()}
+        self.assertNotIn(("Anderson Packers", "Miami Heat"), pairs)
+        self.assertIn(("Chicago Bulls", "Miami Heat"), pairs)
+
+    def test_headings_take_the_artifacts_spelling(self) -> None:
+        question = self.load_grid(rows=["chicago  BULLS", "Boston Celtics"])
+        self.assertEqual(question.rows.first().title, "Chicago Bulls")
+
+    def test_counts_are_still_derived_from_the_headings(self) -> None:
+        question = self.load_grid()
+        self.assertEqual((question.row_count, question.column_count), (2, 2))
+
+    def test_a_reload_replaces_the_grid_rather_than_doubling_it(self) -> None:
+        self.load_grid()
+        self.load()
+        question = ColumnsRowsQuestion.objects.get(slug="team-grid")
+        self.assertEqual(question.cells.count(), 4)
+
+
+class TeamMatrixRefusalTests(ResourceTreeTestCase):
+    """What a ``kind: teams`` grid may not say."""
+
+    def _grid(self, **overrides) -> dict:
+        return {
+            "type": "matrix",
+            "kind": "teams",
+            "slug": "team-grid",
+            "description": "Name a player who played for both.",
+            "level": 6,
+            "rows": ["Chicago Bulls", "Boston Celtics"],
+            "columns": ["Los Angeles Lakers", "Miami Heat"],
+            **overrides,
+        }
+
+    def assertRefused(self, *needles: str):
+        with self.assertRaises(ValidationFailed) as caught:
+            self.load()
+        text = " ".join([caught.exception.message, *(caught.exception.details or [])])
+        for needle in needles:
+            self.assertIn(needle, text)
+        return text
+
+    def test_a_heading_naming_no_franchise(self) -> None:
+        """Caught at load time, where a mistyped franchise is a fixable typo —
+        rather than at play time, where it is a column no answer can fill."""
+        self.write_file("q.yaml", [self._grid(rows=["LA Lakers", "Boston Celtics"])])
+        self.assertRefused("LA Lakers", "no NBA franchise")
+
+    def test_authoring_cells_as_well(self) -> None:
+        """Two answer keys for one grid is an author who believes one of them is
+        in charge; guessing which would make the other silently do nothing."""
+        self.write_file(
+            "q.yaml",
+            [
+                self._grid(
+                    cells=[
+                        {
+                            "row": "Chicago Bulls",
+                            "column": "Los Angeles Lakers",
+                            "answers": ["Dennis Rodman"],
+                        }
+                    ]
+                )
+            ],
+        )
+        self.assertRefused("may not author them")
+
+    def test_franchises_that_never_shared_a_player_at_all(self) -> None:
+        """A grid with no fillable square is not a hard question, it is a broken
+        one — and only the artifact can tell, since every heading is a perfectly
+        real franchise."""
+        self.write_file(
+            "q.yaml",
+            [
+                self._grid(
+                    rows=["Anderson Packers", "Chicago Stags"],
+                    columns=["Miami Heat", "Charlotte Bobcats"],
+                )
+            ],
+        )
+        self.assertRefused("no cell anybody could fill")
+
+    def test_an_authored_grid_with_no_cells(self) -> None:
+        """The other half of the same rule: only a derived grid may leave its
+        cells out."""
+        self.write_file("q.yaml", [self._grid(kind="authored")])
+        self.assertRefused("needs at least one cell")
+
+    def test_a_kind_nobody_has_heard_of(self) -> None:
+        self.write_file("q.yaml", [self._grid(kind="players")])
+        self.assertRefused("q.yaml")
+
+
 class RefusalTests(ResourceTreeTestCase):
     """Every one of these must fail the load, naming what is wrong."""
 
@@ -416,11 +624,75 @@ class RefusalTests(ResourceTreeTestCase):
                     "level": 4,
                     "rows": ["Bulls", "Lakers"],
                     "columns": ["1990s", "2000s"],
-                    "cells": [{"row": "Heat", "column": "1990s", "answer": "x"}],
+                    "cells": [
+                        {"row": "Heat", "column": "1990s", "answers": ["x"]}
+                    ],
                 }
             ],
         )
         self.assertRefused("bad-grid", "undeclared row")
+
+    def _grid(self, slug: str, cells: list[dict]) -> dict:
+        return {
+            "type": "matrix",
+            "slug": slug,
+            "description": "Fill it.",
+            "level": 4,
+            "rows": ["Bulls", "Lakers"],
+            "columns": ["1990s", "2000s"],
+            "cells": cells,
+        }
+
+    def test_a_matrix_cell_with_no_answers_at_all(self) -> None:
+        """A cell nobody can fill is a cell that silently caps the question's
+        credit, so it is refused at authoring time rather than discovered as a
+        grid no player can complete."""
+        self.write_file(
+            "q.yaml",
+            [self._grid("empty-cell", [{"row": "Bulls", "column": "1990s", "answers": []}])],
+        )
+        self.assertRefused("q.yaml")
+
+    def test_a_matrix_cell_repeating_an_answer(self) -> None:
+        """Two entries differing only in case are one answer written twice —
+        with two different grades, and no way to say which one holds."""
+        self.write_file(
+            "q.yaml",
+            [
+                self._grid(
+                    "repeated-answer",
+                    [
+                        {
+                            "row": "Bulls",
+                            "column": "1990s",
+                            "answers": [
+                                {"answer": "Michael Jordan", "probability_score": 2},
+                                {"answer": "michael jordan", "probability_score": 9},
+                            ],
+                        }
+                    ],
+                )
+            ],
+        )
+        self.assertRefused("repeats an answer")
+
+    def test_a_probability_score_off_the_scale(self) -> None:
+        self.write_file(
+            "q.yaml",
+            [
+                self._grid(
+                    "over-graded",
+                    [
+                        {
+                            "row": "Bulls",
+                            "column": "1990s",
+                            "answers": [{"answer": "1996", "probability_score": 11}],
+                        }
+                    ],
+                )
+            ],
+        )
+        self.assertRefused("q.yaml")
 
     def test_an_unknown_key_is_not_silently_ignored(self) -> None:
         self.write_file("q.yaml", [single_answer("typo", **{"levl": 4})])

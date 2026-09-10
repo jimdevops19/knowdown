@@ -84,6 +84,7 @@ class MatchupListSerializer(serializers.Serializer):
     question_count = serializers.IntegerField()
     status = serializers.CharField()
     outcome = serializers.CharField()
+    is_ranked = serializers.BooleanField()
     started_at = serializers.DateTimeField(allow_null=True)
     completed_at = serializers.DateTimeField(allow_null=True)
     players = MatchupPlayerSerializer(many=True)

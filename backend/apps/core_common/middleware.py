@@ -7,6 +7,7 @@ from collections.abc import Callable
 from django.conf import settings
 from django.http import HttpRequest, HttpResponse
 
+from shared.admin_url import redact_ops_path
 from shared.logging import (
     get_logger,
     get_request_id,
@@ -109,10 +110,14 @@ class AccessLogMiddleware:
         match = getattr(request, "resolver_match", None)
         route = match.view_name if match else None
         is_probe = bool(route) and route.rsplit(":", 1)[-1] in PROBE_ROUTES
+        # Redacted: a request that reached the admin carries the live window's
+        # token in its path, and the log must not be a second copy of the
+        # credential (shared.admin_url.redact_ops_path).
+        path = redact_ops_path(request.path)
 
         fields: dict[str, object] = {
             "method": request.method,
-            "path": request.path,
+            "path": path,
             "route": route,
             "status_code": response.status_code,
             "anonymous": not is_authenticated,
@@ -130,7 +135,7 @@ class AccessLogMiddleware:
             ),
             verb="checked" if is_probe else "requested",
             method=request.method,
-            path=request.path,
+            path=path,
             route=route,
             status_code=response.status_code,
             redirect_to=fields.get("redirect_to"),

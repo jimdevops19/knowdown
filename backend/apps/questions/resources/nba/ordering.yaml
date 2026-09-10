@@ -13,6 +13,12 @@
 # retired players and dated events are safe, "best" anything is not, and an
 # active player's totals make a question that quietly goes wrong mid-season.
 #
+# Items must not be the years/numbers themselves in a row (1991, 1992, 1993,
+# ...) — sorting bare numbers takes no basketball knowledge at all, so that
+# tests reading comprehension, not trivia. Name the thing that happened in
+# each year (the opponent beaten, the award won, the record set) and let the
+# YEAR be the fact a player has to know, not the fact printed in front of them.
+#
 # See single-answer.yaml for the fields every question carries.
 #
 # Loaded by: uv run python manage.py sync_questions
@@ -21,18 +27,19 @@ category: nba
 
 questions:
   - type: ordering
-    slug: nba-order-championship-years-bulls
-    description: The Chicago Bulls' six championship-winning seasons.
-    instruction: Put them in order, earliest first.
-    level: 5
+    slug: nba-order-bulls-finals-opponents
+    description: >-
+      The Chicago Bulls beat a different opponent in each of their first five
+      championship runs.
+    instruction: Order the opponents by the season the Bulls beat them, earliest first.
+    level: 7
     tags: {topic: finals, era: 1990s}
     items:
-      - 1991
-      - 1992
-      - 1993
-      - 1996
-      - 1997
-      - 1998
+      - Los Angeles Lakers
+      - Portland Trail Blazers
+      - Phoenix Suns
+      - Seattle SuperSonics
+      - Utah Jazz
 
   - type: ordering
     slug: nba-order-career-points-retired-greats

@@ -266,6 +266,51 @@ independent claims). Points are speed and stakes as well as truth, and those are
 `apps.matches`' to combine — a scoring curve in `questions` would mean two places
 deciding what a question is worth.
 
+**A matrix cell accepts several answers, and any one of them takes it.**
+`MatrixCell` holds no answer of its own; `MatrixCellAnswer` rows hang off it,
+the sibling of `FreeTextAnswer` — because the grids worth asking ("name a player
+who played for both these teams") have as many right answers per square as the
+rosters share, and a single `answer` column made whichever name the author
+thought of first the only one that scores. A cell is still **one** cell of
+credit however many names fill it: the denominator is authored cells.
+
+Each answer carries `probability_score`, 2–10, hand-graded: how obvious the pick
+is (Michael Jordan for Bulls × Wizards is a 2; a one-season backup is a 10),
+defaulting to `DEFAULT_PROBABILITY_SCORE` (5) — the middle, meaning *ungraded*.
+**Nothing reads it yet**, deliberately: paying more for a rarer name would mean
+two players who both filled the grid in correctly scored differently, which is a
+decision about what a question is worth and so `apps.matches`'. It is authored
+now because it is a judgement about the sport that only a question author can
+make, and grading a catalog after the fact is the expensive order to do it in.
+It never reaches a client — a square whose answers are all 9s narrows the guess.
+
+**A grid says where its answers come from: `ColumnsRowsQuestion.kind`**
+(`models.MatrixKind`). `authored` is the default and the original — every
+accepted answer is a `MatrixCellAnswer` row written by hand. `teams` is the grid
+whose answer key is a *fact* rather than a judgement: both axes name NBA
+franchises, a cell is filled by anybody who played for both, and the file
+authors **no cells at all** — the loader derives every intersection the two
+rosters actually shared, and `apps.questions.rosters` answers them at scoring
+time from `artifacts/nba_player_teams.csv` (baked by
+`scripts/bake_nba_player_teams.py`). Writing them out instead would be tens of
+thousands of rows per question, copied again by the next question that asked
+about the same franchise, and stale the day somebody is traded; re-baking the
+CSV now updates every one of these questions at once, and none of them needs
+reloading for it.
+
+The kind is stored rather than inferred from "does this grid have answer rows?"
+— a grid with none is otherwise exactly what an authoring mistake looks like —
+and everything else about a grid is unchanged: same per-cell credit over the
+cells the question asks for, same refusal for a cell nobody was asked about,
+same silence about answers on the wire. Three things are refused at **load**
+time, where a mistyped franchise is a typo rather than a column no answer can
+fill: a heading naming no franchise in the artifact, a `kind: teams` grid that
+also authors `cells`, and a set of franchises that never shared a single player.
+The artifact is read once per process, lazily, and only by a question that asked
+for it; players are matched by **id**, never by name, because two players have
+shared a name and a name-keyed index would score "played for both" for a pair of
+namesakes who each played for one.
+
 #### `api/serializers.py` is the anti-cheat surface
 
 The question row holds the answer; the payload sent while the clock runs must
@@ -573,6 +618,162 @@ settings the way `LOGIN_LOCKOUT_ENFORCED` is — counted, never enforced, so
 `test_realtime.py`'s own tight request loops do not trip a limit meant for
 someone else; `apps.matches.tests.test_abuse` asks for it back with
 `@override_settings`.
+
+### ops — the admin's own door
+
+`shared.admin_url.resolve_admin_url` already keeps the Django admin off
+`/admin/` (`ADMIN_URL` is a random 40-character prefix unless one is
+configured). `apps.ops` adds a second gate on top, for deployments that turn
+`ADMIN_GATE_ENABLED` on (production defaults it to `True`; `local.py` leaves
+it off — a solo developer has nobody else who could open it): the mounted
+prefix 404s from *outside* no matter what it is, and the admin answers only
+under a token minted by `manage.py open_admin --minutes 30`, stored hashed on
+an `AdminWindow` row (`apps.ops.models`) and closed by `manage.py close_admin`
+or its own clock.
+
+A row rather than an environment variable, because opening the admin must not
+restart a process every worker inherits differently, must be seen identically
+by every worker in every replica, and should leave a record of who opened it
+and when — `open_window`/`close_windows`/`window_for_token`
+(`apps.ops.services`) are the one place that reasons about "live," so the
+gate, the admin read-only listing (`apps.ops.admin`) and both commands share
+one definition of it. The plaintext token exists exactly once, in the URL
+`open_admin` prints; the row keeps only its SHA-256.
+
+`apps.ops.middleware.AdminGateMiddleware` is the gate itself — mounted first
+in `MIDDLEWARE`, above WhiteNoise, and removes itself via `MiddlewareNotUsed`
+when `ADMIN_GATE_ENABLED` is off rather than checking a flag every request.
+With it on: the admin's own static assets (`/_ops/static/…`, where
+`STATIC_URL` moves to in production) are served only while *some* window is
+live; the mounted `ADMIN_URL` prefix reached directly is an ordinary 404; and
+`/_ops/<token>/…` is checked against the live window and, on a match,
+rewritten — `path_info` loses the `/_ops/<token>` prefix and Django's script
+prefix gains it, which is what makes `reverse()` (every admin link, every form
+action, the login redirect) come back out carrying the token. A wrong token
+and a closed window both answer with Django's ordinary 404, never a 403 — a
+403 would confirm a right token exists.
+
+**The live token never reaches a log line.** `shared.admin_url.redact_ops_path`
+strips the token out of an `/_ops/<token>/admin/…` path, and
+`apps.core_common.middleware.AccessLogMiddleware` applies it before the `path`
+field (and the sentence built from it) ever reach the logger — the access-log
+line for the very request that used the token must not become a second copy
+of the credential. `apps.ops.tests.test_redaction` proves both the helper and
+the real logged line.
+
+### Container and deploy
+
+One image (`backend/Dockerfile`, build context the **repository root** —
+`docker build -f backend/Dockerfile .`), two roles picked at runtime by
+`SERVER_MODE`, both branched in `entrypoint.sh`:
+
+- `api` (default) — `gunicorn` on `config.wsgi`, `gthread` workers (the
+  workload is DB-I/O bound, so a thread picks up the next request while
+  another blocks rather than a sync worker serving nothing meanwhile).
+- `realtime` — `uvicorn` on `config.asgi`, one process, scaling by
+  concurrency rather than worker count — sockets are cheap to hold and
+  expensive to drop. Neither server is an app dependency (local `runserver`
+  uses Daphne, already in `INSTALLED_APPS` for that reason); both are
+  installed straight into the builder-stage venv in the Dockerfile.
+
+Only `api` migrates, and only with `manage.py migrate_locked`
+(`apps.core_common.management.commands.migrate_locked`) rather than plain
+`migrate`: it takes a Postgres advisory lock first (`LOCK_KEY`, fixed), so
+replicas starting together serialise instead of racing the same migration —
+the second one waits, then finds nothing left to do. On SQLite (no advisory
+locks, no real concurrency) it degrades to a plain `migrate`. `RUN_MIGRATIONS=0`
+turns this off for a platform that migrates from an init container instead.
+
+The **same image** runs both roles, which is what keeps them from ever being
+built off different commits — a live matchup depends on `apps.matches` code
+`config.wsgi` and `config.asgi` agreeing on, and two images built separately
+could drift.
+
+`collectstatic` runs at **build time**, as root, before `USER app` drops
+privileges and the code dir becomes effectively read-only — the admin's own
+CSS/JS is the only static this backend has, and doing this at container
+startup would mean writing into a directory the runtime user cannot write to.
+Runtime-writable state (a fallback SQLite file if no external `DATABASE_URL`
+is given, MEDIA_ROOT's default location — see step 23) lives on the `/data`
+volume instead, which is why the entrypoint `cd /data` before starting either
+server (`PYTHONPATH=/app` keeps `config.wsgi`/`config.asgi` importable
+regardless of cwd).
+
+Health probes point at the two endpoints from `apps.core_common.api.views`
+that already existed for this (`/api/v1/health/live/`, never touches the
+database — a liveness failure gets the container *killed*, so anything it
+checked becomes something that can restart every replica at once;
+`/api/v1/health/ready/`, does check the database — a pod with no database
+should stop receiving traffic, not be shot). The Dockerfile's own
+`HEALTHCHECK` hits `health/live/` with nothing but the stdlib. `production.py`
+exempts `^api/v1/health/` from `SECURE_SSL_REDIRECT`
+(`SECURE_REDIRECT_EXEMPT`) — a probe hits the pod directly over plain HTTP,
+bypassing the ingress that would otherwise set `X-Forwarded-Proto`, and
+without the exemption every probe hit is a 301 a *liveness* check reads as
+dead.
+
+`MEDIA_ROOT` (question images, and later avatars) defaults to `BASE_DIR /
+"media"` in `base.py` — correct for local dev, wrong for the container's code
+dir — and `production.py` overrides the default to `/data/media`: the same
+`/data` volume the Dockerfile already creates for a fallback SQLite
+`DATABASE_URL`, so `sync_questions` (`apps.questions.services.sync`) has
+somewhere durable to copy images into with no operator having to point
+`MEDIA_ROOT` anywhere themselves. Still overridable by the `MEDIA_ROOT` env
+var either way — a mounted object store is a path like any other.
+`apps.core_common.tests_media_root` shells out to a fresh interpreter to
+prove the default (importing `config.settings.production` in-process would
+run it against the test settings' already-configured Django, not a clean
+one).
+
+### Journey logging and the load rehearsal
+
+**"How many matches completed, and how long did players wait for an
+opponent?" is a log query, not a guess.** Four moments in a match's life
+each write one `INFO` line with `action` set to a fixed, queryable verb — a
+sentence for a human tailing the log, a stable field for a query against it,
+the same split `AccessLogMiddleware` already draws:
+
+- **`action="queued"`** — `MatchmakingConsumer.connect`, the instant a
+  player becomes the one waiting.
+- **`action="matched"`** — `consumers._pair`/`_pair_with_bot`, with
+  `duration_ms` set to how long the *other* side had been waiting
+  (`pool.Pairing.opponent_queued_at`, now carried in the pool's cached
+  waiting slot alongside the player id) — this side's own wait was ~0, since
+  its join is what completed the pairing.
+- **`action="answered"`** — `services.submit_answer`, `duration_ms` the
+  server-measured response time; correctness lives in the sentence, not a
+  field of its own — there is no boolean on the schema for a fact the
+  message already states, and adding one would be the second spelling
+  `shared.logging.schema` exists to prevent.
+- **`action="completed"`** — `services._log_match_completed`, called from
+  both `complete_matchup` and `abandon_matchup` (either is a matchup
+  reaching the same terminal state), `duration_ms` the whole match's
+  wall-clock length and `player` the winner's label when there is one.
+
+`apps.matches.tests.test_journey_logging` reads every one of these back with
+`assertLogs`, filtering on `action` the way an operator's query would —
+including the two written from real sockets (`queued`/`matched`), driven
+over an actual `WebsocketCommunicator`, not asserted against the service
+layer standing in for the transport.
+
+**`manage.py load_rehearsal`** (`apps.matches.management.commands`) rehearses
+what steps 22–24 shipped — the real gunicorn/uvicorn processes, the real
+Redis pool, real concurrent load — which nothing calling `apps.matches
+.services` directly can prove. N simulated players, each a real account
+(`POST /auth/registration/`), a real matchmaking socket and a real matchup
+socket, answering at a randomised "human" delay rather than a test's instant
+call. Needs the `dev` dependency group (`httpx`, `websockets` — neither
+ships in the runtime image) and runs against `--base-url`, never in-process.
+Every account it creates is tagged in its email
+(`loadrehearsal-<run>-<n>@rehearsal.invalid` — `.invalid` is RFC 2606's
+reserved-forever TLD, so nothing here can misfire against a real inbox).
+`manage.py load_rehearsal_teardown --run <run>` removes exactly those
+accounts and nothing else — **not** the `Player` rows or the matches they
+played: `MatchupPlayer.player` is `PROTECT`, the same guard that keeps
+anyone's match history from disappearing under them, and a rehearsal account
+earns no exception to a rule written for exactly this reason. See both
+commands' docstrings before running either against anything but a
+disposable environment.
 
 ## Conventions
 

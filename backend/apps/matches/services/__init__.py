@@ -42,8 +42,8 @@ from apps.matches import selectors
 from apps.matches.constants import (
     MATCH_QUESTION_COUNTS,
     PLAYERS_PER_MATCHUP,
-    QUESTION_TIME_LIMIT_MS,
     score_answer,
+    time_limit_ms_for,
 )
 from apps.matches.models import Matchup, MatchupPlayer, MatchupQuestion, PlayerAnswer
 from apps.players.models import Player
@@ -52,6 +52,9 @@ from apps.questions.selectors import get_question as get_concrete_question
 from apps.questions.selectors import select_questions
 from apps.questions.services.evaluation import evaluate_answer
 from apps.rankings.services import update_ratings_for_matchup
+from shared.logging import get_logger, labels
+
+logger = get_logger(__name__)
 
 __all__ = [
     "abandon_matchup",
@@ -80,6 +83,11 @@ def create_matchup(
     The question count is chosen **once**, here, for both players — never per
     question — and so is the question list (``select_match_questions``): a
     matchup is a race through one fixed board, not two independent quizzes.
+
+    ``is_ranked`` is decided here too, the same way: a matchup with a CPU
+    opponent on either side (``apps.matches.bots``) never moves a rating, so
+    a bot stays pinned at ``DEFAULT_PLAYER_RATING`` and a human's ladder
+    position only ever reflects games against other humans.
     """
     if player_one.pk == player_two.pk:
         raise ValidationFailed("A player cannot be matched against themselves.")
@@ -91,7 +99,10 @@ def create_matchup(
             f"question_count must be one of {MATCH_QUESTION_COUNTS}, got {question_count}."
         )
 
-    matchup = Matchup.objects.create(category=category, question_count=question_count)
+    is_ranked = not (player_one.is_bot or player_two.is_bot)
+    matchup = Matchup.objects.create(
+        category=category, question_count=question_count, is_ranked=is_ranked
+    )
     MatchupPlayer.objects.bulk_create(
         [
             MatchupPlayer(matchup=matchup, player=player_one),
@@ -194,20 +205,23 @@ def submit_answer(
             code="question_already_completed",
         )
 
+    concrete_question = get_concrete_question(
+        ref=QuestionRef(question.question_type, question.question_id)
+    )
+    time_limit_ms = time_limit_ms_for(
+        question_type=question.question_type, override_seconds=concrete_question.time_limit_seconds
+    )
     now = timezone.now()
     elapsed_ms = int((now - question.started_at).total_seconds() * 1000)
-    if elapsed_ms > QUESTION_TIME_LIMIT_MS:
+    if elapsed_ms > time_limit_ms:
         raise Conflict(
             f"Question {order} of matchup {matchup.pk} timed out before this answer arrived.",
             code="question_time_expired",
         )
-    response_time_ms = max(0, min(elapsed_ms, QUESTION_TIME_LIMIT_MS))
+    response_time_ms = max(0, min(elapsed_ms, time_limit_ms))
 
-    concrete_question = get_concrete_question(
-        ref=QuestionRef(question.question_type, question.question_id)
-    )
     result = evaluate_answer(question=concrete_question, submitted=payload)
-    points = score_answer(credit=result.score, response_time_ms=response_time_ms)
+    points = score_answer(credit=result.score, response_time_ms=response_time_ms, time_limit_ms=time_limit_ms)
 
     try:
         with transaction.atomic():
@@ -235,6 +249,23 @@ def submit_answer(
         match_player.correct_answers += 1
     match_player.save(update_fields=["score", "total_answer_time_ms", "correct_answers"])
 
+    # Journey line 3/4: "Question answered". `action` is the queryable field;
+    # correctness lives in the sentence, not a field of its own — there is no
+    # boolean on the schema for it, and adding one for a fact the message
+    # already states plainly would be the second spelling of one concept
+    # `shared.logging.schema` exists to prevent.
+    logger.info(
+        f"Player {labels.player(player)} answered {labels.question(concrete_question)} "
+        f"{'correctly' if result.is_correct else 'incorrectly'}",
+        player=labels.player(player),
+        category=labels.category(matchup.category),
+        question=labels.question(concrete_question),
+        question_type=question.question_type,
+        caller="user",
+        action="answered",
+        duration_ms=response_time_ms,
+    )
+
     if question.answers.count() >= matchup.players.count():
         complete_question(matchup=matchup, order=order)
 
@@ -257,10 +288,15 @@ def complete_question(*, matchup: Matchup, order: int) -> MatchupQuestion:
 
     answered = question.answers.count()
     total_players = matchup.players.count()
+    concrete_question = get_concrete_question(
+        ref=QuestionRef(question.question_type, question.question_id)
+    )
+    time_limit_ms = time_limit_ms_for(
+        question_type=question.question_type, override_seconds=concrete_question.time_limit_seconds
+    )
     deadline_passed = (
         question.started_at is not None
-        and (timezone.now() - question.started_at).total_seconds() * 1000
-        >= QUESTION_TIME_LIMIT_MS
+        and (timezone.now() - question.started_at).total_seconds() * 1000 >= time_limit_ms
     )
     if answered < total_players and not deadline_passed:
         raise Conflict(
@@ -277,6 +313,29 @@ def complete_question(*, matchup: Matchup, order: int) -> MatchupQuestion:
     else:
         complete_matchup(matchup=matchup)
     return question
+
+
+def _log_match_completed(*, matchup: Matchup) -> None:
+    """Journey line 4/4: "Match completed" — the one line both
+    ``complete_matchup`` and ``abandon_matchup`` write, since either is a
+    matchup reaching the same terminal state. Read after the caller's own
+    save, so ``matchup.outcome``/``completed_at`` are the committed values,
+    not the ones about to be written.
+    """
+    sides = list(selectors.matchup_players(matchup=matchup))
+    winner = next((side for side in sides if side.is_winner), None)
+    duration_ms = None
+    if matchup.started_at is not None and matchup.completed_at is not None:
+        duration_ms = int((matchup.completed_at - matchup.started_at).total_seconds() * 1000)
+    outcome = "a draw" if winner is None else f"{labels.player(winner.player)} won"
+    logger.info(
+        f"Match completed ({matchup.outcome}) — {outcome}",
+        category=labels.category(matchup.category),
+        player=labels.player(winner.player) if winner else None,
+        caller="user",
+        action="completed",
+        duration_ms=duration_ms,
+    )
 
 
 @transaction.atomic
@@ -311,6 +370,7 @@ def complete_matchup(*, matchup: Matchup) -> Matchup:
     matchup.outcome = Matchup.Outcome.PLAYED
     matchup.completed_at = timezone.now()
     matchup.save(update_fields=["status", "outcome", "completed_at"])
+    _log_match_completed(matchup=matchup)
     award_achievements_for_matchup(matchup=matchup)
     update_ratings_for_matchup(matchup=matchup)
     return matchup
@@ -359,6 +419,7 @@ def abandon_matchup(*, matchup: Matchup, leaving_player: Player) -> Matchup:
     matchup.outcome = Matchup.Outcome.ABANDONED
     matchup.completed_at = now
     matchup.save(update_fields=["status", "outcome", "completed_at"])
+    _log_match_completed(matchup=matchup)
     award_achievements_for_matchup(matchup=matchup)
     update_ratings_for_matchup(matchup=matchup)
     return matchup

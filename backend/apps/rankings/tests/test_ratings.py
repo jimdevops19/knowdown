@@ -14,6 +14,7 @@ from apps.matches import services as match_services
 from apps.matches.constants import DEFAULT_PLAYER_RATING
 from apps.matches.models import MatchupPlayer
 from apps.matches.tests.factories import make_matchup
+from apps.players.models import Player
 from apps.players.tests.factories import make_player
 from apps.rankings import selectors
 from apps.rankings.constants import K_FACTOR
@@ -191,6 +192,65 @@ class LadderSelectorTests(TestCase):
         self.assertIn(player, selectors.unrated_players(category=category))
         ratings.ensure_ranking(player=player, category=category)
         self.assertNotIn(player, selectors.unrated_players(category=category))
+
+    def test_ladder_and_unrated_players_never_surface_a_bot(self):
+        # A bot's Ranking is never written in practice (its matchups are
+        # never `is_ranked`), but the exclusion is asserted directly rather
+        # than relying on that alone — a stray row (a seeded fixture, a
+        # manual `ensure_ranking` call) must still never render as a
+        # standing.
+        bot = make_player(email="cpu@example.com")
+        Player.objects.filter(pk=bot.pk).update(is_bot=True)
+        category = make_matchup().category
+        ratings.ensure_ranking(player=bot, category=category)
+
+        self.assertNotIn(bot, [entry.player for entry in selectors.ladder(category=category)])
+        self.assertNotIn(bot, selectors.unrated_players(category=category))
+
+
+class UnrankedMatchupTests(TestCase):
+    """A matchup against a CPU opponent (`Matchup.is_ranked=False`) must
+    never move a rating — not the bot's, and not the human's either."""
+
+    def test_create_matchup_marks_a_bot_opponent_unranked(self):
+        human = make_player(email="human@example.com")
+        bot = make_player(email="cpu-1@example.com")
+        Player.objects.filter(pk=bot.pk).update(is_bot=True)
+        bot.refresh_from_db()
+
+        matchup = make_matchup(player_one=human, player_two=bot)
+        self.assertFalse(matchup.is_ranked)
+
+    def test_create_matchup_between_two_humans_is_ranked(self):
+        matchup = make_matchup()
+        self.assertTrue(matchup.is_ranked)
+
+    def test_completing_an_unranked_matchup_moves_no_ratings(self):
+        human = make_player(email="human-2@example.com")
+        bot = make_player(email="cpu-2@example.com")
+        Player.objects.filter(pk=bot.pk).update(is_bot=True)
+        bot.refresh_from_db()
+        matchup = make_matchup(player_one=human, player_two=bot, question_count=3)
+        first, second = matchup.players.all()
+        for side in (first, second):
+            side.score = 50 if side.player == human else 0
+        MatchupPlayer.objects.bulk_update([first, second], ["score"])
+
+        match_services.complete_matchup(matchup=matchup)
+
+        self.assertFalse(Ranking.objects.filter(category=matchup.category).exists())
+
+    def test_abandoning_an_unranked_matchup_moves_no_ratings(self):
+        human = make_player(email="human-3@example.com")
+        bot = make_player(email="cpu-3@example.com")
+        Player.objects.filter(pk=bot.pk).update(is_bot=True)
+        bot.refresh_from_db()
+        matchup = make_matchup(player_one=human, player_two=bot, question_count=3)
+        match_services.start_matchup(matchup=matchup)
+
+        match_services.abandon_matchup(matchup=matchup, leaving_player=bot)
+
+        self.assertFalse(Ranking.objects.filter(category=matchup.category).exists())
 
 
 class SeedAllPlayersTests(TestCase):

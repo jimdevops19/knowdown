@@ -93,3 +93,292 @@ questions:
       - {text: Kobe Bryant}
       - {text: Ray Allen}
       - {text: Stephon Marbury}
+
+  - type: single-answer
+    slug: nba-2011-regular-season-mvp
+    description: Who was named regular-season MVP for the 2010-11 season?
+    level: 5
+    tags: {topic: awards, era: 2010s}
+    options:
+      - {text: Derrick Rose, is_correct: true}
+      - {text: LeBron James}
+      - {text: Dwight Howard}
+      - {text: Kevin Durant}
+
+  - type: single-answer
+    slug: nba-kobe-bryant-draft-team
+    description: >-
+      Which team selected Kobe Bryant in the 1996 NBA Draft before trading him
+      to the Los Angeles Lakers?
+    level: 5
+    tags: {topic: draft, era: 1990s}
+    options:
+      - {text: Charlotte Hornets, is_correct: true}
+      - {text: New Jersey Nets}
+      - {text: Milwaukee Bucks}
+      - {text: Portland Trail Blazers}
+
+  - type: single-answer
+    slug: nba-most-mvp-awards
+    description: Which player has won the most regular-season MVP awards?
+    level: 5
+    tags: {topic: awards, era: all-time}
+    options:
+      - {text: Kareem Abdul-Jabbar, is_correct: true}
+      - {text: Michael Jordan}
+      - {text: Bill Russell}
+      - {text: LeBron James}
+
+  - type: single-answer
+    slug: nba-highest-career-scoring-average
+    description: Who retired with the highest career regular-season scoring average?
+    level: 5
+    tags: {topic: records, era: all-time}
+    options:
+      - {text: Michael Jordan, is_correct: true}
+      - {text: Wilt Chamberlain}
+      - {text: Elgin Baylor}
+      - {text: Kobe Bryant}
+
+  - type: single-answer
+    slug: nba-2012-finals-opponent
+    description: Which team did the Miami Heat beat in the 2012 NBA Finals?
+    level: 5
+    tags: {topic: finals, era: 2010s}
+    options:
+      - {text: Oklahoma City Thunder, is_correct: true}
+      - {text: San Antonio Spurs}
+      - {text: Dallas Mavericks}
+      - {text: Indiana Pacers}
+
+  - type: single-answer
+    slug: nba-career-steals-leader
+    description: Who is the NBA's all-time leader in career steals?
+    level: 6
+    tags: {topic: records, era: all-time}
+    options:
+      - {text: John Stockton, is_correct: true}
+      - {text: Jason Kidd}
+      - {text: Michael Jordan}
+      - {text: Gary Payton}
+
+  - type: single-answer
+    slug: nba-career-blocks-leader
+    description: Who is the NBA's all-time leader in career blocked shots?
+    level: 6
+    tags: {topic: records, era: all-time}
+    options:
+      - {text: Hakeem Olajuwon, is_correct: true}
+      - {text: Dikembe Mutombo}
+      - {text: Kareem Abdul-Jabbar}
+      - {text: Mark Eaton}
+
+  - type: single-answer
+    slug: nba-first-european-mvp
+    description: Who was the first European-born player to win the NBA MVP award?
+    level: 6
+    tags: {topic: awards, era: 2000s}
+    options:
+      - {text: Dirk Nowitzki, is_correct: true}
+      - {text: Pau Gasol}
+      - {text: Tony Parker}
+      - {text: Peja Stojakovic}
+
+  - type: single-answer
+    slug: nba-most-rebounds-single-game
+    description: Who holds the record for the most rebounds in a single NBA game?
+    level: 6
+    tags: {topic: records, era: 1960s}
+    options:
+      - {text: Wilt Chamberlain, is_correct: true}
+      - {text: Bill Russell}
+      - {text: Nate Thurmond}
+      - {text: Jerry Lucas}
+
+  - type: single-answer
+    slug: nba-only-unanimous-mvp
+    description: Which player is the only unanimous winner of the NBA MVP award?
+    level: 6
+    tags: {topic: awards, era: 2010s}
+    options:
+      - {text: Stephen Curry, is_correct: true}
+      - {text: Shaquille O'Neal}
+      - {text: LeBron James}
+      - {text: Michael Jordan}
+
+  - type: single-answer
+    slug: nba-most-threes-single-game
+    description: >-
+      Who holds the record for the most three-pointers made in a single
+      regular-season game?
+    level: 7
+    tags: {topic: records, era: 2010s}
+    options:
+      - {text: Klay Thompson, is_correct: true}
+      - {text: Stephen Curry}
+      - {text: Damian Lillard}
+      - {text: Zach LaVine}
+
+  - type: single-answer
+    slug: nba-most-threes-single-season
+    description: >-
+      Who set the record for the most three-pointers made in a single regular
+      season, with 402?
+    level: 7
+    tags: {topic: records, era: 2010s}
+    options:
+      - {text: Stephen Curry, is_correct: true}
+      - {text: James Harden}
+      - {text: Klay Thompson}
+      - {text: Ray Allen}
+
+  - type: single-answer
+    slug: nba-longest-winning-streak-team
+    description: >-
+      Which team holds the record for the longest winning streak in NBA history,
+      at 33 straight games?
+    level: 7
+    tags: {topic: records, era: 1970s}
+    options:
+      - {text: Los Angeles Lakers, is_correct: true}
+      - {text: Golden State Warriors}
+      - {text: Miami Heat}
+      - {text: Milwaukee Bucks}
+
+  - type: single-answer
+    slug: nba-buffalo-braves-today
+    description: Which franchise plays today as the team once known as the Buffalo Braves?
+    level: 7
+    tags: {topic: history, era: 1970s}
+    options:
+      - {text: Los Angeles Clippers, is_correct: true}
+      - {text: Brooklyn Nets}
+      - {text: Utah Jazz}
+      - {text: Memphis Grizzlies}
+
+  - type: single-answer
+    slug: nba-most-assists-single-game
+    description: Who holds the record for the most assists in a single NBA game, with 30?
+    level: 8
+    tags: {topic: records, era: 1990s}
+    options:
+      - {text: Scott Skiles, is_correct: true}
+      - {text: John Stockton}
+      - {text: Magic Johnson}
+      - {text: Kevin Porter}
+
+  - type: single-answer
+    slug: nba-consecutive-games-played-record
+    description: Who holds the NBA record for the most consecutive games played?
+    level: 8
+    tags: {topic: records, era: 1990s}
+    options:
+      - {text: A.C. Green, is_correct: true}
+      - {text: Randy Smith}
+      - {text: Karl Malone}
+      - {text: John Havlicek}
+
+  - type: single-answer
+    slug: nba-finals-mvp-losing-team
+    description: >-
+      Which player is the only one to be named Finals MVP while playing for the
+      losing team?
+    level: 8
+    tags: {topic: finals, era: 1960s}
+    options:
+      - {text: Jerry West, is_correct: true}
+      - {text: Elgin Baylor}
+      - {text: Wilt Chamberlain}
+      - {text: Oscar Robertson}
+
+  - type: single-answer
+    slug: nba-mvp-dpoy-finals-mvp-same-season
+    description: >-
+      Which player is the only one to win MVP, Defensive Player of the Year and
+      Finals MVP in the same season?
+    level: 8
+    tags: {topic: awards, era: 1990s}
+    options:
+      - {text: Hakeem Olajuwon, is_correct: true}
+      - {text: Michael Jordan}
+      - {text: David Robinson}
+      - {text: Kevin Garnett}
+
+  - type: single-answer
+    slug: nba-first-quadruple-double
+    description: Who recorded the first officially credited quadruple-double in NBA history?
+    level: 9
+    tags: {topic: records, era: 1970s}
+    options:
+      - {text: Nate Thurmond, is_correct: true}
+      - {text: Alvin Robertson}
+      - {text: Hakeem Olajuwon}
+      - {text: David Robinson}
+
+  - type: single-answer
+    slug: nba-dirk-nowitzki-draft-team
+    description: >-
+      Which team drafted Dirk Nowitzki ninth overall in 1998 before trading him
+      to the Dallas Mavericks?
+    level: 9
+    tags: {topic: draft, era: 1990s}
+    options:
+      - {text: Milwaukee Bucks, is_correct: true}
+      - {text: Denver Nuggets}
+      - {text: Toronto Raptors}
+      - {text: Sacramento Kings}
+
+  - type: single-answer
+    slug: nba-most-career-games-played
+    description: Who holds the record for the most regular-season games played in NBA history?
+    level: 9
+    tags: {topic: records, era: all-time}
+    options:
+      - {text: Robert Parish, is_correct: true}
+      - {text: Kareem Abdul-Jabbar}
+      - {text: Vince Carter}
+      - {text: Kevin Willis}
+
+  - type: single-answer
+    slug: nba-first-baa-champion
+    description: Which team won the league's first championship, the 1947 BAA Finals?
+    level: 9
+    tags: {topic: history, era: 1940s}
+    options:
+      - {text: Philadelphia Warriors, is_correct: true}
+      - {text: Chicago Stags}
+      - {text: New York Knicks}
+      - {text: Baltimore Bullets}
+
+  - type: single-answer
+    slug: nba-first-sixth-man-of-the-year
+    description: Who won the first NBA Sixth Man of the Year award, in 1983?
+    level: 10
+    tags: {topic: awards, era: 1980s}
+    options:
+      - {text: Bobby Jones, is_correct: true}
+      - {text: Kevin McHale}
+      - {text: Ricky Pierce}
+      - {text: Bill Walton}
+
+  - type: single-answer
+    slug: nba-first-most-improved-player
+    description: Who won the first NBA Most Improved Player award, in 1986?
+    level: 10
+    tags: {topic: awards, era: 1980s}
+    options:
+      - {text: Alvin Robertson, is_correct: true}
+      - {text: Dale Ellis}
+      - {text: Kevin Duckworth}
+      - {text: Otis Thorpe}
+
+  - type: single-answer
+    slug: nba-kings-original-franchise-name
+    description: Under which name did the Sacramento Kings franchise begin its NBA life?
+    level: 10
+    tags: {topic: history, era: 1940s}
+    options:
+      - {text: Rochester Royals, is_correct: true}
+      - {text: Syracuse Nationals}
+      - {text: Fort Wayne Pistons}
+      - {text: Tri-Cities Blackhawks}

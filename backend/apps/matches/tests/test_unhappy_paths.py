@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from apps.core_common.exceptions import Conflict
 from apps.matches import selectors, services
-from apps.matches.constants import QUESTION_TIME_LIMIT_MS
+from apps.matches.constants import FALLBACK_QUESTION_TIME_LIMIT_MS
 from apps.matches.models import Matchup
 from apps.matches.tests.factories import make_matchup
 from apps.questions.selectors import QuestionRef, get_question
@@ -34,7 +34,7 @@ class UnansweredQuestionTests(TestCase):
             services.complete_question(matchup=matchup, order=1)
 
         question.started_at = timezone.now() - timedelta(
-            milliseconds=QUESTION_TIME_LIMIT_MS + 1
+            milliseconds=FALLBACK_QUESTION_TIME_LIMIT_MS + 1
         )
         question.save(update_fields=["started_at"])
 

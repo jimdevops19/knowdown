@@ -43,13 +43,16 @@ from apps.questions.models import (
     FreeTextAnswer,
     ImageAnswerOption,
     MatrixCell,
+    MatrixCellAnswer,
     MatrixColumn,
+    MatrixKind,
     MatrixRow,
     MultipleAnswerOption,
     OrderingOption,
     QuestionType,
     SingleAnswerOption,
 )
+from apps.questions.rosters import load_rosters
 from apps.questions.schemas import CategorySpec, QuestionFileSpec
 from shared.logging import get_logger
 
@@ -376,6 +379,7 @@ def _write_question(*, spec, category: Category, folder: Path) -> bool:
         "category": category,
         "tags": spec.tags,
         "level": spec.level,
+        "time_limit_seconds": spec.time_limit_seconds,
         "image": _question_image(spec=spec, folder=folder),
         "is_active": True,
         # Revive rather than insert beside it — see sync_categories.
@@ -412,7 +416,11 @@ def _type_specific_fields(spec) -> dict:
     if spec.type == QuestionType.MATRIX:
         # Derived from the headings, never authored: a count that can disagree
         # with the thing it counts eventually will.
-        return {"row_count": len(spec.rows), "column_count": len(spec.columns)}
+        return {
+            "row_count": len(spec.rows),
+            "column_count": len(spec.columns),
+            "kind": spec.kind,
+        }
     return {}
 
 
@@ -487,25 +495,90 @@ def _write_children(*, spec, question, folder: Path) -> None:
         # Cells cascade off the headings, so clearing those clears the grid.
         question.rows.all().delete()
         question.columns.all().delete()
+        titles = _matrix_headings(spec)
         rows = {
-            title: MatrixRow.objects.create(question=question, title=title, order=index)
+            title: MatrixRow.objects.create(
+                question=question, title=titles[title], order=index
+            )
             for index, title in enumerate(spec.rows, start=1)
         }
         columns = {
             title: MatrixColumn.objects.create(
-                question=question, title=title, order=index
+                question=question, title=titles[title], order=index
             )
             for index, title in enumerate(spec.columns, start=1)
         }
-        MatrixCell.objects.bulk_create(
+
+        if spec.kind == MatrixKind.TEAMS:
+            _write_team_grid(spec=spec, question=question, rows=rows, columns=columns)
+            return
+
+        cells = MatrixCell.objects.bulk_create(
             MatrixCell(
                 question=question,
                 row=rows[cell.row],
                 column=columns[cell.column],
-                answer=cell.answer,
             )
             for cell in spec.cells
         )
+        # Zipped rather than looked up by (row, column): ``bulk_create`` returns
+        # the rows in the order it was given them, which is the order of
+        # ``spec.cells``, and the pairing is what the schema already checked is
+        # unique.
+        MatrixCellAnswer.objects.bulk_create(
+            MatrixCellAnswer(
+                cell=cell,
+                value=answer.answer,
+                probability_score=answer.probability_score,
+            )
+            for cell, spec_cell in zip(cells, spec.cells)
+            for answer in spec_cell.answers
+        )
+
+
+def _matrix_headings(spec) -> dict[str, str]:
+    """Each authored heading mapped to the title to store for it.
+
+    Itself for an authored grid — the file says what the axis is called. For a
+    ``kind: teams`` grid it is the roster artifact's spelling of the franchise,
+    so a file that wrote ``los angeles lakers`` still puts *Los Angeles Lakers*
+    on the board: the artifact is what decides who played for it, so it may as
+    well decide what it is called. Only capitalisation and spacing can differ —
+    a heading naming no franchise at all never gets this far (see
+    ``schemas.MatrixSpec``).
+    """
+    authored = [*spec.rows, *spec.columns]
+    if spec.kind != MatrixKind.TEAMS:
+        return {title: title for title in authored}
+    rosters = load_rosters()
+    return {title: rosters.canonical_team(title) or title for title in authored}
+
+
+def _write_team_grid(*, spec, question, rows: dict, columns: dict) -> None:
+    """The cells of a ``kind: teams`` grid, derived from the roster artifact.
+
+    Two rules, both of them the sparseness ``models.MatrixCell`` describes,
+    decided from the data rather than by an author:
+
+    - a pairing the two rosters never shared is **not written**, so a player is
+      never given an input for a square nobody can fill;
+    - a franchise against itself is not written either. Its answer is everybody
+      who ever wore the shirt, which is not a question.
+
+    No :class:`MatrixCellAnswer` rows are written at all. The answer key is the
+    artifact, read at evaluation time (``services.evaluation``) — copying tens
+    of thousands of names into the database per question would make every
+    question that asks about the Lakers carry its own copy of the Lakers, and
+    make re-baking the artifact a data migration.
+    """
+    rosters = load_rosters()
+    MatrixCell.objects.bulk_create(
+        MatrixCell(question=question, row=row, column=column)
+        for row_title, row in rows.items()
+        for column_title, column in columns.items()
+        if row.title != column.title
+        and rosters.players_for_all((row.title, column.title))
+    )
 
 
 def _deactivate_missing(

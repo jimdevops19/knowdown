@@ -46,6 +46,16 @@ class Matchup(BaseModel):
     #: rows a completed matchup must have.
     question_count = models.PositiveSmallIntegerField()
 
+    #: Whether this result may move a ``Ranking``. Decided once, at
+    #: ``services.create_matchup``, from whether either side is a CPU
+    #: opponent (``apps.matches.bots``) — never re-derived later, so a bot
+    #: profile edited mid-match cannot flip a game's own record of what kind
+    #: of game it was. ``services.update_ratings_for_matchup`` in
+    #: ``apps.rankings`` is the one reader: unranked is a no-op there, which
+    #: is what keeps a bot pinned at ``DEFAULT_PLAYER_RATING`` forever and
+    #: keeps the human's own rating exactly where a real opponent left it.
+    is_ranked = models.BooleanField(default=True)
+
     status = models.CharField(
         max_length=20,
         choices=Status.choices,
@@ -230,3 +240,67 @@ assert PLAYERS_PER_MATCHUP == 2, (
     "MatchupPlayer's model and constraints assume exactly two sides; a "
     "different value here needs a matching change to both."
 )
+
+
+class BotProfile(BaseModel):
+    """How one CPU opponent plays: how often it is right, and how long it
+    takes to answer. One row per bot ``Player`` (``player.is_bot=True``),
+    authored by ``manage.py seed_bots`` rather than a resource file — a bot
+    profile is game-balance data, not content, and there are only 50 of them.
+
+    ``apps.matches.bots.controller`` is the only reader: it draws one
+    ``(correct?, delay)`` decision per question from these two numbers.
+    Nothing in ``apps.questions`` or ``apps.rankings`` knows a bot is
+    different from any other player — the same reason ``Player.is_bot`` is a
+    plain flag on an ordinary row rather than a second player table.
+    """
+
+    player = models.OneToOneField(
+        "players.Player",
+        on_delete=models.CASCADE,
+        related_name="bot_profile",
+    )
+
+    #: Probability, per question, that the bot's submission is deliberately
+    #: built correct (``apps.matches.bots.answering.build_bot_answer``). 0.30
+    #: to 0.90 across the seeded roster — a bot is never a guaranteed win or a
+    #: guaranteed loss for the human it is standing in for.
+    accuracy = models.FloatField()
+
+    #: The band its response time is drawn uniformly from, expressed as a
+    #: **fraction of the question's own time limit** (0.0–1.0) rather than a
+    #: fixed number of milliseconds. A fixed millisecond band (the original
+    #: shape of this field) reads as "fast" or "slow" only against the
+    #: fallback ten-second question — a matrix question's own 20-second limit
+    #: (``constants.FALLBACK_QUESTION_TIME_LIMITS_MS``) would make even the
+    #: slowest bot look instant, because it would still be answering in under
+    #: half the time given. Storing a fraction and multiplying by
+    #: ``apps.matches.constants.time_limit_ms_for(...)`` at answer time (see
+    #: ``apps.matches.bots.controller``) is what keeps a bot's *relative*
+    #: speed the same on every question type, long or short, present or
+    #: future. The seeded roster spans "answers within ~20% of the clock" to
+    #: "answers with ~90% of the clock gone" end to end; one bot's own band is
+    #: narrower, which is what makes it recognisably fast or slow rather than
+    #: merely random.
+    min_response_fraction = models.FloatField()
+    max_response_fraction = models.FloatField()
+
+    class Meta(BaseModel.Meta):
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(accuracy__gte=0.0) & models.Q(accuracy__lte=1.0),
+                name="bot_profile_accuracy_in_range",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(min_response_fraction__gte=0.0)
+                & models.Q(max_response_fraction__lte=1.0),
+                name="bot_profile_response_fraction_in_range",
+            ),
+            models.CheckConstraint(
+                condition=models.Q(max_response_fraction__gte=models.F("min_response_fraction")),
+                name="bot_profile_response_band_ordered",
+            ),
+        ]
+
+    def __str__(self) -> str:
+        return f"Bot profile for {self.player.display_name} ({self.accuracy:.0%} accurate)"

@@ -44,6 +44,6 @@ WIN_STREAK_TARGET = 5
 QUESTIONS_ANSWERED_TARGET = 100
 
 #: How fast is "Fastest Answer", against a ten-second clock
-#: (``apps.matches.constants.QUESTION_TIME_LIMIT_MS``). Correct only — a fast
-#: guess is still a guess.
+#: (``apps.matches.constants.FALLBACK_QUESTION_TIME_LIMIT_MS``). Correct
+#: only — a fast guess is still a guess.
 FASTEST_ANSWER_THRESHOLD_MS = 1500

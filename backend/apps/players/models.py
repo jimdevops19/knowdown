@@ -57,8 +57,21 @@ class Player(BaseModel):
 
     avatar = models.ImageField(upload_to=avatar_upload_to, null=True, blank=True)
 
+    #: A CPU opponent (``manage.py seed_bots``, ``apps.matches.bots``) rather
+    #: than a person behind an account. Still an ordinary ``Player`` — it
+    #: takes a rating, appears on a scoreboard, and is subject to every
+    #: constraint above — because the match/ranking/achievement engines must
+    #: not need a special case for who is on the other side of the race. The
+    #: one place this flag is read is matchmaking's bot fallback
+    #: (``apps.matches.bots.selection``), which draws only from bots; nothing
+    #: else in the codebase branches on it.
+    is_bot = models.BooleanField(default=False)
+
     class Meta(BaseModel.Meta):
-        indexes = [models.Index(fields=["display_name"])]
+        indexes = [
+            models.Index(fields=["display_name"]),
+            models.Index(fields=["is_bot"]),
+        ]
         constraints = [
             # Case-insensitive uniqueness *in the database*, not only in the
             # validator: two clients claiming the same free name in the same

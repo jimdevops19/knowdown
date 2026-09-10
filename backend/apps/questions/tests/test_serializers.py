@@ -35,12 +35,18 @@ from apps.questions.api.serializers import (
     serialize_for_play,
     shuffle_seed,
 )
-from apps.questions.models import QUESTION_MODELS, QuestionType
+from apps.questions.models import (
+    QUESTION_MODELS,
+    MatrixCellAnswer,
+    MatrixKind,
+    QuestionType,
+)
 
 from .factories import (
     QUESTION_FACTORIES,
     make_free_text,
     make_matrix,
+    make_team_matrix,
     make_ordering,
     make_single_answer,
     make_true_false,
@@ -173,11 +179,46 @@ class RenderedPayloadTests(TestCase):
             self.assertNotIn(accepted, values)
 
     def test_a_matrix_payload_carries_no_cell_answer(self) -> None:
+        """Every accepted answer of every cell, not just the first: a cell holds
+        several, and a payload that named the obscure ones would hand a player
+        the half of the grid worth having."""
         question = make_matrix()
         payload = serialize_for_play(question=question, matchup_id=MATCHUP)
         _, values = flatten(payload)
-        for answer in question.cells.values_list("answer", flat=True):
+        answers = MatrixCellAnswer.objects.filter(cell__question=question)
+        self.assertTrue(answers.exists())
+        for answer in answers.values_list("value", flat=True):
             self.assertNotIn(answer, values)
+
+    def test_a_matrix_payload_carries_no_probability_score(self) -> None:
+        """How obscure a cell's answers are is a clue to what they are — a grid
+        that says "this square's answers are all 9s" narrows the guess."""
+        question = make_matrix(
+            cells=(("Bulls", "1990s", (("1996", 9),)), ("Lakers", "2000s", "2001"))
+        )
+        _, values = flatten(serialize_for_play(question=question, matchup_id=MATCHUP))
+        self.assertNotIn(9, values)
+
+    def test_a_team_matrix_payload_names_no_player(self) -> None:
+        """A ``kind: teams`` grid keeps its answers in the roster artifact
+        rather than in the database, so the leak to check for is a *derived*
+        one: the payload must name the franchises it asks about and nobody who
+        played for both of them."""
+        question = make_team_matrix(
+            rows=("Chicago Bulls", "Boston Celtics"),
+            columns=("Los Angeles Lakers", "Miami Heat"),
+        )
+        payload = serialize_for_play(question=question, matchup_id=MATCHUP)
+        _, values = flatten(payload)
+
+        self.assertEqual(payload["kind"], MatrixKind.TEAMS)
+        self.assertIn("Chicago Bulls", values)
+        for player in ("Dennis Rodman", "Ray Allen", "LeBron James"):
+            self.assertNotIn(player, values)
+        self.assertEqual(
+            {(cell["row_id"], cell["column_id"]) for cell in payload["cells"]},
+            set(question.cells.values_list("row_id", "column_id")),
+        )
 
     def test_a_matrix_payload_says_which_intersections_to_fill(self) -> None:
         """The grid is sparse, so without this a client draws an input in every

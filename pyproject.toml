@@ -32,5 +32,12 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "nba-api>=1.10",
     "pip-audit>=2.9.0",
+    # apps.matches.management.commands.load_rehearsal — a black-box client
+    # against a deployed instance's real HTTP + WebSocket surface. Dev-only:
+    # the rehearsal is run from an operator's machine or CI, never shipped in
+    # the runtime image (backend/Dockerfile's `uv sync --no-dev`).
+    "httpx>=0.28",
+    "websockets>=15.0",
 ]

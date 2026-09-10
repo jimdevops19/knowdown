@@ -21,7 +21,8 @@ SUPPORTED_LOG_FIELDS: frozenset[str] = frozenset(
         "path",            # request path
         "route",           # the resolved URL name, e.g. "v1:categories:list"
         "status_code",     # HTTP status returned
-        "duration_ms",     # how long the request took
+        "duration_ms",     # how long the thing being logged took — a request,
+                           # a matchmaking wait, a played matchup
         "anonymous",       # True when nobody was signed in
         "caller",          # "user" | "probe" — a person, or the kubelet
         "redirect_to",     # Location, on a 3xx
