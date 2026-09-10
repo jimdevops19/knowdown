@@ -24,8 +24,10 @@ built toward. It is the intent, not the state — read this file for what exists
 The question authoring pipeline and the scaffolding under it:
 
 - **`apps/questions`** — every question shape, the pydantic schemas that validate
-  the authored YAML, `sync_questions`, and the selection seam the match engine
-  will call.
+  the authored YAML, `sync_questions`, the selection seam the match engine will
+  call, **answer evaluation** (`services/evaluation.py`) and the **play-time
+  serializers** that must never leak an answer (`api/serializers.py`).
+  `questions_report` says whether the catalog is deep enough to play.
 - **`apps/categories`** — the `Category` model and a read-only endpoint pair.
 - **`apps/accounts`** — the `User` model only. No sign-in, no JWT endpoints, no
   OAuth yet; it exists now because `AUTH_USER_MODEL` cannot be swapped after the
@@ -50,7 +52,15 @@ uv run python manage.py createsuperuser   # asks for an email, not a username
 # Tests — always with the test settings (in-memory sqlite, fast hashing, quiet logs)
 uv run python manage.py test --settings=config.settings.test
 uv run python manage.py test apps.questions --settings=config.settings.test
+uv run python manage.py test apps.questions.tests.test_evaluation --settings=config.settings.test
 ```
+
+`apps/questions/tests/` is a **package**, not a `tests.py` — the loader's
+refusals, the evaluator's verdicts, the serializers' silence and the report's
+exit code are unrelated subjects, and the third of them is the anti-cheat
+surface, which is worth being findable. `tests/factories.py` builds question rows
+straight through the ORM; only `test_sync` goes the long way round through a
+resources tree, because the loader is what it is testing.
 
 ### `sync_questions` — the one custom command
 
@@ -81,6 +91,25 @@ than a one-time seed. Four rules hold it together:
 
 The command cannot be spelled `sync-questions` — Django finds a command by
 importing the module named after it, and a hyphen is not a legal module name.
+
+### `questions_report` — is the catalog deep enough to play?
+
+```bash
+uv run python manage.py questions_report
+uv run python manage.py questions_report --category nba
+uv run python manage.py questions_report --count 3        # could we run 3-question matches?
+uv run python manage.py questions_report --include-inactive
+```
+
+Prints the catalog as two tables — depth per level band, depth per question type
+— and **exits non-zero when an active category cannot fill a
+`LONGEST_MATCH_QUESTION_COUNT`-question match at every level band**. That is the
+point of it: a thin band is a band where matchmaking *refuses*
+(`selectors.select_questions`), so a deploy pipeline should find out before two
+players do. The stocking target (`CATALOG_DEPTH_TARGET`, the depth at which a
+band stops being the same board every time) prints as a shortfall and does
+**not** fail the command — refusing there would take a category out of service
+for being merely repetitive.
 
 Config is 12-factor via environment / a repo-root `.env` (see `.env.example`);
 `DJANGO_SETTINGS_MODULE` selects the module (`config.settings.{local,test,production}`,
@@ -130,8 +159,24 @@ one primary key at the price of a join on every read.
 
 **`models.QUESTION_MODELS` is what holds them together.** The loader reads it to
 map a YAML `type:` to a model, the selectors read it to draw from every shape at
-once, the admin reads it to register them. Adding a question type is: a model, a
-`QuestionType` member, a schema variant, and **one line in the registry**.
+once, the admin reads it to register them.
+
+It now has three siblings, all keyed by the same `QuestionType` value, one per
+thing you can do with a question:
+
+| registry | module | says |
+| --- | --- | --- |
+| `QUESTION_MODELS` | `models` | the type exists, and which table it is |
+| `ANSWER_SUBMISSIONS` | `schemas.answers` | what answering it looks like on the wire |
+| `ANSWER_EVALUATORS` | `services.evaluation` | what counts as right |
+| `QUESTION_SERIALIZERS` | `api.serializers` | what a player may see of it |
+
+Adding a question type is: a model, a `QuestionType` member, a resource schema
+variant, and **one line in each of the four** — plus a builder in
+`tests/factories.py`, which is what puts it into every table-driven suite for
+free. `tests.test_evaluation.RegistryCoverageTests` walks all of them together,
+so a type that can be *asked* and not *scored* fails the suite rather than a
+live match stuck on question three.
 
 Three consequences worth keeping:
 
@@ -144,14 +189,64 @@ Three consequences worth keeping:
 - **`selectors.QuestionRef`** — a `(question_type, question_id)` pair — is what
   stands in for "a question" wherever the type is not known ahead of time. It is
   why the match tables will need no foreign key into seven question tables.
-- **Selection lives in `questions`, not in `matches`.** The match engine must stay
-  independent of the concrete question type, so "give me five NBA questions" is a
-  question this domain answers (`selectors.select_questions`) and the match domain
-  merely asks. Answer *evaluation* belongs here too and is not written yet.
+- **Selection and evaluation live in `questions`, not in `matches`.** The match
+  engine must stay independent of the concrete question type, so "give me five
+  NBA questions" (`selectors.select_questions`) and "is this answer correct?"
+  (`services.evaluate_answer`) are questions this domain answers and the match
+  domain merely asks. The match engine must never learn what a correct answer
+  looks like; it decides what a verdict is *worth*, not what is true.
+- **A thin category is a broken match, not a shorter one.** `select_questions`
+  refuses when the pool is smaller than the count asked for, rather than playing
+  a shorter match — otherwise the length of a game would depend on how well
+  stocked a category happens to be. `constants.LEVEL_BANDS` cuts the 1..10 scale
+  into the three bands the matchmaker will draw from (nothing *stores* a band — a
+  question stores its level), and `selectors.catalog_depth` is how
+  `questions_report` asks whether each one can be played.
 
 Positions and orders (`option.order`, `correct_position`, matrix row/column
 `order`) are **derived from the list order in the YAML**, never authored — which
 is why no resource file can have a gap or a duplicate position.
+
+#### Answering: three outcomes, not two
+
+`schemas/answers.py` is the payload contract (a discriminated union, strict about
+shape, `extra="forbid"`); `services/evaluation.py` is the verdict. A submission
+is right, wrong, or **not an answer at all** — and the third raises
+`ValidationFailed` rather than scoring zero, because a client sending nonsense is
+a bug, and "anything I do not understand is worth zero" is the behaviour a
+patched client probes for. Running out of time is not that case: no payload
+arrives.
+
+`AnswerResult` carries `is_correct` **and** `score` (credit, 0.0–1.0) because
+they disagree on exactly one type. Partial credit, settled once: all-or-nothing
+for single, image, true/false, free-text and ordering; **exact set** for
+multiple-answer (per-option credit would make the shotgun a strategy);
+**per authored cell** for matrix (a grid is genuinely several sparse,
+independent claims). Points are speed and stakes as well as truth, and those are
+`apps.matches`' to combine — a scoring curve in `questions` would mean two places
+deciding what a question is worth.
+
+#### `api/serializers.py` is the anti-cheat surface
+
+The question row holds the answer; the payload sent while the clock runs must
+not. "We remembered not to include it" is not a mechanism, so there are three:
+every serializer is a plain `Serializer` with an explicit field list (a
+`ModelSerializer` grows a field when a *model* grows a column); the base class
+checks its subclasses' field names **and sources** against
+`FORBIDDEN_FIELD_NAMES` at class creation, so a leak fails at **import**; and
+`tests/test_serializers.py` walks both the declared fields and the *rendered*
+payloads of all seven types, including for the answer values themselves. The
+question `slug` is omitted for the same reason — `kobe-81-point-game` is an
+ordinary slug and a complete answer.
+
+The board is **shuffled per matchup, not per player** (`shuffle_seed` is a
+function of the matchup and question ids, nothing else): both sides of a race
+must read the same board, two processes must agree without coordinating, and a
+reconnecting player must get the board they left. Ordering questions are the case
+where the shuffle *is* the anti-cheat — their options are stored in answer order.
+`serialize_for_play(question=…, matchup_id=…)` is the entry point, and
+`matchup_id` is required so the play path cannot produce an unshuffled board by
+omission.
 
 ### core_common — shared conventions (read before touching cross-cutting behavior)
 
@@ -232,3 +327,11 @@ test suite, wrong for any container deployment.
   authenticate an API call and then demand a CSRF token.
 - New domain apps go in `apps/`, are added to `LOCAL_APPS` in `base.py`, and get
   their `api/urls.py` included in `config/urls.py` under `api_v1_patterns`.
+- **The suite runs on SQLite and production runs on PostgreSQL**, so anything
+  written against a Postgres-only feature passes review and breaks on deploy —
+  or, worse, breaks locally and passes CI. `JSONField`'s `contains` lookup is the
+  one already hit: `tags__era="2000s"` (a key path) means the same as
+  `tags__contains={"era": "2000s"}` for a flat dict and works on both backends,
+  which is why `selectors.available_questions` filters that way. A key path
+  addresses a *key*, so a digit in it would address an array index instead —
+  hence the guard on tag keys.
