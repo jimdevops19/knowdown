@@ -257,6 +257,8 @@ ladder read is one query rather than one per player.
 
 **Important: the rating calculation should follow the same mechanism like in the repo of rpool - ratings start for 1200 each and each matchup after completion of the best of X rises or falls the rating, depending on the rating numberp played, inspect ~/repos/rpool/backend/apps/rankings/ to capture the logic - pay attention that rpool has competitive logic for rankings addition substraction, here in knodown it's not relevant, ratings are counted in each matchup**
 
+# STOPPED HERE - 10/09/2026 - 13:00
+
 ### 18. `apps/achievements`
 `Achievement` + `PlayerAchievement` with the unique constraint from the plan, the
 initial eight badges as a **resource file loaded by a command** — the same

@@ -17,6 +17,11 @@ id)`` pair in ``MatchupQuestion`` exists to keep one-directional.
 ``timezone.now()``. There is no parameter here a client could use to report
 its own elapsed time — accepting one would make every match winnable with a
 patched client.
+
+``complete_matchup`` and ``abandon_matchup`` — the two ways a matchup becomes
+``COMPLETED`` — both call ``apps.rankings.services.update_ratings_for_matchup``
+once they have decided the winner, so a match, played out or left mid-way,
+always moves both sides' rating in ``matchup.category`` exactly once.
 """
 
 from __future__ import annotations
@@ -41,6 +46,7 @@ from apps.questions.selectors import QuestionRef
 from apps.questions.selectors import get_question as get_concrete_question
 from apps.questions.selectors import select_questions
 from apps.questions.services.evaluation import evaluate_answer
+from apps.rankings.services import update_ratings_for_matchup
 
 __all__ = [
     "abandon_matchup",
@@ -300,6 +306,7 @@ def complete_matchup(*, matchup: Matchup) -> Matchup:
     matchup.outcome = Matchup.Outcome.PLAYED
     matchup.completed_at = timezone.now()
     matchup.save(update_fields=["status", "outcome", "completed_at"])
+    update_ratings_for_matchup(matchup=matchup)
     return matchup
 
 
@@ -346,6 +353,7 @@ def abandon_matchup(*, matchup: Matchup, leaving_player: Player) -> Matchup:
     matchup.outcome = Matchup.Outcome.ABANDONED
     matchup.completed_at = now
     matchup.save(update_fields=["status", "outcome", "completed_at"])
+    update_ratings_for_matchup(matchup=matchup)
     return matchup
 
 

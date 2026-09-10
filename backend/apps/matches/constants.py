@@ -16,8 +16,11 @@ __all__ = [
     "MAX_QUESTION_POINTS",
     "MIN_SPEED_FACTOR",
     "PLAYERS_PER_MATCHUP",
+    "POOL_WAITING_TTL_SECONDS",
+    "PRESENCE_TTL_SECONDS",
     "QUESTION_TIME_LIMIT_MS",
     "QUESTION_TIME_LIMIT_SECONDS",
+    "RECONNECT_GRACE_SECONDS",
     "score_answer",
 ]
 
@@ -52,6 +55,24 @@ MAX_QUESTION_POINTS = 100
 #: is not scored as though it were a guess, and a wrong answer is never made
 #: worse by taking the full ten seconds to be wrong.
 MIN_SPEED_FACTOR = 0.5
+
+#: How long a player may sit as "the one waiting" in a category's matchmaking
+#: pool before the slot is considered stale and free for someone else to claim
+#: (``apps.matches.pool``). A safety net for a process that died mid-wait, not
+#: the normal path out — the normal path is pairing or an explicit leave.
+POOL_WAITING_TTL_SECONDS = 60
+
+#: How long a presence entry (``apps.matches.presence``) survives with no
+#: refresh before a player is treated as offline. Short, because presence is a
+#: "right now" signal, not a record — a crashed process must not strand
+#: someone as permanently online.
+PRESENCE_TTL_SECONDS = 30
+
+#: How long a mid-match disconnect is given to reconnect before the opponent is
+#: awarded the win (``services.abandon_matchup``). Long enough for a phone to
+#: survive a tunnel or a tab reload, short enough that the opponent is not left
+#: staring at a paused game.
+RECONNECT_GRACE_SECONDS = 20
 
 
 def score_answer(*, credit: float, response_time_ms: int, time_limit_ms: int = QUESTION_TIME_LIMIT_MS) -> int:

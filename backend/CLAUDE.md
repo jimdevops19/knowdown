@@ -36,12 +36,15 @@ The question authoring pipeline and the scaffolding under it:
   case-insensitively, in the database as well as in a validator), an avatar,
   and `GET/PATCH /players/me/`.
 - **`apps/core_common`**, **`shared/`** — the platform-wide contracts (below).
-- **`apps/matches`** — the **match engine, without sockets**: `Matchup`,
-  `MatchupPlayer`, `MatchupQuestion`, `PlayerAnswer`, and every rule of a game
-  as a `services` function callable from a test (`create_matchup` through
-  `abandon_matchup`), plus read-only match history
-  (`GET /api/v1/matches/`, `GET /api/v1/matches/{id}/`). Phase D adds a
-  WebSocket transport over the top; nothing here imports `channels`.
+- **`apps/matches`** — the **match engine**: `Matchup`, `MatchupPlayer`,
+  `MatchupQuestion`, `PlayerAnswer`, and every rule of a game as a `services`
+  function callable from a test (`create_matchup` through `abandon_matchup`) —
+  `services/` still imports nothing from `channels`. Read-only match history
+  over REST (`GET /api/v1/matches/`, `GET /api/v1/matches/{id}/`), and the
+  **realtime transport** over the top: a global matchmaking pool
+  (`apps.matches.pool`), presence (`apps.matches.presence`), and two
+  WebSocket consumers (`consumers.py`) that turn the same service calls into
+  `events.py`'s live protocol. See "Realtime" below.
 - **`apps/rankings`, `apps/achievements`** — **scaffolds**. Directory layout
   and an `AppConfig`, no models. The tables in `initial-plan.md` land with the
   increment that uses them.
@@ -442,16 +445,61 @@ logger.info("Questions synced", category=labels.category(category), summary=str(
 authorization grounds, so "how often does someone try what they may not do?" is
 countable apart from ordinary warnings.
 
-### Realtime — configured, not yet built
+### Realtime — the transport over Phase C's rules
 
-`CHANNEL_LAYERS` and `config/asgi.py` are in place with only the `http` branch
-wired. The intent (`initial-plan.md`): **Redis + Channels hold who is online and
-what is happening right now; PostgreSQL stores what happened.** The matchmaking
-pool is one logical queue, not a database room per player, and the server owns
-the clock — the client displays a timer, the server decides who answered first.
-Without `REDIS_URL` the channel layer falls back to an in-memory one, which is
-not a degraded Redis but a *per-process* layer: correct for `runserver` and the
-test suite, wrong for any container deployment.
+`apps.matches` gets a WebSocket transport over the match engine Phase C already
+tested without one. `config/asgi.py`'s `websocket` branch is wired: JWT off a
+`?token=` query param (`authentication.JWTAuthMiddlewareStack` — the API has no
+session cookie to reuse, and a browser `WebSocket` cannot set a header),
+`AllowedHostsOriginValidator`, `apps.matches.routing`.
+
+Two consumers, both thin (`consumers.py` — receive → validate → call a
+`services` function → broadcast through `publish.py`), matching
+`backend/CLAUDE.md`'s promise that the rules stay callable from a test with no
+socket in sight:
+
+- **`MatchmakingConsumer`** (`ws/v1/matchmaking/{category_slug}/`) — joins
+  `apps.matches.pool`'s one-slot-per-category queue and waits for
+  `events.MATCH_FOUND`. **The pool is `django.core.cache.cache`, not a
+  hand-rolled Redis client** — the project already has exactly one story for
+  "shared, ephemeral, per-process-or-real-Redis state" (`CACHES`, the same
+  split `CHANNEL_LAYERS` draws), and pairing needs only *one* atomic
+  primitive: `cache.add` as a mutex around a single waiting-player slot, which
+  is enough because the pool never holds more than one waiter by construction
+  — the second joiner is paired and both leave immediately.
+- **`MatchupConsumer`** (`ws/v1/matches/{matchup_id}/`) — the live game.
+  `events.ANSWER_SUBMIT` is the only write a client may send; everything else
+  is server-decided and pushed. Each connected socket schedules its own
+  watchdog (`_watch_question_timeout`) so a question nobody answers still
+  closes on the server's clock, not the client's; `apps.matches.presence`
+  (cache-backed, TTL'd) and a reconnect grace window
+  (`constants.RECONNECT_GRACE_SECONDS`) are what let a mid-match refresh
+  resume — `services.abandon_matchup` fires only once that window elapses
+  with nobody back.
+
+**A task spawned with `asyncio.ensure_future` and not held onto gets silently
+garbage-collected mid-flight** — documented `asyncio` behaviour, and the bug
+that took the longest to find while building this. `_WatchdogMixin._spawn` is
+the one place every loose task (the watchdog, the abandon timer) is created,
+specifically so it is held in `self._background_tasks` and this cannot
+recur.
+
+**A closing question can be closed by more than one caller at once** — the
+second player's own `submit_answer` call, or either side's watchdog — and only
+one may broadcast the result. `consumers._try_close_question`'s `cache.add`
+mutex (the same primitive the pool uses) is what elects exactly one.
+
+Without `REDIS_URL` both the channel layer and the cache fall back to
+in-process backends, which is not a degraded Redis but a *per-process* layer:
+correct for `runserver` and the test suite (`apps/matches/tests/
+test_realtime.py`, driven with `channels.testing.WebsocketCommunicator`
+against the real consumers — no shortcuts through `services`), wrong for any
+container deployment with more than one replica.
+
+**Never poll a `WebsocketCommunicator` with a short timeout hoping a miss is
+harmless** — `asgiref`'s test harness cancels the underlying consumer task the
+moment a wait times out. A timeout is "this socket is done," not "nothing yet,
+ask again."
 
 ## Conventions
 

@@ -31,6 +31,10 @@ SUPPORTED_LOG_FIELDS: frozenset[str] = frozenset(
         # --- Errors ----------------------------------------------------------
         "code",            # a DomainError's machine-readable code
         "reason",          # its human-readable message
+        # --- Realtime (apps.matches) -------------------------------------------
+        "action",          # short verb for what happened, e.g. a dropped event's type
+        "state",           # a presence/pool state, e.g. "searching" | "offline"
+        "close_code",      # the WebSocket close code a socket was shut with
         # --- Entities, as labels (see labels.py) ------------------------------
         "user",            # the account's email
         "player",          # the player's display name
