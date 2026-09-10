@@ -39,8 +39,33 @@ CACHES = {
 # real throttling asks for it with @override_settings.
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,  # noqa: F405
-    "DEFAULT_THROTTLE_RATES": {"anon": "10000/min", "user": "10000/min"},
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": "10000/min",
+        "user": "10000/min",
+        # Listed rather than dropped: ScopedRateThrottle raises on a scope with
+        # no rate, so leaving one out would fail every sign-in test for the
+        # wrong reason. A test that wants the real limit asks for it back.
+        "login": "10000/min",
+        "password_reset": "10000/min",
+    },
 }
+
+# Mail goes nowhere and is readable from the test that caused it.
+EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+
+# The password door is what most of the suite signs in through; a tier that
+# turns it off unmounts those routes, and testing against an unmounted route is
+# testing the URLconf rather than the view.
+PERMIT_PASSWORD_AUTH = True
+
+# Sign-in lockout: counted, never enforced. The counters live in the LocMem
+# cache above and are not cleared between tests, so the addresses the suite
+# signs in wrong with on purpose would accumulate across a run and start 429ing
+# an unrelated test depending on order. Switched off rather than removed, so the
+# counting and logging path still runs everywhere; the lockout tests ask for the
+# real behaviour back with @override_settings(LOGIN_LOCKOUT_ENFORCED=True) and
+# clear the cache themselves, the way the throttle tests do above.
+LOGIN_LOCKOUT_ENFORCED = False
 
 # The suite is quiet unless something is actually wrong. Every service here logs
 # a JSON line per call, and 45 tests' worth of them buries the one line that

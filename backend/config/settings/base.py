@@ -67,6 +67,8 @@ DJANGO_APPS = [
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
+    # allauth scopes a social app to a Site; nothing else here uses one.
+    "django.contrib.sites",
     "django.contrib.messages",
     "django.contrib.staticfiles",
 ]
@@ -78,6 +80,21 @@ THIRD_PARTY_APPS: list[str] = [
     "django_filters",
     "corsheaders",
     "drf_spectacular",
+    # Revoked refresh tokens. Without this app `logout/` is a cookie deletion
+    # and nothing more: the token itself stays valid until it expires, up to a
+    # week later, so a copy taken beforehand would still work.
+    "rest_framework_simplejwt.token_blacklist",
+    # Sign-in with Google. allauth is the provider machinery; dj_rest_auth is
+    # the JSON layer over it (and the HttpOnly refresh cookie). Both are here
+    # unconditionally even where no Google app is configured — an unconfigured
+    # provider is a *missing app registration*, not a missing dependency, and
+    # `/api/v1/auth/config/` is what says which it is.
+    "allauth",
+    "allauth.account",
+    "allauth.socialaccount",
+    "allauth.socialaccount.providers.google",
+    "dj_rest_auth",
+    "dj_rest_auth.registration",
 ]
 
 # Local apps live under apps/ and are imported via the ``apps`` package.
@@ -113,6 +130,9 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Required by allauth >= 65. It only touches the social login flow; the
+    # Bearer-token API never sees it do anything.
+    "allauth.account.middleware.AccountMiddleware",
     # Attaches a per-request id used in log records and the error envelope.
     "apps.core_common.middleware.RequestIDMiddleware",
     # One structured access-log line per request. Inside RequestIDMiddleware so
@@ -315,6 +335,15 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": env("THROTTLE_ANON", "60/min"),
         "user": env("THROTTLE_USER", "1000/min"),
+        # Password sign-in and signup (LoginView, RegisterView, GoogleLoginView).
+        # The `anon` ceiling above is sized for browsing, not for guarding a
+        # password — at 60/min one client can work through a word list all day.
+        # Scoped separately so tightening sign-in never touches anonymous reads.
+        "login": env("THROTTLE_LOGIN", "10/min"),
+        # Forgot-password. Separate from `login` because the request half sends
+        # real mail on every hit whether or not the address exists, so sharing
+        # login's ceiling would let one client walk a mailing list.
+        "password_reset": env("THROTTLE_PASSWORD_RESET", "5/min"),
     },
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.URLPathVersioning",
     "DEFAULT_VERSION": "v1",
@@ -323,13 +352,17 @@ REST_FRAMEWORK = {
 
 
 # --- SimpleJWT ---------------------------------------------------------------
-# Configured now so the shape is settled; no auth endpoints are mounted yet
-# (apps/accounts is the User model and nothing else this increment).
+# The access token is short-lived and lives in the client's memory; the
+# refresh token never reaches JavaScript at all (see REST_AUTH below).
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=env_int("ACCESS_TOKEN_MINUTES", 30)),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=env_int("REFRESH_TOKEN_DAYS", 7)),
     "ROTATE_REFRESH_TOKENS": True,
+    # A rotated token is a spent token. Without this, the refresh token a
+    # client posted stays valid alongside the one it was traded for, so a
+    # stolen copy keeps working for the rest of its week.
+    "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
     "USER_ID_FIELD": "id",
     "USER_ID_CLAIM": "user_id",
@@ -353,6 +386,157 @@ SPECTACULAR_SETTINGS = {
         "rest_framework_simplejwt.authentication.JWTAuthentication"
     ],
 }
+
+
+# --- Authentication / allauth ------------------------------------------------
+
+SITE_ID = 1
+
+AUTHENTICATION_BACKENDS = [
+    "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
+]
+
+# allauth on an email-only user model: no username field exists to key on.
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
+# No confirmation flow is wired for a client yet, and "optional" still sends a
+# verification mail whose link is built from a URL name these namespaced routes
+# do not expose — which 500s the signup that triggered it.
+ACCOUNT_EMAIL_VERIFICATION = "none"
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_USER_MODEL_EMAIL_FIELD = "email"
+
+# The refresh token rides an HttpOnly cookie rather than the response body, so
+# it is invisible to JavaScript: the access token — short-lived, kept in memory
+# by the client — is the only credential a script on the page can ever read. A
+# refresh token in localStorage would be a week-long, self-renewing credential
+# one XSS away from a permanent account takeover.
+#
+# The cookie is scoped to the two routes that ever read it (refresh, logout)
+# rather than sent on every API call, which costs nothing here because
+# JWTAuthentication reads only the Authorization header.
+REST_AUTH = {
+    "USE_JWT": True,
+    "JWT_AUTH_HTTPONLY": True,
+    "JWT_AUTH_COOKIE": None,
+    "JWT_AUTH_REFRESH_COOKIE": "knowdown_refresh",
+    "JWT_AUTH_REFRESH_COOKIE_PATH": "/api/v1/auth/",
+    # True in production.py; plain HTTP is what local development serves.
+    "JWT_AUTH_SECURE": False,
+    # JWT only: no DRF auth-token model.
+    "TOKEN_MODEL": None,
+    "SESSION_LOGIN": False,
+    "USER_DETAILS_SERIALIZER": "apps.accounts.api.serializers.UserSerializer",
+}
+
+# Whether this deployment offers an email/password door at all. Off, it
+# unmounts token/, registration/ and both password-reset routes
+# (apps/accounts/api/urls.py) and a client hides its email forms via
+# GET /api/v1/auth/config/. On by default: password is the door this product
+# ships with, and Google is the addition.
+PERMIT_PASSWORD_AUTH = env_bool("PERMIT_PASSWORD_AUTH", True)
+
+
+# --- Sign-in lockout ---------------------------------------------------------
+# What happens when one address is guessed at repeatedly. The `login` throttle
+# scope above caps the rate per client; these cap the *number* of wrong answers
+# one address may give, which is the dimension that survives an attacker
+# changing IP. The mechanism is apps/accounts/services/lockout.py.
+
+# Counting only, when off: failures are still tallied and logged, nobody is
+# turned away. That is how the numbers become real before the limit starts
+# refusing people — and it is what the test settings switch off, so the suite's
+# deliberate wrong passwords do not lock an address for a later test.
+LOGIN_LOCKOUT_ENFORCED = env_bool("LOGIN_LOCKOUT_ENFORCED", True)
+
+# How long failures are remembered, and so the width of the whole budget:
+# LOGIN_LOCKOUT_AFTER guesses per window, not per day.
+LOGIN_FAILURE_WINDOW_SECONDS = env_int("LOGIN_FAILURE_WINDOW_SECONDS", 15 * 60)
+
+# Free failures before the cooldowns start. Three is "I tried my two usual
+# passwords and a typo" — punishing the honest case turns this into a support
+# queue.
+LOGIN_DELAY_AFTER = env_int("LOGIN_DELAY_AFTER", 3)
+
+# The cooldown doubles per failure past that (1s, 2s, 4s ...) up to this. Costs
+# a person who is nearly right a few seconds; costs a script the difference
+# between a word list and about a hundred guesses an hour.
+LOGIN_DELAY_CAP_SECONDS = env_int("LOGIN_DELAY_CAP_SECONDS", 60)
+
+# Failures at which the cooldowns become a lock.
+LOGIN_LOCKOUT_AFTER = env_int("LOGIN_LOCKOUT_AFTER", 10)
+
+# How long that lock holds. Temporary by design: a lock that had to be lifted
+# by hand would be a way to keep a rival out of their own account, so this is
+# the wait, not a ban.
+LOGIN_LOCKOUT_SECONDS = env_int("LOGIN_LOCKOUT_SECONDS", 15 * 60)
+
+# Count the client IP as a second dimension. OFF by default and dangerous to
+# turn on blind: behind an ingress that does not forward the real address every
+# request arrives as the same one, so an IP lock there locks out everybody at
+# once. Same caution as TRUSTED_PROXY_HOPS above.
+LOGIN_LOCKOUT_BY_IP = env_bool("LOGIN_LOCKOUT_BY_IP", False)
+
+
+# --- Outbound mail -----------------------------------------------------------
+# Today there is exactly one message: the forgot-password link
+# (accounts.services.password_reset). Django's stock SMTP backend aimed at
+# whatever relay the environment names, rather than a provider's API, so
+# switching one is an env var and not a new dependency. local.py and test.py
+# override the backend itself (console / locmem), and an unset EMAIL_HOST
+# anywhere else fails loudly at send time rather than pretending to deliver.
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_HOST = env("EMAIL_HOST", "")
+EMAIL_PORT = env_int("EMAIL_PORT", 587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", "")
+# 587 (STARTTLS) and 465 (implicit SSL) are mutually exclusive, and smtplib
+# refuses a backend with both set — so asking for SSL turns TLS's default off.
+EMAIL_USE_SSL = env_bool("EMAIL_USE_SSL", False)
+EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", not EMAIL_USE_SSL)
+# smtplib has NO connect/read timeout by default, and the reset mail is sent
+# inline on the request thread (there is no queue yet), so an unset timeout
+# means a silent relay holds a worker until something upstream kills it.
+EMAIL_TIMEOUT = env_int("EMAIL_TIMEOUT", 10)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", "no-reply@knowdown.app")
+
+# Where a reset link points — the client's own origin, never derived from the
+# request. Which Host reached this API is a routing detail; it is not a fact
+# about which UI can complete a token.
+FRONTEND_URL = env("FRONTEND_URL", "http://localhost:5173")
+
+
+# --- Google sign-in ----------------------------------------------------------
+# Opt-in. Without credentials the provider is left *unconfigured* rather than
+# registered with empty strings — an app with a blank client id fails deep
+# inside allauth with an opaque error, while an unregistered one lets
+# GoogleLoginView say plainly that this server does not offer it.
+# GOOGLE_OAUTH_ENABLED is what /api/v1/auth/config/ reports.
+GOOGLE_OAUTH_CLIENT_ID = env("GOOGLE_OAUTH_CLIENT_ID", "")
+GOOGLE_OAUTH_CLIENT_SECRET = env("GOOGLE_OAUTH_CLIENT_SECRET", "")
+GOOGLE_OAUTH_ENABLED = bool(GOOGLE_OAUTH_CLIENT_ID and GOOGLE_OAUTH_CLIENT_SECRET)
+
+SOCIALACCOUNT_PROVIDERS = {
+    "google": {
+        "SCOPE": ["profile", "email"],
+        "AUTH_PARAMS": {"access_type": "online"},
+    }
+}
+
+if GOOGLE_OAUTH_ENABLED:
+    SOCIALACCOUNT_PROVIDERS["google"]["APP"] = {
+        "client_id": GOOGLE_OAUTH_CLIENT_ID,
+        "secret": GOOGLE_OAUTH_CLIENT_SECRET,
+        "key": "",
+    }
+
+# A social signup mirrors the email one: no verification mail, and the person
+# gets their Player row immediately (apps.accounts.adapters).
+SOCIALACCOUNT_ADAPTER = "apps.accounts.adapters.SocialAccountAdapter"
+SOCIALACCOUNT_EMAIL_VERIFICATION = "none"
+SOCIALACCOUNT_EMAIL_REQUIRED = True
+SOCIALACCOUNT_AUTO_SIGNUP = True
 
 
 # --- CORS --------------------------------------------------------------------

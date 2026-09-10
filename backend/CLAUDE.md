@@ -29,12 +29,15 @@ The question authoring pipeline and the scaffolding under it:
   serializers** that must never leak an answer (`api/serializers.py`).
   `questions_report` says whether the catalog is deep enough to play.
 - **`apps/categories`** — the `Category` model and a read-only endpoint pair.
-- **`apps/accounts`** — the `User` model only. No sign-in, no JWT endpoints, no
-  OAuth yet; it exists now because `AUTH_USER_MODEL` cannot be swapped after the
-  first `migrate` without pain.
+- **`apps/accounts`** — **identity**: registration, email/password sign-in,
+  JWT lifecycle, the sign-in lockout, password reset, Google sign-in, and
+  `/auth/me/` — the one endpoint in the API that may emit an email address.
+- **`apps/players`** — the **competitor**: a display name (unique
+  case-insensitively, in the database as well as in a validator), an avatar,
+  and `GET/PATCH /players/me/`.
 - **`apps/core_common`**, **`shared/`** — the platform-wide contracts (below).
-- **`apps/players`, `apps/matches`, `apps/rankings`, `apps/achievements`** —
-  **scaffolds**. Directory layout and an `AppConfig`, no models. The tables in
+- **`apps/matches`, `apps/rankings`, `apps/achievements`** — **scaffolds**.
+  Directory layout and an `AppConfig`, no models. The tables in
   `initial-plan.md` land with the increment that uses them.
 
 ## Commands
@@ -53,6 +56,7 @@ uv run python manage.py createsuperuser   # asks for an email, not a username
 uv run python manage.py test --settings=config.settings.test
 uv run python manage.py test apps.questions --settings=config.settings.test
 uv run python manage.py test apps.questions.tests.test_evaluation --settings=config.settings.test
+uv run python manage.py test apps.accounts apps.players --settings=config.settings.test
 ```
 
 `apps/questions/tests/` is a **package**, not a `tests.py` — the loader's
@@ -247,6 +251,84 @@ where the shuffle *is* the anti-cheat — their options are stored in answer ord
 `serialize_for_play(question=…, matchup_id=…)` is the entry point, and
 `matchup_id` is required so the play path cannot produce an unshuffled board by
 omission.
+
+### accounts + players — one person, two rows
+
+`accounts.User` is who signs in; `players.Player` is who appears on a
+scoreboard. They are separate rows joined by a nullable one-to-one, and the
+split is the whole security story of this half of the backend:
+
+- **the email address is a credential**, and it leaves the API in exactly one
+  place — `GET /api/v1/auth/me/`, which is `IsAuthenticated` and answers with
+  `request.user`, so the only address it can emit is the caller's own.
+  `apps/accounts/tests/test_email_exposure.py` walks *every* serializer in
+  `apps/` and fails on any other one carrying an `email` field (rpool's
+  `EmailExposureTests` is the pattern);
+- **the display name is published**, so it is never a login and is never
+  seeded from an address. A new player gets a generated `player_9f2c1a`
+  (`has_auto_name`) and chooses a real one through `PATCH /players/me/`.
+  Seeding it from an email would publish half of somebody's credential;
+  accepting it at sign-in would hand out the other half.
+
+Everything else follows from those two:
+
+| door | route | what holds it |
+| --- | --- | --- |
+| sign up | `POST /auth/registration/` | `login` throttle scope |
+| sign in | `POST /auth/token/` | `login` scope **+** `services.lockout` |
+| refresh / verify / logout | `POST /auth/token/refresh/`, `token/verify/`, `logout/` | the refresh cookie, blacklisted on rotation |
+| Google | `POST /auth/google/` | `login` scope; 400s where unconfigured |
+| forgot password | `POST /auth/password/reset/{,confirm/}` | `password_reset` scope |
+| who am I | `GET/PATCH /auth/me/` | `IsAuthenticated` |
+| the competitor | `GET/PATCH /players/me/`, `GET /players/display-name-available/` | `IsAuthenticated` |
+
+**Sign-in is not an account-existence oracle.** A wrong password, an unknown
+address and a malformed one are refused identically — same status, same code,
+same sentence — and an unknown address is hashed against anyway, because
+answering it faster is itself an answer. The `email` field is a `CharField`,
+not an `EmailField`, for the same reason: a 400 for a malformed address beside
+a 401 for an unknown one is a difference worth nothing to a person and
+everything to a script. `password/reset/` keeps the same promise from the other
+side: it answers one generic 200 either way, and the branch on "does this
+account exist" lives inside the service, unlogged by address.
+
+**Guessing gets slower, then stops** (`services/lockout.py`). Free failures,
+then a doubling cooldown, then a temporary lock — counted per **address typed**
+(never per account found: asking whether one exists rebuilds the oracle) and
+hashed into the cache key, so listing the cache does not list who has been
+signing in. The delay is always a 429 with `Retry-After`, never a `sleep`:
+holding the request open would be a free way to pin every worker. The lock is
+temporary, or it becomes a way to keep a rival out of their own account.
+Enforcement is off in the test settings; the lockout tests ask for it back with
+`@override_settings(LOGIN_LOCKOUT_ENFORCED=True)`, the way the throttle tests do.
+
+**The refresh token never reaches JavaScript.** It rides an HttpOnly cookie
+(`knowdown_refresh`) scoped to `/api/v1/auth/`, is rotated on every use and
+blacklisted after rotation; the access token is short-lived and memory-only on
+the client. `_issue_refresh_cookie` is why the plain SimpleJWT views strip it
+out of their own bodies — dj-rest-auth only does that for its own.
+
+**Google sign-in is opt-in, and unconfigured is a state the code knows about.**
+With no `GOOGLE_OAUTH_CLIENT_ID`/`_SECRET` the provider is left *unregistered*
+rather than registered with empty strings, `GET /auth/config/` reports
+`google_enabled: false`, and `POST /auth/google/` refuses in words instead of
+failing deep inside allauth. `PERMIT_PASSWORD_AUTH` is the same idea for the
+other door: off, the password routes are not mounted at all — nothing to
+throttle, nothing to enumerate, nothing in the OpenAPI document.
+
+`accounts.adapters.SocialAccountAdapter` carries the social half of two
+guarantees: every account gets a `Player` (`ensure_player_for_user`, idempotent
+and called from every path that can make an account), and a Google login whose
+*verified* address already belongs to a local account is **linked** to it rather
+than refused — allauth would otherwise redirect to a signup form this JSON API
+does not route, which surfaces as a 500.
+
+**The display name is written in one place.** `services.set_display_name` is
+the only writer; the serializer field is read-only and the view calls the
+service, so no payload shape reaches the column. Uniqueness is enforced twice —
+a validator for the message, and a `UniqueConstraint` on `Lower("display_name")`
+for the truth — which is what makes a rename to your own capitalisation legal
+and a lost race a `Conflict` rather than a 500.
 
 ### core_common — shared conventions (read before touching cross-cutting behavior)
 

@@ -25,6 +25,9 @@ SUPPORTED_LOG_FIELDS: frozenset[str] = frozenset(
         "anonymous",       # True when nobody was signed in
         "caller",          # "user" | "probe" — a person, or the kubelet
         "redirect_to",     # Location, on a 3xx
+        # --- Authentication ---------------------------------------------------
+        "auth_method",     # "password" | "google" | "password+google" | "none"
+        "retry_after",     # seconds a refused caller must wait (see accounts.lockout)
         # --- Errors ----------------------------------------------------------
         "code",            # a DomainError's machine-readable code
         "reason",          # its human-readable message

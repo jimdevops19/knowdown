@@ -20,6 +20,10 @@ CSRF_TRUSTED_ORIGINS = env_list(
 # generated-prefix path exercised rather than theoretical.
 ADMIN_ENABLED = True
 
+# Mail to the console: the forgot-password link is printed in the runserver log
+# rather than sent, so the flow is walkable end to end with no relay configured.
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
 # --- Development-only API affordances ----------------------------------------
 # base.py ships hardened defaults (JSON-only, admin-only schema) since the
 # deployed tiers inherit them. Relaxed only here, patched after the import

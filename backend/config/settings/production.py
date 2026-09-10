@@ -27,6 +27,9 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
+# The refresh cookie too — it is the longest-lived credential the platform
+# hands out, so it must never travel in the clear.
+REST_AUTH = {**REST_AUTH, "JWT_AUTH_SECURE": True}  # noqa: F405
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = "DENY"
 
