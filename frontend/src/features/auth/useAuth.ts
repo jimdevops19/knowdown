@@ -36,13 +36,6 @@ export function useAuth() {
     useAuthStore.getState().setUser(me)
   }
 
-  /** Correct the caller's own email address. */
-  async function updateEmail(email: string) {
-    const updated = await authApi.updateMe({ email })
-    useAuthStore.getState().setUser(updated)
-    return updated
-  }
-
   /**
    * Claim a display name.
    *
@@ -90,7 +83,6 @@ export function useAuth() {
     login,
     register,
     loginWithGoogle,
-    updateEmail,
     updateDisplayName,
     updateAvatar,
     logout,

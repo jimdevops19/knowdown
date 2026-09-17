@@ -3,6 +3,7 @@ import { AppShell } from './layouts/AppShell'
 import { RouteError } from './RouteError'
 import { RequireAuth } from '../features/auth/RequireAuth'
 import { HomePage } from '../pages/HomePage'
+import { PlayIndexPage } from '../pages/PlayIndexPage'
 import { PlayPage } from '../pages/PlayPage'
 import { MatchPage } from '../pages/MatchPage'
 import { MatchesPage } from '../pages/MatchesPage'
@@ -29,10 +30,15 @@ import { NotFoundPage } from '../pages/NotFoundPage'
  *    link into a live match survives the detour through signing in.
  *
  * ── What is public, and why ─────────────────────────────────────────────────
- * The home page, the rankings, any player's profile and the rules are all open.
- * They are the answer to "what would I be signing up for", and they cannot sit
- * behind signing up. Playing is what needs an account, and the home page's
- * category cards route through the guard rather than hiding.
+ * The home page, any player's profile and the rules are all open. They are the
+ * answer to "what would I be signing up for", and they cannot sit behind
+ * signing up. Playing is what needs an account, and the home page's category
+ * cards route through the guard rather than hiding.
+ *
+ * Rankings is signed-in only — the route itself stays reachable rather than
+ * guarded, so a guest who lands here directly sees a sign-in prompt in place
+ * of the ladder (`RankingsPage`'s own check) instead of being bounced through
+ * `/login` and back.
  *
  * `/play/:category` and `/match/:id` are guarded for a harder reason than
  * convention: both open a WebSocket that the server closes with 4401 for an
@@ -61,6 +67,10 @@ export const router = createBrowserRouter([
       // mid-match, made reachable on its own.
       { path: 'players/:displayName', element: <PlayerProfilePage /> },
       { path: 'how-to-play', element: <HowToPlayPage /> },
+      // Public, like the category cards on Home: the Live nav button routes
+      // here for everyone, and picking a category is what actually needs an
+      // account (guarded just below).
+      { path: 'play', element: <PlayIndexPage /> },
       {
         element: <RequireAuth />,
         children: [

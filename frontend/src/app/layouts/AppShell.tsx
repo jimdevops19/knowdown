@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import { LogOut, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { Logo, LogoMark } from '../../components/Logo'
 import { Avatar } from '../../components/Avatar'
 import { Button } from '../../components/Button'
 import { useAuth } from '../../features/auth/useAuth'
+import { AccountMenu } from './AccountMenu'
 import { MobileTabBar } from './MobileTabBar'
-import { navItemsFor, type NavItem } from './navItems'
+import { isNavItemActive, navItemsFor, type NavItem } from './navItems'
 import { useScrollReset } from './useScrollReset'
 
 /*
@@ -38,34 +39,44 @@ function useNavOpen(): [boolean, () => void] {
 
 function SidebarLink({ item }: { item: NavItem }) {
   const Icon = item.icon
+  const { pathname } = useLocation()
+  // Not `NavLink`'s own `isActive`: Play also lights up on `/match/:id`, a
+  // prefix its `to` doesn't cover, so activeness is computed the same way the
+  // phone tab bar computes it (`isNavItemActive`), and both navs agree.
+  const isActive = isNavItemActive(pathname, item)
+  const isPlay = item.accent === 'gold'
+  // Gold reads as "go here" only while idle — once you're in it, it takes the
+  // same cyan every other tab's active state uses, so "you are here" stays
+  // one colour app-wide, distinct from the violet every other tab's active
+  // state uses.
+  const goldIdle = isPlay && !isActive
+
   return (
     <NavLink
       to={item.to}
       // `end` makes the link match only its exact path, not every nested route
       // ("/" would otherwise match everything).
       end={item.exact || item.to === '/'}
-      className={({ isActive }) =>
-        [
-          'group relative flex items-center gap-3 rounded-btn px-3 py-2.5 text-sm font-medium transition-all duration-200',
-          isActive
-            ? 'bg-court/90 text-chalk motion-safe:shadow-glow-violet'
+      className={[
+        'group relative flex items-center gap-3 rounded-btn px-3 py-2.5 text-sm font-medium transition-all duration-200',
+        isActive
+          ? isPlay
+            ? 'bg-volt/15 text-volt motion-safe:shadow-glow-cyan'
+            : 'bg-court/90 text-chalk motion-safe:shadow-glow-violet'
+          : goldIdle
+            ? 'text-gold/80 hover:bg-gold/10 hover:text-gold'
             : 'text-ash hover:bg-white/6 hover:text-chalk',
-        ].join(' ')
-      }
+      ].join(' ')}
     >
-      {({ isActive }) => (
-        <>
-          {/* Left accent bar on the active item. */}
-          <span
-            aria-hidden
-            className={`absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-volt transition-opacity duration-200 ${
-              isActive ? 'opacity-100' : 'opacity-0'
-            }`}
-          />
-          <Icon size={18} />
-          {item.label}
-        </>
-      )}
+      {/* Left accent bar on the active item. */}
+      <span
+        aria-hidden
+        className={`absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-volt transition-opacity duration-200 ${
+          isActive ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+      <Icon size={18} />
+      {item.label}
     </NavLink>
   )
 }
@@ -100,9 +111,9 @@ function NavToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) 
   )
 }
 
-/** The account control: the avatar and a way out when signed in, the way in
- *  when not. Not a dropdown — there are two actions total, and a menu holding
- *  two items is a tap somebody has to make to find out there was nothing in it. */
+/** The account control: the avatar circle opens the account dropdown (Profile,
+ *  Matches history — see `AccountMenu`), with a way out beside it when signed
+ *  in, or the way in when not. */
 function AccountControl() {
   const { isAuthenticated, user, logout } = useAuth()
   const location = useLocation()
@@ -117,32 +128,26 @@ function AccountControl() {
   }
 
   return (
-    <div className="flex items-center gap-2">
-      <Link
-        to="/me"
-        className="flex items-center gap-2 rounded-btn px-1 py-1 transition-colors hover:bg-white/6"
-        title="Your profile"
-      >
-        <Avatar
-          name={user?.player_name ?? '?'}
-          seed={user?.player_id ?? undefined}
-          avatarUrl={user?.player_avatar_url ?? null}
-          size={30}
-        />
-        <span className="hidden max-w-32 truncate text-sm text-ash sm:inline">
-          {user?.player_name}
-        </span>
-      </Link>
-      <button
-        type="button"
-        onClick={logout}
-        aria-label="Sign out"
-        title="Sign out"
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-btn text-ash transition-colors hover:bg-raised hover:text-chalk"
-      >
-        <LogOut size={17} />
-      </button>
-    </div>
+    <AccountMenu
+      placement="down"
+      align="end"
+      triggerLabel="Your account"
+      triggerClassName="flex items-center gap-2 rounded-btn px-1 py-1 transition-colors hover:bg-white/6"
+      onSignOut={logout}
+      trigger={
+        <>
+          <Avatar
+            name={user?.player_name ?? '?'}
+            seed={user?.player_id ?? undefined}
+            avatarUrl={user?.player_avatar_url ?? null}
+            size={30}
+          />
+          <span className="hidden max-w-32 truncate text-sm text-ash sm:inline">
+            {user?.player_name}
+          </span>
+        </>
+      }
+    />
   )
 }
 

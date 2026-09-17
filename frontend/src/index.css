@@ -158,6 +158,11 @@
   /* The three-two-one before question one, so both players start on the same
      beat rather than whenever their board finished painting. */
   --animate-count-in: count-in 1s cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  /* One word of the question prompt, staggered per-word by the caller
+     (QuestionBoard) so the whole line reveals like a streamed reply rather
+     than a paragraph flashing in as a block. */
+  --animate-word-in: word-in 0.22s ease-out both;
 }
 
 @keyframes fade-in {
@@ -244,6 +249,11 @@
   30% { opacity: 1; transform: scale(1); filter: blur(0); }
   70% { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(0.7); }
+}
+
+@keyframes word-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* ── Custom utilities ─────────────────────────────────────────────────────

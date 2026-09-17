@@ -111,6 +111,7 @@ describe('QuestionBoard', () => {
         verdict={null}
         locked={false}
         onAnswer={() => {}}
+        revealOptions
       />,
     )
 
@@ -128,6 +129,7 @@ describe('QuestionBoard', () => {
         verdict={null}
         locked={false}
         onAnswer={() => {}}
+        revealOptions
       />,
     )
 

@@ -7,21 +7,19 @@ import { DisplayNameField } from '../features/players/DisplayNameField'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
-import { Field } from '../components/Field'
-import { Input } from '../components/Input'
 import { SectionHeading } from '../components/SectionHeading'
 import { useToast } from '../hooks/useToast'
 import { normalizeApiError } from '../lib/api/errors'
 
 /*
  * `/me` — the two things a player owns about themselves: their name and their
- * picture, plus the address they sign in with.
+ * picture, plus (read-only) the address they sign in with.
  *
- * Three separate forms rather than one save button, because they are three
- * separate writes on the backend and failing them as a unit would be a lie:
- * `set_display_name` and `set_avatar` are different services, and the email
- * lives on the User rather than the Player at all. A single "Save" that half
- * succeeded would leave the screen unable to say which half.
+ * Two separate forms rather than one save button, because they are separate
+ * writes on the backend and failing them as a unit would be a lie:
+ * `set_display_name` and `set_avatar` are different services. The email lives
+ * on the User rather than the Player at all, and is fixed at signup — it has
+ * no form of its own.
  *
  * This is also the second home of the "pick a name" prompt — the account is
  * fully usable with the generated one, so anyone who skipped `/welcome` finds
@@ -188,63 +186,20 @@ function NameSection() {
 }
 
 function EmailSection() {
-  const { user, updateEmail } = useAuth()
-  const toast = useToast()
-  const [email, setEmail] = useState('')
-  const [error, setError] = useState<string | undefined>()
-  const [pending, setPending] = useState(false)
-
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault()
-    setPending(true)
-    setError(undefined)
-    try {
-      await updateEmail(email.trim())
-      toast.success('Email updated')
-      setEmail('')
-    } catch (caught) {
-      setError(normalizeApiError(caught).message)
-    } finally {
-      setPending(false)
-    }
-  }
+  const { user } = useAuth()
 
   return (
     <section className="flex flex-col gap-3">
       <SectionHeading>Sign-in email</SectionHeading>
       <Card className="p-4">
-        <form className="flex flex-col gap-4" onSubmit={onSubmit}>
-          <p className="text-sm text-ash">
-            {/* This is the one screen in the whole app where an email address
-                appears — `/auth/me/` is the only endpoint allowed to emit one,
-                and nothing else fetches it. */}
-            Currently <span className="font-semibold text-chalk">{user?.email ?? 'not set'}</span>.
-            Nobody else can see it.
-          </p>
-          <Field
-            label="New email"
-            error={error}
-            hint="It can be changed, but never cleared — it's the only way back into a locked-out account."
-          >
-            <Input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
-              inputMode="email"
-              placeholder="you@example.com"
-              invalid={!!error}
-            />
-          </Field>
-          <Button
-            type="submit"
-            variant="secondary"
-            disabled={pending || email.trim().length === 0}
-            className="self-start"
-          >
-            {pending ? 'Saving…' : 'Change email'}
-          </Button>
-        </form>
+        <p className="text-sm text-ash">
+          {/* This is the one screen in the whole app where an email address
+              appears — `/auth/me/` is the only endpoint allowed to emit one,
+              and nothing else fetches it. It's fixed at signup and cannot be
+              changed here. */}
+          <span className="font-semibold text-chalk">{user?.email ?? 'not set'}</span>. Nobody
+          else can see it, and it can't be changed.
+        </p>
       </Card>
     </section>
   )

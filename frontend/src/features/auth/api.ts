@@ -78,15 +78,6 @@ export async function getMe(): Promise<User> {
   return res.data
 }
 
-/** `PATCH /auth/me/` — correct the caller's own email address.
- *
- *  It can be added or changed here, never cleared: an account with no address
- *  has no way back in after a forgotten password. */
-export async function updateMe(patch: { email?: string }): Promise<User> {
-  const res = await apiClient.patch<User>('/auth/me/', patch)
-  return res.data
-}
-
 /**
  * `GET /auth/config/` — which sign-in methods this deployment has credentials
  * for.

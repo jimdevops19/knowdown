@@ -30,6 +30,13 @@ export interface QuestionClock {
   expired: boolean
   /** The last few seconds, when the bar earns the right to pulse. */
   urgent: boolean
+  /**
+   * The read-delay window (`startedAt` in the future) has elapsed and the
+   * clock is actually counting down. Callers use this to hold back anything
+   * that should appear *with* the running timer — the answer options, the bar
+   * itself — rather than during the beat spent reading the question.
+   */
+  started: boolean
 }
 
 /** When the countdown starts pulsing, in ms remaining. */
@@ -61,6 +68,7 @@ export function useQuestionClock(startedAt: number | null): QuestionClock {
       fraction: 1,
       expired: false,
       urgent: false,
+      started: false,
     }
   }
 
@@ -81,5 +89,6 @@ export function useQuestionClock(startedAt: number | null): QuestionClock {
     fraction: remainingMs / QUESTION_TIME_LIMIT_MS,
     expired: remainingMs <= 0,
     urgent: remainingMs > 0 && remainingMs <= URGENT_AT_MS,
+    started: now >= startedAt,
   }
 }

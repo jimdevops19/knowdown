@@ -2,9 +2,29 @@
 #
 #   task                list every task
 #   task run            backend + frontend, local, no containers
+#   task build          build both images
+#   task publish:local  build + push both to the k3d staging registry
+#   task rollout:staging restart both staging deployments
+#   task ship:staging    build + push + roll out both services to staging
 #
-# Modeled on rpool's Taskfile.yml, trimmed to just the local dev-run tasks.
+# Modeled on rpool's Taskfile.yml. Image builds happen HERE (this repo owns
+# the Dockerfiles); the manifests they roll out live in ../rpool_ops
+# (fluxcd/apps/knowdown-staging). The two meet only at the image string in
+# STAGING_REGISTRY below — it must match the `newName` in
+# rpool_ops/fluxcd/apps/knowdown-staging/kustomization.yaml.
 version: '3'
+
+vars:
+  # Same local k3d registry rpool-staging uses (rpool_ops/infra/k3d/registry.sh)
+  # — one registry shared by both apps, told apart by image name. Host-side
+  # pushes go to localhost:5111; the cluster resolves the same blob through the
+  # k3d-rpool-registry.localhost mirror.
+  STAGING_REGISTRY: localhost:5111
+  TAG: dev
+  # Staging cluster coordinates — same k3d cluster/context as rpool, different
+  # namespace.
+  K8S_CONTEXT: k3d-rpool-staging
+  K8S_NAMESPACE: knowdown-staging
 
 tasks:
   default:
@@ -20,6 +40,18 @@ tasks:
   run:backend:
     desc: Django dev server on :8000 (migrates first)
     dir: backend
+    env:
+      # Vite proxies /api and /ws to 127.0.0.1:8000 with the Host header
+      # rewritten (changeOrigin), so ALLOWED_HOSTS never sees the phone's
+      # address for ordinary API calls — but the browser's real Origin header
+      # is what both CSRF and the websocket's AllowedHostsOriginValidator
+      # check, and changeOrigin does not touch Origin, so the phone's address
+      # has to be trusted explicitly on both settings. Missing it from
+      # ALLOWED_HOSTS is what silently refuses the matchmaking/match sockets
+      # at handshake — the client just retries forever, which from the phone
+      # looks like "searching" stuck at 0s.
+      CSRF_TRUSTED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173,http://10.100.102.9:5173,http://10.100.102.7:5173
+      ALLOWED_HOSTS: localhost,127.0.0.1,0.0.0.0,10.100.102.9,10.100.102.7
     cmds:
       - uv run python manage.py migrate
       - uv run python manage.py runserver
@@ -31,3 +63,98 @@ tasks:
       VITE_PROXY_TARGET: http://127.0.0.1:8000
     cmds:
       - npm run dev
+
+  # -------------------------------------------------------------------- build
+
+  build:
+    desc: Build both images
+    deps: [build:backend, build:frontend]
+
+  build:backend:
+    desc: Build the backend image (context = repo root; pyproject/uv.lock live there)
+    cmds:
+      - docker build -f backend/Dockerfile -t {{.STAGING_REGISTRY}}/knowdown-backend:{{.TAG}} .
+
+  build:frontend:
+    desc: Build the frontend image
+    dir: frontend
+    cmds:
+      - docker build -t {{.STAGING_REGISTRY}}/knowdown-frontend:{{.TAG}} .
+
+  # ------------------------------------------------------- publish (local k3d)
+
+  publish:local:
+    desc: Build AND push both images to the local k3d registry
+    cmds:
+      - task: publish:local:backend
+      - task: publish:local:frontend
+
+  publish:local:backend:
+    desc: Build + push the backend image to the local k3d registry
+    cmds:
+      - task: build:backend
+      - docker push {{.STAGING_REGISTRY}}/knowdown-backend:{{.TAG}}
+
+  publish:local:frontend:
+    desc: Build + push the frontend image to the local k3d registry
+    cmds:
+      - task: build:frontend
+      - docker push {{.STAGING_REGISTRY}}/knowdown-frontend:{{.TAG}}
+
+  push:local:backend:
+    desc: Push the already-built backend image (no rebuild)
+    cmds:
+      - docker push {{.STAGING_REGISTRY}}/knowdown-backend:{{.TAG}}
+
+  push:local:frontend:
+    desc: Push the already-built frontend image (no rebuild)
+    cmds:
+      - docker push {{.STAGING_REGISTRY}}/knowdown-frontend:{{.TAG}}
+
+  # --------------------------------------------------------- rollout (staging)
+
+  rollout:staging:
+    desc: Restart every staging deployment
+    cmds:
+      - task: rollout:staging:backend
+      - task: rollout:staging:frontend
+
+  rollout:staging:backend:
+    desc: Restart the staging backend AND realtime deployments (one image, two roles)
+    cmds:
+      # Both Deployments run the same backend image, told apart by SERVER_MODE
+      # (backend/entrypoint.sh), so a new backend build has to roll both.
+      - kubectl --context {{.K8S_CONTEXT}} -n {{.K8S_NAMESPACE}} rollout restart deployment/backend deployment/realtime
+      - kubectl --context {{.K8S_CONTEXT}} -n {{.K8S_NAMESPACE}} rollout status deployment/backend --timeout=180s
+      - kubectl --context {{.K8S_CONTEXT}} -n {{.K8S_NAMESPACE}} rollout status deployment/realtime --timeout=180s
+
+  rollout:staging:frontend:
+    desc: Restart the staging frontend deployment
+    cmds:
+      - kubectl --context {{.K8S_CONTEXT}} -n {{.K8S_NAMESPACE}} rollout restart deployment/frontend
+      - kubectl --context {{.K8S_CONTEXT}} -n {{.K8S_NAMESPACE}} rollout status deployment/frontend --timeout=180s
+
+  # ---------------------------------------------------------------- shorthands
+
+  ship:staging:
+    desc: Build + push + roll out both services to staging
+    cmds:
+      - task: publish:local
+      - task: rollout:staging
+
+  # ------------------------------------------------------------ dependency audit
+
+  audit:
+    desc: "Audit: vulnerability-scan both the Python and npm dependencies"
+    deps: [audit:backend, audit:frontend]
+
+  audit:backend:
+    desc: "Audit: pip-audit against the resolved Python environment (uv.lock)"
+    cmds:
+      - uv run --group dev pip-audit
+
+  audit:frontend:
+    desc: "Audit: npm audit against package-lock.json (high severity and up)"
+    dir: frontend
+    cmds:
+      - npm audit --audit-level=high

@@ -237,6 +237,45 @@ class MatchupPlayTests(TransactionTestCase):
         assert matchup.status == Matchup.Status.COMPLETED
         await sock_two.disconnect()
 
+    async def test_reconnecting_to_an_already_finished_match_gets_the_result_not_silence(self):
+        # The browser-back case: a player who has already seen the result
+        # screen navigates away and then back into `/match/:id`, opening a
+        # fresh socket onto a matchup that finished a while ago. It must not
+        # be handed a connection that only `question.started` would ever
+        # unstick — there is no question left to send.
+        category = await database_sync_to_async(stock_category)()
+        one = await database_sync_to_async(make_player)(email="late1@example.com")
+        two = await database_sync_to_async(make_player)(email="late2@example.com")
+
+        pool = await _connect_matchmaking(one, category.slug)
+        await pool.receive_json_from(timeout=5)
+        pool2 = await _connect_matchmaking(two, category.slug)
+        found = await pool.receive_json_from(timeout=5)
+        await pool2.receive_json_from(timeout=5)
+        await pool.receive_output()
+        await pool2.receive_output()
+
+        matchup_id = found["matchup_id"]
+        sock_one = await _connect_matchup(one, matchup_id)
+        sock_two = await _connect_matchup(two, matchup_id)
+        await sock_one.receive_json_from(timeout=5)
+        await sock_two.receive_json_from(timeout=5)
+
+        with mock.patch("apps.matches.consumers.RECONNECT_GRACE_SECONDS", 0.2):
+            await sock_one.disconnect()
+            await sock_two.receive_json_from(timeout=5)  # OPPONENT_DISCONNECTED
+            await sock_two.receive_json_from(timeout=10)  # MATCH_COMPLETED
+        await sock_two.disconnect()
+
+        matchup = await database_sync_to_async(Matchup.objects.get)(pk=matchup_id)
+        assert matchup.status == Matchup.Status.COMPLETED
+
+        late = await _connect_matchup(two, matchup_id)
+        frame = await late.receive_json_from(timeout=5)
+        assert frame["type"] == events.MATCH_COMPLETED
+        assert frame["outcome"] == Matchup.Outcome.ABANDONED
+        await late.disconnect()
+
     def tearDown(self):
         cache.clear()
         super().tearDown()

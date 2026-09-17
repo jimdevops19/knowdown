@@ -10,6 +10,7 @@ import { LevelChip } from '../components/LevelChip'
 import { SectionHeading } from '../components/SectionHeading'
 import { StatusBadge } from '../components/StatusBadge'
 import { ErrorState, Loading } from '../components/states'
+import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '../components/Table'
 import { formatDateTime, formatResponseTime } from '../lib/format'
 import type { MatchupDetail, MatchupQuestionRecord, PlayerAnswerRecord } from '../lib/api/types'
 
@@ -137,48 +138,71 @@ function QuestionRecord({ record, myName }: { record: MatchupQuestionRecord; myN
 
       <p className="font-medium text-chalk">{record.question.description}</p>
 
-      <div className="flex flex-col gap-1.5">
-        <AnswerLine label="You" answer={mine} />
-        <AnswerLine label={theirs?.[0] ?? 'Rival'} answer={theirs?.[1] ?? null} />
-      </div>
+      <Table>
+        <TableHead>
+          <TableHeaderCell>Player</TableHeaderCell>
+          <TableHeaderCell>Answer</TableHeaderCell>
+          <TableHeaderCell align="right">Time</TableHeaderCell>
+          <TableHeaderCell align="right">Points</TableHeaderCell>
+        </TableHead>
+        <TableBody>
+          <AnswerRow label="You" answer={mine} />
+          <AnswerRow label={theirs?.[0] ?? 'Rival'} answer={theirs?.[1] ?? null} />
+        </TableBody>
+      </Table>
     </Card>
   )
 }
 
-function AnswerLine({ label, answer }: { label: string; answer: PlayerAnswerRecord | null }) {
+function AnswerRow({ label, answer }: { label: string; answer: PlayerAnswerRecord | null }) {
   // No record at all means the clock ran out on them. That is a different thing
   // from a wrong answer, and worth showing as one — the API distinguishes them
   // by the absence of a row, and so does this.
   if (!answer) {
     return (
-      <div className="flex items-center gap-2 text-sm text-idle">
-        <Clock size={14} aria-hidden />
-        <span className="w-20 shrink-0 truncate">{label}</span>
-        <span>Out of time</span>
-      </div>
+      <TableRow>
+        <TableCell className="text-ash">{label}</TableCell>
+        <TableCell>
+          <span className="flex items-center gap-1.5 text-idle">
+            <Clock size={14} aria-hidden />
+            Out of time
+          </span>
+        </TableCell>
+        <TableCell align="right" className="text-ash">
+          —
+        </TableCell>
+        <TableCell align="right" className="text-ash">
+          —
+        </TableCell>
+      </TableRow>
     )
   }
 
   const partial = !answer.is_correct && answer.score > 0
 
   return (
-    <div className="flex items-center gap-2 text-sm">
-      {answer.is_correct ? (
-        <Check size={14} className="shrink-0 text-correct" aria-hidden />
-      ) : (
-        <X size={14} className="shrink-0 text-wrong" aria-hidden />
-      )}
-      <span className="w-20 shrink-0 truncate text-ash">{label}</span>
-      <span
-        className={
-          answer.is_correct ? 'text-correct' : partial ? 'text-gold' : 'text-wrong'
-        }
-      >
-        {answer.is_correct ? 'Correct' : partial ? `${Math.round(answer.score * 100)}% right` : 'Wrong'}
-      </span>
-      <span className="nums ml-auto shrink-0 text-ash">
-        {formatResponseTime(answer.response_time_ms)} · +{answer.points}
-      </span>
-    </div>
+    <TableRow>
+      <TableCell className="text-ash">{label}</TableCell>
+      <TableCell>
+        <span
+          className={`flex items-center gap-1.5 ${
+            answer.is_correct ? 'text-correct' : partial ? 'text-gold' : 'text-wrong'
+          }`}
+        >
+          {answer.is_correct ? (
+            <Check size={14} className="shrink-0" aria-hidden />
+          ) : (
+            <X size={14} className="shrink-0" aria-hidden />
+          )}
+          {answer.is_correct ? 'Correct' : partial ? `${Math.round(answer.score * 100)}% right` : 'Wrong'}
+        </span>
+      </TableCell>
+      <TableCell align="right" className="nums text-ash">
+        {formatResponseTime(answer.response_time_ms)}
+      </TableCell>
+      <TableCell align="right" className="nums text-ash">
+        +{answer.points}
+      </TableCell>
+    </TableRow>
   )
 }

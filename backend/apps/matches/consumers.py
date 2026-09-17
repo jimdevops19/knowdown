@@ -360,6 +360,8 @@ class MatchupConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
             await self.close(code=CLOSE_UNAUTHENTICATED)
             return
 
+        from apps.matches.models import Matchup
+
         matchup_id = self.scope["url_route"]["kwargs"]["matchup_id"]
         player = await database_sync_to_async(ensure_player_for_user)(user=user)
 
@@ -374,6 +376,21 @@ class MatchupConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
             # could otherwise probe to learn which matchup ids are real.
             await self.accept()
             await self.close(code=CLOSE_NOT_FOUND)
+            return
+
+        if matchup.status in (Matchup.Status.COMPLETED, Matchup.Status.CANCELLED):
+            # This player's own match, but it is already over — reachable by
+            # pressing back into `/match/:id` after the result screen, or a
+            # tab left open past the final question. There is no question left
+            # to resume, so `_send_current_state` below would find none and
+            # leave the socket silent forever (a client stuck "reconnecting" to
+            # a game that will never move again). Hand back the same
+            # `match.completed` frame a live finish sends instead, which is
+            # already what the client knows how to turn into the result
+            # screen — no separate "this match is over" message required.
+            await self.accept()
+            summary = await database_sync_to_async(_match_summary)(matchup=matchup)
+            await self.send_json({"type": events.MATCH_COMPLETED, **summary})
             return
 
         # Checked, and registered, before any of this consumer's state is set —

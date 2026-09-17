@@ -15,6 +15,9 @@ export default defineConfig(({ mode }) => {
     plugins: [react(), tailwindcss()],
     server: {
       port: 5173,
+      // Bind all interfaces (not just localhost) so a phone on the same
+      // wifi can reach this dev server at the machine's LAN IP.
+      host: true,
       proxy: {
         // The browser calls same-origin "/api/..." on :5173 and Vite forwards
         // it to Django. Same-origin from the browser's point of view, so there

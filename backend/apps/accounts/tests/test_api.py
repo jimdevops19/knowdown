@@ -108,13 +108,13 @@ class MeEndpointTests(TestCase):
         self.assertEqual(payload["player_name"], self.user.player.display_name)
         self.assertTrue(payload["player_name_is_auto"])
 
-    def test_an_address_can_be_corrected_here(self):
+    def test_the_address_cannot_be_changed_here(self):
         response = self.client.patch(
             "/api/v1/auth/me/", {"email": "new@example.com"}, format="json"
         )
         self.assertEqual(response.status_code, 200)
         self.user.refresh_from_db()
-        self.assertEqual(self.user.email, "new@example.com")
+        self.assertEqual(self.user.email, "veteran@example.com")
 
     def test_anonymous_callers_are_refused(self):
         self.client.force_authenticate(None)

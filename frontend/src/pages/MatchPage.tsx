@@ -85,6 +85,17 @@ export function MatchPage() {
 
   const locked = !match.canAnswer || clock.expired
 
+  // The read delay's whole purpose: the player has nothing to look at but the
+  // question until it has elapsed, so the options and the running clock stay
+  // out of the DOM rather than sitting there inert for those three seconds.
+  const revealOptions = clock.started
+
+  const opponentThinking =
+    match.phase === 'question' &&
+    match.mySubmission !== null &&
+    !match.opponentAnswered &&
+    !match.opponentAway
+
   return (
     <div
       // The whole point of `--page-fit`: this column is exactly the height left
@@ -119,9 +130,25 @@ export function MatchPage() {
         />
       </div>
 
-      <div className="shrink-0">
-        <Countdown clock={clock} />
-      </div>
+      {/* Held back until the read delay elapses, so the timer appears at the
+          same moment as the options it is timing rather than sitting full and
+          motionless while there is nothing yet to answer. */}
+      {revealOptions && (
+        <div className="shrink-0 motion-safe:animate-fade-in">
+          <Countdown clock={clock} />
+        </div>
+      )}
+
+      {opponentThinking && (
+        <p className="flex shrink-0 items-center justify-center gap-2 text-center text-sm text-ash motion-safe:animate-fade-in">
+          <span className="flex items-center gap-1" aria-hidden>
+            <span className="h-1.5 w-1.5 rounded-full bg-rival motion-safe:animate-live-pulse [animation-delay:0ms]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-rival motion-safe:animate-live-pulse [animation-delay:0.2s]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-rival motion-safe:animate-live-pulse [animation-delay:0.4s]" />
+          </span>
+          Opponent still thinking…
+        </p>
+      )}
 
       {match.opponentAway && (
         <p className="shrink-0 rounded-tile border border-rival/40 bg-rival/10 px-3 py-2 text-center text-sm text-rival">
@@ -145,6 +172,7 @@ export function MatchPage() {
             verdict={verdictFor(match, playerId)}
             locked={locked}
             onAnswer={match.answer}
+            revealOptions={revealOptions}
           />
         ) : (
           <p className="py-10 text-center text-ash motion-safe:animate-pulse">

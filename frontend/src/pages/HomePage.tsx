@@ -1,17 +1,19 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Flame, Play, Timer, Zap } from 'lucide-react'
-import { getPlayerProfile, listCategories } from '../lib/api/endpoints'
+import { Flame, Timer, Zap } from 'lucide-react'
+import { getPlayerProfile, listMyMatches } from '../lib/api/endpoints'
 import { queryKeys } from '../lib/query/queryClient'
 import { useAuth } from '../features/auth/useAuth'
+import { CategoryGrid } from '../features/play/CategoryGrid'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { SectionHeading } from '../components/SectionHeading'
-import { ErrorState, Loading } from '../components/states'
+import { StatusBadge } from '../components/StatusBadge'
+import { EmptyState, ErrorState, Loading } from '../components/states'
 import { Logo } from '../components/Logo'
-import { formatRecord, winRate } from '../lib/format'
-import type { Category } from '../lib/api/types'
+import { formatRecord, timeAgo, winRate } from '../lib/format'
+import type { MatchupSummary } from '../lib/api/types'
 
 /*
  * `/` — the way into a match, whether or not you're signed in.
@@ -28,32 +30,20 @@ import type { Category } from '../lib/api/types'
 export function HomePage() {
   const { isAuthenticated, user } = useAuth()
 
-  const categories = useQuery({
-    queryKey: queryKeys.categories.all,
-    queryFn: listCategories,
-    staleTime: Infinity,
-  })
-
   return (
     <div className="flex flex-col gap-8 pb-4">
       {isAuthenticated ? <PlayerHero /> : <GuestHero />}
 
       <section className="flex flex-col gap-3">
         <SectionHeading>Pick your category</SectionHeading>
-        {categories.isLoading && <Loading variant="cards" />}
-        {categories.isError && <ErrorState error={categories.error} />}
-        {categories.data && (
-          <div className="grid gap-3 sm:grid-cols-2">
-            {categories.data.map((category) => (
-              <CategoryCard key={category.slug} category={category} />
-            ))}
-          </div>
-        )}
+        <CategoryGrid />
       </section>
 
       {!isAuthenticated && <HowItWorks />}
 
       {isAuthenticated && user?.player_name && <YourStandings displayName={user.player_name} />}
+
+      {isAuthenticated && <RecentMatches />}
     </div>
   )
 }
@@ -91,31 +81,6 @@ function PlayerHero() {
         </h1>
       </div>
     </section>
-  )
-}
-
-function CategoryCard({ category }: { category: Category }) {
-  return (
-    <Card
-      as={Link}
-      to={`/play/${category.slug}`}
-      interactive
-      glow="violet"
-      className="flex flex-col gap-3 p-5"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="font-display text-lg font-bold text-chalk">{category.name}</h3>
-          <p className="mt-0.5 line-clamp-2 text-sm text-ash">{category.description}</p>
-        </div>
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-court/20 text-court">
-          <Play size={18} aria-hidden />
-        </span>
-      </div>
-      <span className="font-display text-xs font-semibold uppercase tracking-[0.12em] text-volt">
-        Find a match →
-      </span>
-    </Card>
   )
 }
 
@@ -188,5 +153,70 @@ function YourStandings({ displayName }: { displayName: string }) {
         </Link>
       )}
     </section>
+  )
+}
+
+/** Your last 5 finished games, newest first — the quick "what just happened"
+ *  a player checks the moment they land on Home, full history one tap away. */
+function RecentMatches() {
+  const { user } = useAuth()
+  const matches = useQuery({
+    queryKey: queryKeys.matches.mine(1),
+    queryFn: () => listMyMatches({ page: 1, page_size: 5 }),
+  })
+
+  const rows = matches.data?.results ?? []
+
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionHeading>Recent matches</SectionHeading>
+      {matches.isLoading && <Loading variant="rows" />}
+      {matches.isError && <ErrorState error={matches.error} />}
+      {matches.data && rows.length === 0 && (
+        <EmptyState message="No matches yet. Your first one is one tap away." />
+      )}
+      {rows.length > 0 && (
+        <>
+          <div className="flex flex-col gap-2">
+            {rows.map((match) => (
+              <RecentMatchRow key={match.id} match={match} playerId={user?.player_id ?? null} />
+            ))}
+          </div>
+          <Link to="/matches" className="text-sm text-volt hover:underline">
+            Full match history →
+          </Link>
+        </>
+      )}
+    </section>
+  )
+}
+
+function RecentMatchRow({ match, playerId }: { match: MatchupSummary; playerId: string | null }) {
+  const me = match.players.find((side) => side.player.id === playerId)
+  const them = match.players.find((side) => side.player.id !== playerId)
+  const drew = !match.players.some((side) => side.is_winner)
+
+  return (
+    <Card as={Link} to={`/matches/${match.id}`} interactive className="flex items-center gap-3 p-3.5">
+      <Avatar name={them?.player.display_name ?? '?'} avatarUrl={them?.player.avatar_url} size={36} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-medium text-chalk">vs {them?.player.display_name ?? 'Unknown'}</p>
+        <p className="text-xs text-ash">
+          {match.category} · {timeAgo(match.completed_at ?? match.started_at)}
+        </p>
+      </div>
+      <div className="flex shrink-0 flex-col items-end gap-1">
+        <span className="nums font-display text-base font-bold text-chalk">
+          {me?.score ?? 0}
+          <span className="mx-1 text-ash">–</span>
+          <span className="text-ash">{them?.score ?? 0}</span>
+        </span>
+        {drew ? (
+          <StatusBadge tone="draw">Draw</StatusBadge>
+        ) : (
+          <StatusBadge tone={me?.is_winner ? 'win' : 'loss'}>{me?.is_winner ? 'Won' : 'Lost'}</StatusBadge>
+        )}
+      </div>
+    </Card>
   )
 }

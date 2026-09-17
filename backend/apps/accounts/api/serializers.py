@@ -34,7 +34,7 @@ class UserSerializer(serializers.Serializer):
     """
 
     id = serializers.UUIDField(read_only=True)
-    email = serializers.EmailField(required=False)
+    email = serializers.EmailField(read_only=True)
     full_name = serializers.CharField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
 
@@ -44,16 +44,12 @@ class UserSerializer(serializers.Serializer):
     player_avatar_url = serializers.SerializerMethodField()
 
     def update(self, instance: User, validated_data: dict) -> User:
-        """Route an address change through its service.
+        """Nothing on this payload is writable.
 
-        The normalisation, the uniqueness check and the log line live in
-        ``services.set_email`` because the shell and the tests need them too;
-        this only decides that a PATCH carrying an ``email`` key means that
-        call. A PATCH that does not mention it leaves the address alone.
+        The address used to be correctable here; it no longer is — it is
+        fixed at signup, and ``services.set_email`` remains the only way to
+        change one, for a shell to use on somebody's behalf.
         """
-        email = validated_data.get("email", serializers.empty)
-        if email is not serializers.empty:
-            instance = account_services.set_email(user=instance, email=email or "")
         return instance
 
     def _player(self, user: User):

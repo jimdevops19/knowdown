@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Handshake, LogOut, Repeat, Trophy } from 'lucide-react'
+import { Eye, Handshake, LogOut, Repeat, Trophy } from 'lucide-react'
 import { getMatch } from '../../lib/api/endpoints'
 import { queryKeys } from '../../lib/query/queryClient'
 import type { MatchCompletedMessage } from '../../lib/realtime'
@@ -103,7 +103,8 @@ export function MatchSummary({
           </Button>
         )}
         <Button as={Link} to={`/matches/${matchupId}`} size="full" variant="secondary">
-          Question by question
+          <Eye size={18} aria-hidden />
+          See what you got right
         </Button>
       </div>
 

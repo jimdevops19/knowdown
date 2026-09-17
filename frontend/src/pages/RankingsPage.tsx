@@ -1,11 +1,13 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useParams } from 'react-router-dom'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
+import { LockKeyhole } from 'lucide-react'
 import { getLadder, listCategories } from '../lib/api/endpoints'
 import { queryKeys } from '../lib/query/queryClient'
 import { useAuth } from '../features/auth/useAuth'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
+import { Card } from '../components/Card'
 import { SectionHeading } from '../components/SectionHeading'
 import { EmptyState, ErrorState, Loading } from '../components/states'
 import { formatRecord, ordinal, winRate } from '../lib/format'
@@ -14,8 +16,10 @@ import type { LadderEntry } from '../lib/api/types'
 /*
  * `/rankings` and `/rankings/:category` — the ladder.
  *
- * Public, like the profile it links to: a rating is what a scoreboard already
- * shows both players mid-match, made reachable on its own.
+ * Signed-in only: the nav hides the tab from a guest (see `navItems`), but the
+ * URL itself still resolves, so a guest who reaches it directly — a shared
+ * link, a bookmark, typing it in — gets a sign-in prompt in place of the
+ * ladder rather than a route that 404s or silently leaks the data.
  *
  * `keepPreviousData` on the page query, so paging holds the current rows in
  * place while the next ones load rather than collapsing the list to a skeleton
@@ -24,13 +28,15 @@ import type { LadderEntry } from '../lib/api/types'
  */
 export function RankingsPage() {
   const { category: routeCategory } = useParams()
-  const { user } = useAuth()
+  const { isAuthenticated, user } = useAuth()
+  const location = useLocation()
   const [page, setPage] = useState(1)
 
   const categories = useQuery({
     queryKey: queryKeys.categories.all,
     queryFn: listCategories,
     staleTime: Infinity,
+    enabled: isAuthenticated,
   })
 
   // No category in the URL means the first one — knowdown ships with NBA and
@@ -41,7 +47,7 @@ export function RankingsPage() {
   const ladder = useQuery({
     queryKey: queryKeys.rankings.ladder(category ?? '', page),
     queryFn: () => getLadder(category!, { page }),
-    enabled: !!category,
+    enabled: isAuthenticated && !!category,
     placeholderData: keepPreviousData,
   })
 
@@ -50,6 +56,19 @@ export function RankingsPage() {
   // The page's rows are numbered from where the page starts, so row 1 of page 3
   // is 51st and not 1st.
   const offset = pagination ? (pagination.page - 1) * pagination.page_size : 0
+
+  if (!isAuthenticated) {
+    const next = encodeURIComponent(location.pathname + location.search)
+    return (
+      <Card className="flex flex-col items-center gap-4 p-10 text-center">
+        <LockKeyhole className="text-ash/60" size={28} />
+        <p className="text-ash">Sign in to see rankings</p>
+        <Button as={Link} to={`/login?next=${next}`}>
+          Sign in
+        </Button>
+      </Card>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-5">
