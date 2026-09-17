@@ -89,7 +89,7 @@ function Scoreline({ match, myPlayerId }: { match: MatchupDetail; myPlayerId: st
           <div
             key={side.player.id}
             className={`flex min-w-0 flex-1 flex-col items-center gap-2 rounded-tile border p-3 ${
-              side.is_winner ? 'border-gold/50 bg-gold/8' : 'border-white/8'
+              side.is_winner ? 'border-correct/50 bg-correct/8' : 'border-chalk/8'
             }`}
           >
             <Link to={`/players/${side.player.display_name}`}>
@@ -106,7 +106,7 @@ function Scoreline({ match, myPlayerId }: { match: MatchupDetail; myPlayerId: st
             </span>
             <span
               className={`nums font-display text-3xl font-bold leading-none ${
-                side.is_winner ? 'text-gold' : 'text-ash'
+                side.is_winner ? 'text-correct' : 'text-ash'
               }`}
             >
               {side.score}

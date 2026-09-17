@@ -55,8 +55,15 @@ function question(id: string): PlayQuestion {
   }
 }
 
-function open(order: number, id = `q-${order}`) {
-  act(() => emit({ type: 'question.started', order, question: question(id) }))
+function open(order: number, id = `q-${order}`, timeLimitMs = 10_000) {
+  act(() =>
+    emit({
+      type: 'question.started',
+      order,
+      question: question(id),
+      time_limit_ms: timeLimitMs,
+    }),
+  )
 }
 
 function close(order: number, entries: { player_id: string; points: number }[]) {
@@ -98,6 +105,21 @@ describe('useMatchup', () => {
       payload: { type: 'single-answer', option_id: 2 },
     })
     expect(result.current.canAnswer).toBe(false)
+  })
+
+  it("carries the server's own time limit for each question", () => {
+    const { result } = renderHook(() => useMatchup('m-1', ME))
+
+    // A matrix board is authored with far more clock than the default ten
+    // seconds. Drawing the default over it would run the countdown to zero
+    // while the server still held the question open, which reads to the player
+    // as the match hanging on their opponent.
+    open(1, 'q-1', 35_000)
+    expect(result.current.current?.timeLimitMs).toBe(35_000)
+
+    close(1, [{ player_id: ME, points: 10 }])
+    open(2, 'q-2')
+    expect(result.current.current?.timeLimitMs).toBe(10_000)
   })
 
   it('does not mark an answer as sent when the socket is down', () => {

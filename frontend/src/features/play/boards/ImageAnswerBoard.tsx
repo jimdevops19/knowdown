@@ -36,13 +36,13 @@ export function ImageAnswerBoard({
         const picked = option.id === pickedId
         const ring = picked
           ? verdict === 'correct'
-            ? 'border-correct shadow-glow-correct motion-safe:animate-verdict-correct'
+            ? 'border-correct shadow-edge-correct motion-safe:animate-verdict-correct'
             : verdict === 'wrong'
-              ? 'border-wrong shadow-glow-wrong motion-safe:animate-verdict-wrong'
-              : 'border-court shadow-glow-violet'
+              ? 'border-wrong shadow-edge-wrong motion-safe:animate-verdict-wrong'
+              : 'border-court shadow-edge-court'
           : locked
-            ? 'border-white/8 opacity-50'
-            : 'border-white/10 hover:border-court/60 active:scale-[0.985]'
+            ? 'border-chalk/8 opacity-50'
+            : 'border-chalk/10 hover:border-court/60 active:scale-[0.985]'
 
         return (
           <button
@@ -62,7 +62,7 @@ export function ImageAnswerBoard({
               className="aspect-square w-full object-cover"
               loading="eager"
             />
-            <span className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-lg bg-void/70 font-display text-xs font-bold text-chalk backdrop-blur-sm">
+            <span className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-[3px] bg-void/70 font-display text-xs font-bold text-chalk backdrop-blur-sm">
               {OPTION_LETTERS[index] ?? index + 1}
             </span>
           </button>

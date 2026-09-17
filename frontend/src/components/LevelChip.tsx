@@ -19,7 +19,7 @@ export function LevelChip({ level, className = '' }: { level: number; className?
   const { label, className: tone } = BAND_STYLES[levelBand(level)]
   return (
     <span
-      className={`inline-flex items-center rounded-full border px-2 py-0.5 font-display text-[10px] font-semibold uppercase tracking-[0.1em] ${tone} ${className}`.trim()}
+      className={`inline-flex items-center rounded-[3px] border px-2 py-0.5 font-display text-[10px] font-semibold uppercase tracking-[0.1em] ${tone} ${className}`.trim()}
     >
       {label}
     </span>

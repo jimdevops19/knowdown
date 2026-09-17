@@ -84,7 +84,7 @@ export function RankingsPage() {
                 className={`shrink-0 rounded-btn border px-3 py-1.5 font-display text-sm font-semibold transition-colors ${
                   option.slug === category
                     ? 'border-court bg-court/20 text-chalk'
-                    : 'border-white/10 text-ash hover:text-chalk'
+                    : 'border-chalk/10 text-ash hover:text-chalk'
                 }`}
               >
                 {option.name}
@@ -173,7 +173,7 @@ function LadderRow({
         className={`flex items-center gap-3 rounded-card border px-3 py-3 transition-colors ${
           isMe
             ? 'bg-row-highlight border-volt/50'
-            : 'border-white/6 bg-panel/70 hover:border-white/15'
+            : 'border-chalk/6 bg-panel/70 hover:border-chalk/15'
         }`}
       >
         <span

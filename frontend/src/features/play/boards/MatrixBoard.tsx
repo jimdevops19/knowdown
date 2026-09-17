@@ -67,7 +67,7 @@ export function MatrixBoard({
       ? 'border-correct/60'
       : verdict === 'wrong'
         ? 'border-wrong/60'
-        : 'border-white/8'
+        : 'border-chalk/8'
 
   return (
     <div className="flex flex-col gap-3">
@@ -91,7 +91,7 @@ export function MatrixBoard({
           </thead>
           <tbody>
             {question.rows.map((row) => (
-              <tr key={row.id} className="border-t border-white/6">
+              <tr key={row.id} className="border-t border-chalk/6">
                 <th
                   scope="row"
                   className="sticky left-0 z-10 whitespace-nowrap bg-raised px-3 py-2 text-left font-medium text-chalk"
@@ -105,7 +105,7 @@ export function MatrixBoard({
                       <td key={column.id} className="px-3 py-2">
                         <span
                           aria-hidden
-                          className="block h-px w-full bg-white/10"
+                          className="block h-px w-full bg-chalk/10"
                           title="Not asked"
                         />
                       </td>

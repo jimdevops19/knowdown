@@ -103,9 +103,16 @@ export interface MatchFoundMessage {
 export interface QuestionStartedMessage {
   type: typeof QUESTION_STARTED
   /** 1-based position in the match. Also the handle an answer is submitted
-   *  against, so a late answer to question 2 cannot be applied to question 3. */
+   *   against, so a late answer to question 2 cannot be applied to question 3. */
   order: number
   question: PlayQuestion
+  /** How long *this* question stays open, in milliseconds — the server's own
+   *  `time_limit_ms_for`, which varies by question type and by the question's
+   *  authored override (a matrix board gets far more than the default ten
+   *  seconds). Carried per question because there is no single match-wide
+   *  number to fall back on: drawing the default here would run the countdown
+   *  to zero while the server still held the question open. */
+  time_limit_ms: number
 }
 
 export interface PlayerAnsweredMessage {

@@ -37,6 +37,7 @@ from apps.matches.routing import websocket_urlpatterns
 from apps.matches.tests.factories import stock_category
 from apps.players.tests.factories import make_player
 from apps.questions.api.serializers import FORBIDDEN_FIELD_NAMES
+from apps.questions.models import SingleAnswerQuestion
 from apps.questions.selectors import QuestionRef
 from apps.questions.selectors import get_question as get_concrete_question
 
@@ -131,8 +132,8 @@ class MatchmakingPairingTests(TransactionTestCase):
 
 
 class MatchupPlayTests(TransactionTestCase):
-    async def _paired_players(self):
-        category = await database_sync_to_async(stock_category)()
+    async def _paired_players(self, *, category=None):
+        category = category or await database_sync_to_async(stock_category)()
         one = await database_sync_to_async(make_player)(email="p1@example.com")
         two = await database_sync_to_async(make_player)(email="p2@example.com")
 
@@ -192,6 +193,57 @@ class MatchupPlayTests(TransactionTestCase):
                 assert board_one["outcome"] == Matchup.Outcome.PLAYED
                 break
             order += 1
+
+        await sock_one.disconnect()
+        await sock_two.disconnect()
+
+    async def test_a_question_carries_its_own_authored_time_limit(self):
+        """A question authored with ``time_limit_seconds`` is broadcast with
+        *that* limit, not the type's default.
+
+        The number the client counts down from arrives in this frame and
+        nowhere else — there is no per-match constant it could fall back on,
+        because the limit is per question (a matrix board is authored with far
+        more clock than a single-answer one). A client drawing a default over a
+        45-second question would run its bar to zero with 35 seconds still on
+        the server's clock, which reads to the player as the match hanging on
+        their opponent.
+        """
+        category = await database_sync_to_async(stock_category)()
+        await database_sync_to_async(
+            SingleAnswerQuestion.objects.filter(category=category).update
+        )(time_limit_seconds=45)
+
+        matchup_id, sock_one, sock_two = await self._paired_players(category=category)
+
+        # The first board reaches a socket through ``_send_current_state``...
+        board_one, board_two = await _gather_json(sock_one, sock_two)
+        assert board_one["type"] == events.QUESTION_STARTED
+        assert board_one["time_limit_ms"] == 45_000
+        assert board_two["time_limit_ms"] == 45_000
+
+        option_id = await database_sync_to_async(_correct_option_id)(
+            matchup_id=matchup_id, order=1
+        )
+        answer = {
+            "type": events.ANSWER_SUBMIT,
+            "order": 1,
+            "payload": {"type": "single-answer", "option_id": option_id},
+        }
+        await sock_one.send_json_to(answer)
+        await sock_two.send_json_to(answer)
+        for _ in range(3):  # two PLAYER_ANSWERED, then the result
+            await sock_one.receive_json_from(timeout=5)
+            await sock_two.receive_json_from(timeout=5)
+
+        # ...and every board after it through ``_try_close_question``'s
+        # ``next``. Both paths must read the same authored value; the second is
+        # the one a real player spends most of a match on.
+        next_one, next_two = await _gather_json(sock_one, sock_two)
+        assert next_one["type"] == events.QUESTION_STARTED
+        assert next_one["order"] == 2
+        assert next_one["time_limit_ms"] == 45_000
+        assert next_two["time_limit_ms"] == 45_000
 
         await sock_one.disconnect()
         await sock_two.disconnect()

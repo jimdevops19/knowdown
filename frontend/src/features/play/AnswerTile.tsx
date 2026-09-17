@@ -36,12 +36,23 @@ export type TileState =
   /** The question is closed (or the clock ran out) and this wasn't picked. */
   | 'dimmed'
 
+/*
+ * A tile carries its state on its *left edge* as a 4px bar, not as a wash of
+ * tint across the whole surface.
+ *
+ * This is the one place the layout changed rather than just the colours. A
+ * tinted fill has to stay faint to keep the option text legible, so at a metre
+ * away under a clock, "picked" and "not picked" were two shades of the same
+ * dark rectangle. A solid bar of full-strength colour down one edge reads as a
+ * marked tile from across the room, costs the text nothing, and is exactly how
+ * a broadcast scoreboard marks a row. The fill stays as a whisper behind it.
+ */
 const STATE_CLASSES: Record<TileState, string> = {
-  idle: 'border-white/10 bg-panel/80 text-chalk hover:border-court/60 hover:bg-court/10 active:scale-[0.985]',
-  picked: 'border-court bg-court/25 text-chalk shadow-glow-violet',
-  correct: 'border-correct bg-correct/20 text-chalk shadow-glow-correct motion-safe:animate-verdict-correct',
-  wrong: 'border-wrong bg-wrong/15 text-chalk shadow-glow-wrong motion-safe:animate-verdict-wrong',
-  dimmed: 'border-white/8 bg-panel/50 text-ash opacity-60',
+  idle: 'border-l-chalk/15 bg-panel text-chalk hover:border-l-court hover:bg-raised active:scale-[0.985]',
+  picked: 'border-l-court bg-court/12 text-chalk',
+  correct: 'border-l-correct bg-correct/12 text-chalk motion-safe:animate-verdict-correct',
+  wrong: 'border-l-wrong bg-wrong/10 text-chalk motion-safe:animate-verdict-wrong',
+  dimmed: 'border-l-chalk/8 bg-panel/60 text-ash opacity-55',
 }
 
 export function AnswerTile({
@@ -66,10 +77,14 @@ export function AnswerTile({
       onClick={onClick}
       disabled={disabled}
       aria-pressed={state === 'picked' || state === 'correct' || state === 'wrong'}
-      className={`flex min-h-14 w-full items-center gap-3 rounded-tile border-2 px-4 py-3 text-left font-medium transition-all duration-150 disabled:pointer-events-none ${STATE_CLASSES[state]} ${className}`.trim()}
+      className={`flex min-h-14 w-full items-center gap-3 rounded-tile border border-chalk/8 border-l-4 px-4 py-3 text-left font-medium transition-all duration-150 disabled:pointer-events-none ${STATE_CLASSES[state]} ${className}`.trim()}
     >
       {lead !== undefined && (
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/8 font-display text-sm font-bold text-ash">
+        // The option's letter, set as a hard square in widened display type —
+        // the lane number on a start block. Square rather than rounded because
+        // it is the smallest element on the board, and at 28px a rounded
+        // rectangle is indistinguishable from a circle.
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[3px] bg-chalk/10 font-display text-sm font-bold [font-stretch:var(--display-wide)] text-ash">
           {lead}
         </span>
       )}

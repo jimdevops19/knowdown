@@ -67,6 +67,11 @@ export interface LiveQuestion {
    *  by the trip time, which is precisely the latency the client must not be
    *  able to talk its way out of. */
   seenAt: number
+  /** How long this question stays open, in milliseconds, as the server said
+   *  when it opened it. Per question rather than a constant: the limit depends
+   *  on the question's type and its authored override, so a matrix board and a
+   *  true/false one do not get the same clock. */
+  timeLimitMs: number
 }
 
 export interface MatchupState {
@@ -183,6 +188,7 @@ function reduce(state: MatchupState, action: Action): MatchupState {
                 resuming && state.current
                   ? state.current.seenAt
                   : Date.now() + QUESTION_READ_DELAY_MS,
+              timeLimitMs: message.time_limit_ms,
             },
             mySubmission: resuming ? state.mySubmission : null,
             opponentAnswered: resuming ? state.opponentAnswered : false,

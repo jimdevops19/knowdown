@@ -63,19 +63,35 @@ export function HowToPlayPage() {
         <p className="text-ash">Seven things, and then you know the whole game.</p>
       </header>
 
-      <div className="flex flex-col gap-3">
-        {SECTIONS.map(({ icon: Icon, title, body }) => (
-          <Card key={title} className="flex gap-4 p-5">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-court/15 text-court">
-              <Icon size={19} aria-hidden />
+      {/*
+        One ruled plate, not seven cards.
+
+        Seven separate bordered cards, each with a tinted icon square at its
+        left, is the feature-card grid stretched vertically — and the repetition
+        makes it worse rather than better: seven identical orange squares down the
+        left margin is the loudest thing on the page, and none of them
+        distinguishes one rule from another.
+
+        The content is a numbered rulebook, so it is set as one: a single
+        surface, hairline-divided, each rule carrying its number in the margin
+        the way a laws-of-the-game document does. The icon moves to the right
+        edge at low contrast, where it annotates the rule instead of announcing
+        it, and the number does the work of telling the rows apart.
+      */}
+      <Card className="flex flex-col divide-y divide-chalk/8">
+        {SECTIONS.map(({ icon: Icon, title, body }, i) => (
+          <div key={title} className="flex items-start gap-4 p-5">
+            <span className="nums w-7 shrink-0 pt-0.5 font-display text-lg font-bold [font-stretch:var(--display-wide)] text-court">
+              {String(i + 1).padStart(2, '0')}
             </span>
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <h2 className="font-display text-lg font-bold text-chalk">{title}</h2>
               <p className="mt-1 text-sm text-ash">{body}</p>
             </div>
-          </Card>
+            <Icon size={18} className="mt-1.5 hidden shrink-0 text-idle sm:block" aria-hidden />
+          </div>
         ))}
-      </div>
+      </Card>
 
       <section className="flex flex-col gap-3">
         <SectionHeading>A note on fairness</SectionHeading>

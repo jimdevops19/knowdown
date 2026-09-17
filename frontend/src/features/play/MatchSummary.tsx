@@ -122,46 +122,54 @@ function Banner({
   drew: boolean
   abandoned: boolean
 }) {
+  /*
+   * The result, as a title card with a struck band across the top.
+   *
+   * `tone` was a `from-*` stop for a vertical gradient fading the result colour
+   * down into nothing. A soft colour wash is the weakest possible way to state
+   * the one thing this screen exists to say, and the fade is the same effect
+   * the rest of the system dropped. A 3px band of full-strength colour along
+   * the top edge says it flatly, at full saturation, the way a result graphic
+   * does at the end of a broadcast.
+   */
   const { tone, title, sub } = drew
     ? {
-        tone: 'from-court/30',
+        tone: 'border-t-court',
         title: 'Dead heat',
         sub: 'Level on points and level on the clock — nobody edged it.',
       }
     : won
       ? {
-          tone: 'from-gold/30',
+          tone: 'border-t-correct',
           title: 'You win',
           sub: abandoned ? 'Your rival left the match.' : 'Rating and badges are on their way.',
         }
       : {
-          tone: 'from-white/10',
+          tone: 'border-t-idle',
           title: 'You lose',
           sub: abandoned ? 'You left the match.' : 'Straight back in — the pool is open.',
         }
 
   return (
     <div
-      className={`relative overflow-hidden rounded-card border border-white/8 bg-gradient-to-b ${tone} to-transparent p-6 text-center`}
+      className={`relative overflow-hidden rounded-card border border-chalk/8 border-t-[3px] bg-panel ${tone} p-6 text-center`}
     >
       {/* The winner's banner gets a sweeping highlight; a loss does not. A
           celebration animation on a defeat reads as being taunted. */}
       {won && (
         <span
           aria-hidden
-          className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-white/12 to-transparent motion-safe:animate-shimmer"
+          className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-chalk/12 to-transparent motion-safe:animate-shimmer"
         />
       )}
       {drew ? (
         <Handshake size={34} className="mx-auto mb-2 text-court" aria-hidden />
       ) : won ? (
-        <Trophy size={34} className="mx-auto mb-2 text-gold" aria-hidden />
+        <Trophy size={34} className="mx-auto mb-2 text-correct" aria-hidden />
       ) : (
         <LogOut size={34} className="mx-auto mb-2 text-idle" aria-hidden />
       )}
-      <h1 className="font-display text-3xl font-bold uppercase tracking-tight text-chalk">
-        {title}
-      </h1>
+      <h1 className="text-headline text-4xl text-chalk">{title}</h1>
       <p className="mt-1 text-sm text-ash">{sub}</p>
       {abandoned && (
         // Worth naming, because it moved the ladder exactly as a played-out
@@ -194,7 +202,7 @@ function Finalist({
     <div
       className={`flex min-w-0 flex-1 flex-col items-center gap-2 rounded-tile border p-3 ${
         winner
-          ? 'border-gold/50 bg-gold/8'
+          ? 'border-correct/50 bg-correct/8'
           : accent === 'court'
             ? 'border-court/30'
             : 'border-rival/30'
@@ -204,7 +212,7 @@ function Finalist({
       <span className="w-full truncate text-center text-sm font-medium text-chalk">{name}</span>
       <span
         className={`nums font-display text-3xl font-bold leading-none ${
-          winner ? 'text-gold' : 'text-ash'
+          winner ? 'text-correct' : 'text-ash'
         }`}
       >
         {score}

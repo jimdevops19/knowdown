@@ -99,12 +99,28 @@ function Side({
   away?: boolean
   align: 'left' | 'right'
 }) {
-  const border = accent === 'court' ? 'border-court/40' : 'border-rival/40'
+  /*
+   * Each side is marked on its *outer* edge — a 3px bar of its own colour on
+   * the left for you, on the right for them, mirroring outward from the centre
+   * the way a scoreboard flanks the score.
+   *
+   * The two colours are orange and azure, and that pairing is a legibility
+   * decision before an aesthetic one: this is the single most important
+   * distinction in the app, read on a phone at arm's length with seconds on the
+   * clock, and orange-against-blue is the one opposition that survives both
+   * common forms of colour blindness — as well as being the oldest pair of kits
+   * in sport. The bars mean the sides stay told apart even where the colour
+   * doesn't land at all.
+   */
+  const edge =
+    accent === 'court'
+      ? 'border-l-4 border-l-court'
+      : 'border-r-4 border-r-rival'
   const text = accent === 'court' ? 'text-court' : 'text-rival'
 
   return (
     <div
-      className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-card border bg-panel/70 px-3 py-2.5 backdrop-blur-md ${border} ${
+      className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-card border border-chalk/8 bg-panel px-3 py-2.5 ${edge} ${
         align === 'right' ? 'flex-row-reverse text-right' : ''
       } ${away ? 'opacity-60' : ''}`}
     >
@@ -114,7 +130,11 @@ function Side({
           {away && <WifiOff size={13} className="shrink-0 text-rival" aria-hidden />}
           <span className="truncate">{name}</span>
         </span>
-        <span className={`nums font-display text-xl font-bold leading-none ${text}`}>
+        {/* The score, in widened display digits — the one number on the screen
+            that is meant to be seen from further away than it is read. */}
+        <span
+          className={`nums font-display text-2xl font-bold [font-stretch:var(--display-wide)] leading-none ${text}`}
+        >
           {/* A dash rather than a number this client cannot vouch for. A
               reconnect resumes at the question in progress and is told nothing
               about the ones already played, so the running total would be
@@ -129,7 +149,7 @@ function Side({
           is the whole of what may be said about it. */}
       {answered && (
         <span
-          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] ${
             accent === 'court' ? 'bg-court/25 text-court' : 'bg-rival/25 text-rival'
           }`}
           title="Locked in"

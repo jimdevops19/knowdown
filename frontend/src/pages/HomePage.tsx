@@ -48,14 +48,71 @@ export function HomePage() {
   )
 }
 
+/*
+ * The signed-out hero — a title card, not a landing page.
+ *
+ * What this replaces was a centred stack: logo, one balanced sentence, one
+ * paragraph of grey text under it. That arrangement is the single most
+ * reproduced layout on the web and the first thing that marks a page as
+ * generated, and it is also weak for this particular product — a centred line
+ * of running text gives no emphasis to the three facts that actually sell the
+ * game.
+ *
+ * So the sentence is broken into its three beats and stacked, each on its own
+ * line, in widened display caps at a size that fills the column. Read down, it
+ * is a broadcast title card. The rule and the small orange label above it are
+ * the lower-third furniture that goes with it, and the whole block is
+ * left-aligned, because a hard left edge is what makes stacked type read as
+ * deliberate rather than as a heading that wrapped.
+ */
 function GuestHero() {
   return (
-    <section className="flex flex-col items-center gap-4 py-6 text-center">
-      <Logo size={44} />
-      <h1 className="text-balance font-display text-3xl font-bold leading-tight text-chalk sm:text-4xl">
-        Two players. <span className="text-gradient">Seven questions.</span> One clock.
+    <section className="flex flex-col gap-5 py-4">
+      {/* Wraps rather than squeezes: on a narrow phone the strap drops onto its
+          own line under the wordmark instead of the two fighting over the row.
+          `whitespace-nowrap` keeps it from breaking *within* itself — a strap
+          this heavily tracked splits into two unreadable fragments. */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <Logo size={36} />
+        {/* The brand orange, small and tracked wide: the "LIVE" bug in the corner of a
+            broadcast. It is a label, so it takes caps; body copy never does. */}
+        <span className="whitespace-nowrap text-xs font-semibold uppercase tracking-[0.22em] text-volt">
+          Live 1v1 trivia
+        </span>
+      </div>
+
+      {/*
+        The size is set from the *longest* line, not from taste. The beats are
+        hard-broken with <br>, so the block only reads as a title card while
+        each line still fits its column — let one wrap and the stack collapses
+        into an ordinary paragraph of shouting.
+
+        "Someone random." in widened caps is the widest thing this app renders,
+        and 1.75rem is the size at which it just fills a 390px phone. Anything
+        larger has to come with a smaller step below it, which is what the
+        breakpoints here are: one size per width, each the largest that still
+        fits its own narrowest case.
+      */}
+      <h1 className="text-headline text-[1.75rem] leading-[0.94] text-chalk min-[420px]:text-[2.1rem] sm:text-5xl lg:text-6xl">
+        You vs.
+        <br />
+        Someone random.
+        {/* The payoff sentence takes the primary — the one beat of colour in
+            the block. Both of its beats are shorter than "Someone random.", so
+            it stays at the headline size. It breaks as a block rather than on a
+            <br> so the colour change gets a beat of air ahead of it — at 0.94
+            leading the two halves otherwise read as one four-line paragraph.
+            The gap is in `em`, so it scales with the heading at every step. */}
+        <span className="mt-[0.3em] block text-court">
+          Just trivia,
+          <br />
+          and adrenaline.
+        </span>
       </h1>
-      <p className="max-w-md text-balance text-ash">
+
+      <div className="h-px w-full bg-chalk/10" />
+
+      <p className="max-w-md text-ash">
         Everyone online sits in one pool. Get paired, race a stranger through NBA trivia, and take
         their rating when you're faster.
       </p>
@@ -90,19 +147,38 @@ const RULES = [
   { icon: Flame, title: '3, 5 or 7 questions', body: "The length is drawn per match, so you never know which question is the last one." },
 ]
 
+/*
+ * The rules, as a rulebook rather than as three cards in a row.
+ *
+ * Three equal bordered cards, each with a thin-line icon above a bold title
+ * above two lines of grey — that is the feature triptych, and it is the layout
+ * tell that sits right beside the purple one. It is also doing nothing for the
+ * content: these are three *rules*, which is a list, and a list wants a
+ * vertical rhythm and an index, not three floating boxes.
+ *
+ * So: one plate, rules stacked inside it, each numbered in widened display
+ * type against a ruled divider. The number is the ordering the content already
+ * has. The icon moves to the right margin, where it annotates rather than
+ * announces.
+ */
 function HowItWorks() {
   return (
     <section className="flex flex-col gap-3">
       <SectionHeading>How a match works</SectionHeading>
-      <div className="grid gap-3 sm:grid-cols-3">
-        {RULES.map(({ icon: Icon, title, body }) => (
-          <Card key={title} className="flex flex-col gap-2 p-5">
-            <Icon size={20} className="text-volt" aria-hidden />
-            <h3 className="font-display font-bold text-chalk">{title}</h3>
-            <p className="text-sm text-ash">{body}</p>
-          </Card>
+      <Card className="flex flex-col divide-y divide-chalk/8">
+        {RULES.map(({ icon: Icon, title, body }, i) => (
+          <div key={title} className="flex items-start gap-4 p-5">
+            <span className="nums w-6 shrink-0 pt-0.5 font-display text-lg font-bold [font-stretch:var(--display-wide)] text-court">
+              {i + 1}
+            </span>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-display font-bold text-chalk">{title}</h3>
+              <p className="mt-1 text-sm text-ash">{body}</p>
+            </div>
+            <Icon size={18} className="mt-1 shrink-0 text-idle" aria-hidden />
+          </div>
         ))}
-      </div>
+      </Card>
       <Button as={Link} to="/how-to-play" variant="ghost" size="full" className="mt-1">
         Read the full rules
       </Button>

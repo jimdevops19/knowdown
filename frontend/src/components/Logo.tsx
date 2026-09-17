@@ -18,24 +18,25 @@ export function LogoMark({ size = 32, className = '' }: { size?: number; classNa
       aria-hidden
       className={className}
     >
-      <defs>
-        <linearGradient id="kd-mark" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-          <stop stopColor="var(--color-court)" />
-          <stop offset="1" stopColor="var(--color-volt)" />
-        </linearGradient>
-      </defs>
-      <rect width="32" height="32" rx="9" fill="url(#kd-mark)" />
+      {/* A flat orange tile, cut to the shape scale rather than pillowed.
+          This was a violet→cyan diagonal gradient — the app's logo was itself
+          the clearest statement of the look the design system has moved off,
+          and a two-stop diagonal gradient on a rounded square is the most
+          copied logo form there is. One solid colour is both stronger at 24px
+          in a tab bar and honest about the palette: the brand *is* the orange. */}
+      <rect width="32" height="32" rx="5" fill="var(--color-court)" />
       {/* The ring, open at the top right — the gap is what makes it a buzzer
           rather than a bullseye, and it points at the corner the "down" of the
-          wordmark falls toward. */}
+          wordmark falls toward. Full-strength ink, not 90%: the fill underneath
+          it is bright enough to take it, and a faded mark at favicon size just
+          looks unrendered. */}
       <path
         d="M23.5 9.5a9.5 9.5 0 1 0 2.2 4.2"
         stroke="var(--color-void)"
-        strokeWidth="2.6"
+        strokeWidth="2.8"
         strokeLinecap="round"
-        opacity="0.9"
       />
-      <circle cx="16" cy="16" r="4.4" fill="var(--color-void)" opacity="0.9" />
+      <circle cx="16" cy="16" r="4.4" fill="var(--color-void)" />
     </svg>
   )
 }
@@ -52,11 +53,14 @@ export function Logo({ size = 32 }: { size?: number }) {
   return (
     <div className="flex items-center gap-2 px-1">
       <LogoMark size={size} />
-      <span className="flex items-center font-display text-2xl font-bold tracking-tight">
-        <span className="text-chalk">know</span>
-        <span className="text-volt" style={{ textShadow: '0 0 18px rgba(34,211,238,0.5)' }}>
-          down
-        </span>
+      {/* Widened display caps, set solid. The second half carried a blurred
+          cyan text-shadow before — neon glow on a wordmark is decoration that
+          smears the letterforms at exactly the sizes a wordmark is read at, and
+          it is the same halo the rest of the system dropped. The two halves are
+          now told apart the way a jersey does it: by colour, cleanly. */}
+      <span className="text-headline flex items-center text-2xl leading-none">
+        <span className="text-chalk">KNOW</span>
+        <span className="text-court">DOWN</span>
       </span>
     </div>
   )

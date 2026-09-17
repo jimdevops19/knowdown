@@ -1,7 +1,7 @@
 import type { ComponentPropsWithRef } from 'react'
 
 /*
- * The standard form input surface — a raised field with a cyan focus ring.
+ * The standard form input surface — a raised field with a white focus ring.
  * Centralizes the class string rather than repeating it across every form.
  *
  * 44px minimum height even at `sm`: below that a field is under the tap target
@@ -30,7 +30,7 @@ export function Input({ size = 'md', invalid = false, className = '', ...rest }:
       className={`w-full rounded-input border bg-raised px-3.5 text-chalk outline-none transition-all duration-150 placeholder:text-ash/50 focus:ring-2 disabled:opacity-60 ${
         invalid
           ? 'border-wrong/60 focus:border-wrong focus:ring-wrong/25'
-          : 'border-white/8 focus:border-volt focus:ring-volt/25'
+          : 'border-chalk/8 focus:border-volt focus:ring-volt/25'
       } ${SIZE_HEIGHT[size]} ${className}`.trim()}
       {...rest}
     />

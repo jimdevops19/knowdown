@@ -96,21 +96,59 @@ def _read_yaml(path: Path):
     return yaml.safe_load(path.read_text(encoding="utf-8"))
 
 
+def _declared_category_slugs() -> set[str]:
+    """The slugs ``categories.yaml`` names, read cheaply and without validating.
+
+    Only used to decide which folders under ``resources/`` are categories at
+    all; ``sync_categories`` is what actually validates them, and it runs first.
+    A file too malformed to read as a list yields nothing here rather than
+    raising, so the error the operator sees is that one, from the loader that
+    owns it.
+    """
+    try:
+        raw = _read_yaml(CATEGORIES_FILE)
+    except ValidationFailed:
+        return set()
+    if not isinstance(raw, list):
+        return set()
+    return {
+        entry["slug"]
+        for entry in raw
+        if isinstance(entry, dict) and isinstance(entry.get("slug"), str)
+    }
+
+
 def category_dirs(*, category: str | None = None) -> list[Path]:
     """The resource folders to load, one per category.
 
     ``category`` narrows it to a single folder — the usual case while authoring,
     where reloading every sport to check one question is just slower.
+
+    A folder is a category folder if ``categories.yaml`` declares its slug *or*
+    it holds YAML of its own. ``resources/`` is also where the authoring tooling
+    lives (``prepare-questions/`` is a skill, not a sport), and treating every
+    subdirectory as a category made that folder fail the whole load with "no
+    .yaml files" — which takes the *catalog* down, not just that folder, since
+    everything is validated before anything is written.
+
+    Both halves of the rule are load-bearing, and each catches what the other
+    would wave through: a declared category whose questions have gone missing
+    still fails on "no .yaml files", and a folder of questions for a category
+    nobody declared is still refused as an unknown category rather than
+    silently skipped.
     """
     if category:
         path = RESOURCES / category
         if not path.is_dir():
             raise ValidationFailed(f"No resource folder for category '{category}'.")
         return [path]
+    declared = _declared_category_slugs()
     return sorted(
         child
         for child in RESOURCES.iterdir()
-        if child.is_dir() and not child.name.startswith(".")
+        if child.is_dir()
+        and not child.name.startswith(".")
+        and (child.name in declared or _question_files(child))
     )
 
 

@@ -19,10 +19,13 @@ export interface NavItem {
   /** Extra path prefixes that also count as "here", beyond `to` itself — e.g.
    *  Play stays lit while a match found through it is in progress. */
   matchPrefixes?: string[]
-  /** A colour this item carries while idle, so it reads as "go here" at a
-   *  glance — swapped for the app's own accent (cyan) once you're actually in
-   *  it, the same "you are here" colour every other tab uses. */
-  accent?: 'gold'
+  /** Marks the one item whose *icon* stays orange while idle. Nothing else about
+   *  the row changes — same plate, same label colour, same hover as every other
+   *  destination. The earlier version tinted the whole row gold, which made a
+   *  permanent second accent out of a nav item and gave the app two loud colours
+   *  again; a lit glyph is enough to say "start here" without the chrome
+   *  competing with the screen it frames. */
+  accent?: 'court'
   /** Renders as an account dropdown (Profile / Matches history) instead of a
    *  plain link — see `AccountMenu`. */
   dropdown?: true
@@ -38,7 +41,7 @@ const PLAY_ITEM: NavItem = {
   to: '/play',
   label: 'Play',
   icon: Play,
-  accent: 'gold',
+  accent: 'court',
   matchPrefixes: ['/play', '/match'],
 }
 

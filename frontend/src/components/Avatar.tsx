@@ -41,7 +41,7 @@ export function Avatar({
         width={size}
         height={size}
         style={{ width: size, height: size, boxShadow: halo }}
-        className="inline-block shrink-0 rounded-full object-cover ring-1 ring-white/10"
+        className="inline-block shrink-0 rounded-full object-cover ring-1 ring-chalk/10"
       />
     )
   }
@@ -55,14 +55,20 @@ export function Avatar({
       .join('')
       .toUpperCase() || '?'
 
-  // A two-stop gradient in this identity's own hue, kept dark and desaturated
-  // enough that white initials stay high-contrast on top of it at every hue.
-  const background = `linear-gradient(135deg, hsl(${hue} 58% 34%), hsl(${(hue + 40) % 360} 62% 20%))`
+  // A flat fill in this identity's own hue, kept dark and desaturated enough
+  // that the initials stay high-contrast on top of it at every hue.
+  //
+  // Flat, where this was a 135° two-stop gradient. With a dozen avatars on a
+  // ladder screen, a dozen diagonal gradients is the texture that reads as
+  // generated — and the second stop was never doing any work at 40px anyway.
+  // The hue is already constrained to the palette's own band upstream (see
+  // `hashHue`), so a solid fill lands inside the system rather than beside it.
+  const background = `hsl(${hue} 42% 26%)`
 
   return (
     <span
       style={{ width: size, height: size, fontSize: size * 0.4, background, boxShadow: halo }}
-      className="inline-flex shrink-0 items-center justify-center rounded-full font-display font-semibold text-chalk ring-1 ring-white/10"
+      className="inline-flex shrink-0 items-center justify-center rounded-full font-display font-semibold text-chalk ring-1 ring-chalk/10"
       aria-hidden
     >
       {initials}

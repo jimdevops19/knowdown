@@ -107,7 +107,7 @@ function BadgeCard({ badge }: { badge: PlayerAchievement }) {
       ) : (
         // A badge with no icon yet is still a badge. Its initial in a gold
         // roundel rather than a broken image or a blank square.
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gold/15 font-display text-lg font-bold text-gold">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[6px] bg-gold/15 font-display text-lg font-bold text-gold">
           {badge.name[0]?.toUpperCase()}
         </span>
       )}

@@ -8,7 +8,7 @@ export function Skeleton({ className = '' }: { className?: string }) {
   return (
     <div
       aria-hidden
-      className={`skeleton-fill motion-safe:animate-skeleton rounded-btn bg-white/5 ${className}`.trim()}
+      className={`skeleton-fill motion-safe:animate-skeleton rounded-btn bg-chalk/5 ${className}`.trim()}
     />
   )
 }
@@ -33,7 +33,7 @@ export function SkeletonCards({ count = 6, className = '' }: { count?: number; c
       aria-busy="true"
     >
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="glass rounded-card p-5">
+        <div key={i} className="plate rounded-card p-5">
           <Skeleton className="mb-4 h-5 w-1/2" />
           <SkeletonText lines={3} />
         </div>
@@ -47,7 +47,7 @@ export function SkeletonRows({ count = 8, className = '' }: { count?: number; cl
   return (
     <div className={`flex flex-col gap-2 ${className}`.trim()} aria-hidden aria-busy="true">
       {Array.from({ length: count }).map((_, i) => (
-        <div key={i} className="glass flex items-center gap-3 rounded-card p-4">
+        <div key={i} className="plate flex items-center gap-3 rounded-card p-4">
           <Skeleton className="h-10 w-10 rounded-full" />
           <Skeleton className="h-4 flex-1" />
           <Skeleton className="h-4 w-12" />

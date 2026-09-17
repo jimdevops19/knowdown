@@ -82,7 +82,7 @@ export function AccountMenu({
       {open && (
         <div
           role="menu"
-          className={`absolute z-50 w-48 overflow-hidden rounded-btn border border-white/10 bg-panel/95 py-1 shadow-elevated backdrop-blur-xl ${placementClass} ${alignClass}`}
+          className={`absolute z-50 w-48 overflow-hidden rounded-btn border border-chalk/10 bg-raised py-1 shadow-elevated ${placementClass} ${alignClass}`}
         >
           {MENU_ITEMS.map((item) => {
             const Icon = item.icon
@@ -92,7 +92,7 @@ export function AccountMenu({
                 to={item.to}
                 role="menuitem"
                 onClick={() => setOpen(false)}
-                className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-ash transition-colors hover:bg-white/6 hover:text-chalk"
+                className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-ash transition-colors hover:bg-chalk/6 hover:text-chalk"
               >
                 <Icon size={16} />
                 {item.label}
@@ -101,7 +101,7 @@ export function AccountMenu({
           })}
           {onSignOut && (
             <>
-              <div role="separator" aria-hidden className="my-1 border-t border-white/10" />
+              <div role="separator" aria-hidden className="my-1 border-t border-chalk/10" />
               <button
                 type="button"
                 role="menuitem"
@@ -109,7 +109,7 @@ export function AccountMenu({
                   setOpen(false)
                   onSignOut()
                 }}
-                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-sm text-ash transition-colors hover:bg-white/6 hover:text-chalk"
+                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-sm text-ash transition-colors hover:bg-chalk/6 hover:text-chalk"
               >
                 <LogOut size={16} />
                 Sign out

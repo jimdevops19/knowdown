@@ -39,7 +39,7 @@ function CategoryCard({ category }: { category: Category }) {
       as={Link}
       to={`/play/${category.slug}`}
       interactive
-      glow="violet"
+      edge="court"
       className="flex flex-col gap-3 p-5"
     >
       <div className="flex items-start justify-between gap-3">
@@ -47,7 +47,7 @@ function CategoryCard({ category }: { category: Category }) {
           <h3 className="font-display text-lg font-bold text-chalk">{category.name}</h3>
           <p className="mt-0.5 line-clamp-2 text-sm text-ash">{category.description}</p>
         </div>
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-court/20 text-court">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[6px] bg-court/20 text-court">
           <Play size={18} aria-hidden />
         </span>
       </div>

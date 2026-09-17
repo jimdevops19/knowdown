@@ -20,5 +20,31 @@ export function hashHue(value: string): number {
     // into imprecision, while `Math.imul` and this form stay in 32-bit land.
     hash = (hash + ((hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24))) >>> 0
   }
-  return hash % 360
+  return HUE_BAND_START + (hash % HUE_BAND_WIDTH)
 }
+
+/*
+ * The hue is confined to one arc of the wheel: roughly 140°–265°, green through
+ * teal to deep blue.
+ *
+ * Two constraints put it there. Unconstrained, this returned any of 360 hues,
+ * which made the avatars the one place in the app still issuing violets and
+ * magentas — and a dozen of them down a ladder undoes a deliberate palette on
+ * its own, because the eye reads a page's colour from the repeated elements
+ * rather than from the one accent.
+ *
+ * The band then deliberately *excludes* the warm quarter the brand lives in.
+ * An avatar is decoration attached to a name; the orange in this app means "you
+ * can act on this" or "this is happening now", and a player whose initials
+ * happen to hash to orange would be wearing an affordance. Cool identity tints
+ * against a warm UI keeps the two vocabularies apart — and it is the same
+ * separation the scoreboard already makes between your side and theirs.
+ *
+ * These are rendered dark and well desaturated (see `Avatar`), so the teal end
+ * of the band is a deep slate rather than anything like a bright cyan accent.
+ *
+ * 125° is still far more separation than the ~12 identities visible on any one
+ * screen need — two players are distinguishable long before their hues are.
+ */
+const HUE_BAND_START = 140
+const HUE_BAND_WIDTH = 125

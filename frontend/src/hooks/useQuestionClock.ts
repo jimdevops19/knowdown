@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { QUESTION_TIME_LIMIT_MS } from '../lib/config'
 
 /*
- * The ten seconds a question is open, as a number to draw with.
+ * The seconds a question is open, as a number to draw with.
  *
  * **This clock decides nothing.** The server stamped the question, the server
  * closes it, and the server measures the response time it scores against its
@@ -46,8 +46,20 @@ const URGENT_AT_MS = 3_000
  * @param startedAt `Date.now()` when this client saw the question open, or null
  *        when no question is open — which parks the clock full and stopped,
  *        rather than at zero, so nothing between questions reads as "expired".
+ * @param limitMs How long the *server* said this question stays open
+ *        (`question.started`'s `time_limit_ms`). Per question, not a constant:
+ *        a matrix board is authored with far more clock than the default, and
+ *        drawing the default over it would count down to zero while the server
+ *        still held the question open — the player would sit watching an empty
+ *        bar, apparently waiting on their opponent. Null (no question open)
+ *        falls back to the configured default purely so the parked bar has a
+ *        width.
  */
-export function useQuestionClock(startedAt: number | null): QuestionClock {
+export function useQuestionClock(
+  startedAt: number | null,
+  limitMs: number | null,
+): QuestionClock {
+  const limit = limitMs ?? QUESTION_TIME_LIMIT_MS
   const [now, setNow] = useState(() => Date.now())
 
   useEffect(() => {
@@ -63,8 +75,8 @@ export function useQuestionClock(startedAt: number | null): QuestionClock {
 
   if (startedAt === null) {
     return {
-      remainingMs: QUESTION_TIME_LIMIT_MS,
-      remainingSeconds: QUESTION_TIME_LIMIT_MS / 1000,
+      remainingMs: limit,
+      remainingSeconds: limit / 1000,
       fraction: 1,
       expired: false,
       urgent: false,
@@ -77,16 +89,13 @@ export function useQuestionClock(startedAt: number | null): QuestionClock {
   // (`startedAt` in the future — see `useMatchup`'s `seenAt`) from showing a
   // bar over-full or a numeral counting up. Nothing here draws that delay on
   // purpose; the bar just sits full and still until the clock actually starts.
-  const remainingMs = Math.min(
-    QUESTION_TIME_LIMIT_MS,
-    Math.max(0, QUESTION_TIME_LIMIT_MS - (now - startedAt)),
-  )
+  const remainingMs = Math.min(limit, Math.max(0, limit - (now - startedAt)))
   return {
     remainingMs,
     // Floored, not rounded: a clock reading "1.0s" with 40ms left has told the
     // player they have a second they do not have.
     remainingSeconds: Math.floor(remainingMs / 100) / 10,
-    fraction: remainingMs / QUESTION_TIME_LIMIT_MS,
+    fraction: remainingMs / limit,
     expired: remainingMs <= 0,
     urgent: remainingMs > 0 && remainingMs <= URGENT_AT_MS,
     started: now >= startedAt,

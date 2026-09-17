@@ -57,7 +57,7 @@ function Row({
   if (!entry) {
     return (
       <Shell
-        tone="border-white/8 bg-panel/60"
+        tone="border-chalk/8 bg-panel/60"
         label={label}
         emphasis={emphasis}
         verdict={

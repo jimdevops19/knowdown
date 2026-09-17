@@ -28,8 +28,13 @@ export const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string 
 export const WS_URL = (import.meta.env.VITE_WS_URL as string | undefined) ?? ''
 
 /**
- * How long a question stays open, in milliseconds — mirroring
- * `apps.matches.constants.QUESTION_TIME_LIMIT_SECONDS`.
+ * The countdown's width when there is no question open — mirroring
+ * `apps.matches.constants.FALLBACK_QUESTION_TIME_LIMIT_SECONDS`.
+ *
+ * **Not the limit any live question is drawn against.** Each `question.started`
+ * carries the server's own `time_limit_ms` for that question (it varies by type
+ * and by the question's authored override), and `useQuestionClock` draws that.
+ * This number only gives the parked bar between questions a width.
  *
  * **This number is only ever used to draw a bar.** The server stamps the
  * question, the server closes it, and the server measures the response time it
@@ -40,7 +45,7 @@ export const WS_URL = (import.meta.env.VITE_WS_URL as string | undefined) ?? ''
  * has already closed.
  *
  * It lives in config rather than as a constant so a deployment that retunes the
- * backend's limit can retune the picture to match without a rebuild.
+ * backend's fallback can retune the picture to match without a rebuild.
  */
 export const QUESTION_TIME_LIMIT_MS = positiveIntEnv(
   import.meta.env.VITE_QUESTION_TIME_LIMIT_MS,

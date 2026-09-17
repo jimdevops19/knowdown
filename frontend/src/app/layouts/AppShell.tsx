@@ -11,10 +11,15 @@ import { isNavItemActive, navItemsFor, type NavItem } from './navItems'
 import { useScrollReset } from './useScrollReset'
 
 /*
- * The persistent chrome around every page: a glass sidebar of nav links plus a
- * glass header, floating over the app's layered background (index.css). The
- * current page renders where <Outlet /> sits — this layout stays mounted and
- * only the outlet swaps as you navigate.
+ * The persistent chrome around every page: a sidebar of nav links plus a
+ * header, both on the app's deepest surface so they read as the frame the
+ * content sits inside rather than as more content. The current page renders
+ * where <Outlet /> sits — this layout stays mounted and only the outlet swaps
+ * as you navigate.
+ *
+ * Both are opaque. They were frosted panels floating over the background, which
+ * meant the header's contrast changed with whatever was scrolling beneath it,
+ * and cost a backdrop composite on every scroll frame of every page.
  *
  * Responsive: the sidebar shows on `desk` viewports — wide *and* tall enough
  * for it. Everywhere else, including a phone turned on its side (~800x360 CSS
@@ -44,12 +49,9 @@ function SidebarLink({ item }: { item: NavItem }) {
   // prefix its `to` doesn't cover, so activeness is computed the same way the
   // phone tab bar computes it (`isNavItemActive`), and both navs agree.
   const isActive = isNavItemActive(pathname, item)
-  const isPlay = item.accent === 'gold'
-  // Gold reads as "go here" only while idle — once you're in it, it takes the
-  // same cyan every other tab's active state uses, so "you are here" stays
-  // one colour app-wide, distinct from the violet every other tab's active
-  // state uses.
-  const goldIdle = isPlay && !isActive
+  // Play is an ordinary row in every respect but one: its triangle stays lit.
+  // The glyph carries the invitation; the row itself doesn't need to.
+  const litIcon = isActive || item.accent === 'court'
 
   return (
     <NavLink
@@ -57,25 +59,23 @@ function SidebarLink({ item }: { item: NavItem }) {
       // `end` makes the link match only its exact path, not every nested route
       // ("/" would otherwise match everything).
       end={item.exact || item.to === '/'}
+      // The active row is a raised plate struck with an orange bar down its left
+      // edge — the same marking the answer tiles and the scoreboard use, so
+      // "this one" is spelled one way throughout the app.
+      //
+      // Not the solid orange fill the phone tab bar uses for the same state: that
+      // plate is a 36px key, while this is a full-width row, and filled solid
+      // it became the largest block of colour on every screen — permanent
+      // chrome shouting down the content it frames. The tab bar can afford it
+      // because it is small; the sidebar cannot because it is not.
       className={[
-        'group relative flex items-center gap-3 rounded-btn px-3 py-2.5 text-sm font-medium transition-all duration-200',
+        'group relative flex items-center gap-3 rounded-btn border-l-[3px] px-3 py-2.5 text-sm font-medium transition-all duration-200',
         isActive
-          ? isPlay
-            ? 'bg-volt/15 text-volt motion-safe:shadow-glow-cyan'
-            : 'bg-court/90 text-chalk motion-safe:shadow-glow-violet'
-          : goldIdle
-            ? 'text-gold/80 hover:bg-gold/10 hover:text-gold'
-            : 'text-ash hover:bg-white/6 hover:text-chalk',
+          ? 'border-l-court bg-raised font-semibold text-chalk'
+          : 'border-l-transparent text-ash hover:bg-raised hover:text-chalk',
       ].join(' ')}
     >
-      {/* Left accent bar on the active item. */}
-      <span
-        aria-hidden
-        className={`absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-volt transition-opacity duration-200 ${
-          isActive ? 'opacity-100' : 'opacity-0'
-        }`}
-      />
-      <Icon size={18} />
+      <Icon size={18} className={litIcon ? 'text-court' : undefined} />
       {item.label}
     </NavLink>
   )
@@ -83,11 +83,11 @@ function SidebarLink({ item }: { item: NavItem }) {
 
 /*
  * The one control that opens and closes the nav, in the header either way.
- * Deliberately the same 36px glass icon button as the account control beside
- * it, so the header reads as one row rather than a hamburger bolted on. State
- * is carried by the icon's arrow and by a cyan tint while the nav is stowed —
- * the same accent the sidebar uses for "you are here", saying something is
- * parked out of view.
+ * Deliberately the same 36px icon button as the account control beside it, so
+ * the header reads as one row rather than a hamburger bolted on. State is
+ * carried by the icon's arrow and by an orange tint while the nav is stowed — the
+ * same colour the sidebar uses for "you are here", saying something is parked
+ * out of view.
  */
 function NavToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) {
   const Icon = open ? PanelLeftClose : PanelLeftOpen
@@ -103,7 +103,7 @@ function NavToggle({ open, onToggle }: { open: boolean; onToggle: () => void }) 
       // Hidden wherever there is no sidebar: what it opens is the sidebar, and
       // on a phone the nav is the bottom bar, which stays put.
       className={`hidden h-9 w-9 shrink-0 items-center justify-center rounded-btn transition-colors hover:bg-raised hover:text-chalk desk:flex ${
-        open ? 'text-ash' : 'bg-white/6 text-volt'
+        open ? 'text-ash' : 'bg-court/15 text-court'
       }`}
     >
       <Icon size={18} />
@@ -132,7 +132,7 @@ function AccountControl() {
       placement="down"
       align="end"
       triggerLabel="Your account"
-      triggerClassName="flex items-center gap-2 rounded-btn px-1 py-1 transition-colors hover:bg-white/6"
+      triggerClassName="flex items-center gap-2 rounded-btn px-1 py-1 transition-colors hover:bg-chalk/6"
       onSignOut={logout}
       trigger={
         <>
@@ -159,15 +159,15 @@ export function AppShell() {
 
   return (
     <div className="relative flex min-h-full">
-      {/* Sidebar — glass, floating over the body's layered background. Closing
+      {/* Sidebar — an opaque column beside the body's layered background. Closing
           it animates the width to zero; the inner column keeps its own width so
           the links slide out of view instead of reflowing on the way. `inert`
           keeps the hidden links out of tab order and screen readers. */}
       <aside
         id="app-nav"
         inert={!navOpen}
-        className={`sticky top-0 hidden h-screen shrink-0 flex-col overflow-hidden bg-panel/60 backdrop-blur-xl transition-[width] duration-300 desk:flex ${
-          navOpen ? 'w-60 border-r border-white/6' : 'w-0'
+        className={`sticky top-0 hidden h-screen shrink-0 flex-col overflow-hidden bg-void transition-[width] duration-300 desk:flex ${
+          navOpen ? 'w-60 border-r border-chalk/10' : 'w-0'
         }`}
       >
         {/* Top padding is spelled out rather than using `pt-safe`: that utility
@@ -193,7 +193,7 @@ export function AppShell() {
             window edge. On a short viewport the header gives a row back to the
             page: 64px of chrome out of 360px of height is a sixth of the
             screen, and the row only carries a brand and two controls. */}
-        <header className="pt-safe px-safe sticky top-0 z-30 flex h-[calc(4rem+env(safe-area-inset-top))] items-center justify-between gap-4 border-b border-white/6 bg-panel/50 backdrop-blur-xl sm:[--pad-x:1.5rem] lg:[--pad-x:2rem] short:h-[calc(3rem+env(safe-area-inset-top))]">
+        <header className="pt-safe px-safe sticky top-0 z-30 flex h-[calc(4rem+env(safe-area-inset-top))] items-center justify-between gap-4 border-b border-chalk/10 bg-void sm:[--pad-x:1.5rem] lg:[--pad-x:2rem] short:h-[calc(3rem+env(safe-area-inset-top))]">
           <div className="flex min-w-0 items-center gap-2">
             <NavToggle open={navOpen} onToggle={toggleNav} />
             {/* The brand lives in the header wherever the sidebar isn't showing

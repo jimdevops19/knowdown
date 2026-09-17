@@ -17,7 +17,7 @@ export function Table({ children, className = '' }: { children: ReactNode; class
 export function TableHead({ children }: { children: ReactNode }) {
   return (
     <thead>
-      <tr className="border-b border-white/8">{children}</tr>
+      <tr className="border-b border-chalk/8">{children}</tr>
     </thead>
   )
 }
@@ -45,7 +45,7 @@ export function TableBody({ children }: { children: ReactNode }) {
 }
 
 export function TableRow({ children }: { children: ReactNode }) {
-  return <tr className="border-b border-white/5 last:border-0">{children}</tr>
+  return <tr className="border-b border-chalk/5 last:border-0">{children}</tr>
 }
 
 export function TableCell({

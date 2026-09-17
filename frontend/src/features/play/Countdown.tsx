@@ -9,9 +9,16 @@ import type { QuestionClock } from '../../hooks/useQuestionClock'
  * when it starts to matter). One channel would not do — a bar alone cannot tell
  * 1.4s from 0.6s, and a numeral alone demands a glance away from the board.
  *
- * It goes from cyan to amber to red as it drains, which is a third channel, and
- * an unreliable one: colour-blind players get the width and the digits, which
- * is why those two carry the information and the colour only reinforces it.
+ * It runs white → gold → crimson as it drains, which is a third channel, and an
+ * unreliable one: colour-blind players get the width and the digits, which is
+ * why those two carry the information and the colour only reinforces it.
+ *
+ * It starts *white* rather than in the brand orange, and that is a deliberate
+ * exception to "the hot thing is orange". This bar is on screen for the whole
+ * of every question. Painted orange from second ten it would be the largest
+ * permanently-lit brand element in the app, which spends the colour on a
+ * constant and leaves the escalation nowhere to go — gold and crimson only read
+ * as *rising* if the thing they rise from is neutral.
  *
  * The bar's width is driven by an inline style rather than a CSS transition.
  * A transition would interpolate *toward* each frame's value, lagging the real
@@ -28,12 +35,15 @@ export function Countdown({ clock, label }: { clock: QuestionClock; label?: stri
       ? 'bg-wrong'
       : fraction < 0.6
         ? 'bg-gold'
-        : 'bg-volt'
+        : 'bg-chalk'
 
   return (
     <div className="flex items-center gap-3">
+      {/* Squared off, not a pill. A flat draining block is the shot clock; a
+          rounded capsule is a download progress bar, and the two say very
+          different things about how much the next second matters. */}
       <div
-        className="h-2 flex-1 overflow-hidden rounded-full bg-white/8"
+        className="h-2.5 flex-1 overflow-hidden rounded-[2px] bg-chalk/8"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={10}
@@ -42,7 +52,7 @@ export function Countdown({ clock, label }: { clock: QuestionClock; label?: stri
         aria-label={label ?? 'Time left on this question'}
       >
         <div
-          className={`h-full rounded-full ${tone}`}
+          className={`h-full ${tone}`}
           style={{ width: `${Math.max(0, fraction) * 100}%` }}
         />
       </div>

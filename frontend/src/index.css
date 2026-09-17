@@ -1,16 +1,29 @@
 /* Tailwind v4: one import pulls in the framework. */
 @import 'tailwindcss';
 
-/* Self-hosted, offline-safe. Space Grotesk carries the display voice — a
-   geometric grotesk with enough character to read as a *game* rather than a
-   dashboard; Inter carries everything that has to be read fast under a clock. */
-@import '@fontsource/space-grotesk/500.css';
-@import '@fontsource/space-grotesk/600.css';
-@import '@fontsource/space-grotesk/700.css';
-@import '@fontsource/inter/400.css';
-@import '@fontsource/inter/500.css';
-@import '@fontsource/inter/600.css';
-@import '@fontsource/inter/700.css';
+/* Self-hosted, offline-safe.
+ *
+ * Both faces are chosen *against* the defaults. Inter and Space Grotesk are the
+ * two typefaces a model reaches for when nobody has decided anything, and the
+ * pair has become a tell in its own right — the visual equivalent of leaving the
+ * placeholder text in.
+ *
+ * Archivo Variable carries the display voice, and it is imported from `wdth.css`
+ * rather than `index.css` on purpose: that build ships the *width* axis
+ * (62%–125%) alongside weight. Widened to ~112% at heavy weights it is the
+ * letterform of a stadium scoreboard and a broadcast lower-third — wide, flat-
+ * sided, no geometric circles. That width is the single strongest brand signal
+ * in the app and it costs one extra axis, not a second font file.
+ *
+ * IBM Plex Sans carries the body. It is a working face with real quirks (the
+ * flared stems, the true single-storey `g` in italics) rather than a neutral
+ * grid, and it keeps its shape at 14px on a phone, which is the size most of
+ * this app is actually read at. */
+@import '@fontsource-variable/archivo/wdth.css';
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-sans/700.css';
 
 /* ── Phone chrome vs. desktop chrome ──────────────────────────────────────
  * This is a phone game first, and a phone in landscape is still a phone: at
@@ -47,80 +60,153 @@
 @custom-variant short (@media (max-height: 559px));
 
 /*
- * ── knowdown design tokens ───────────────────────────────────────────────
- * "Futuristic sports": violet primary, cyan accent, near-black layered
- * surfaces, and a verdict palette that has to be legible in the half-second
- * between a question closing and the next one opening.
+ * ── knowdown design tokens — "FLOODLIT" ──────────────────────────────────
  *
- * Token *names* are semantic, not literal ("violet", "cyan"), so the whole app
- * restyles from this one file — the values change, the class names used across
- * every component don't:
- *   court      → primary / violet (buttons, the active thing, *your* side)
- *   volt       → accent / cyan (live pulses, the clock, links, focus)
+ * The brief for this system was as much about what it must *not* look like.
+ * A violet-to-cyan accent pair on a blue-black surface, wrapped in soft
+ * 20px corners and coloured glows, is the house style of every interface a
+ * language model produces when no human has decided anything — the lineage
+ * runs from Tailwind UI's placeholder `indigo-500` through the training data
+ * and back out again. It is now a recognisable signature, and a sports game
+ * wearing it reads as generated rather than made.
+ *
+ * So the reference is not "futuristic tech". It is the visual language live
+ * sport already has, and specifically the one the scores apps use: LiveScore's
+ * own stylesheet is an orange (#ff6b00) and a near-white (#fdfdfd) over a flat
+ * neutral graphite (#181818), and almost nothing else. That is the shape of
+ * this system —
+ *
+ *   · surfaces are *neutral* graphite: no blue cast, and no warm cast either.
+ *     An orange this saturated needs a grey ground to stay orange; over a warm
+ *     or olive ink it turns muddy, and over a blue-black one it turns into a
+ *     warning label.
+ *   · one loud colour does all the brand work, and it is orange. Everything the
+ *     app does that is *hot* — the call to action, your side, the search rings,
+ *     the live pulse — is the same colour, because they are the same idea.
+ *   · the rest of the palette is functional, never decorative, and each hue is
+ *     chosen to sit far from the orange: azure for the opponent, green and
+ *     crimson for the two verdicts, gold for rank.
+ *   · edges are cut, not pillowed, and emphasis is a 1px keyline rather than a
+ *     coloured halo. Broadcast graphics are flat plates and hard rules; the
+ *     glow is what makes a dark UI look sprayed-on.
+ *
+ * Token *names* stay semantic, so the whole app restyles from this one file —
+ * the values change, the class names used across every component don't:
+ *   court      → primary (buttons, the active thing, *your* side)
+ *   volt       → live (the clock, pulses, links) — the brand orange, lit
  *   gold       → winners, ladder positions, badges (used sparingly)
  *   correct / wrong → the two verdicts, and nothing else
  *   rival      → the opponent's side of every scoreboard
  *
  * Anything under @theme becomes utilities automatically:
- *   --color-court     → bg-court / text-court / border-court
- *   --radius-card     → rounded-card
- *   --shadow-glow-violet → shadow-glow-violet
- *   --animate-slide-up   → animate-slide-up
+ *   --color-court       → bg-court / text-court / border-court
+ *   --radius-card       → rounded-card
+ *   --shadow-edge-court → shadow-edge-court
+ *   --animate-slide-up  → animate-slide-up
  */
 @theme {
-  /* Brand + surfaces */
-  --color-court: #7c3aed; /* primary — violet */
-  --color-deep-court: #6d28d9; /* primary hover / pressed */
-  --color-volt: #22d3ee; /* accent — cyan */
-  --color-deep-volt: #06b6d4;
-  --color-gold: #fbbf24; /* winners, ladder, badges — used sparingly */
+  /* Primary — the brand orange, taken from LiveScore's own stylesheet. Carries
+     every call to action and *your* side of a scoreboard.
 
-  /* Text */
-  --color-chalk: #ffffff;
-  --color-ash: #a1a1aa; /* secondary text */
+     Its foreground is `void`, not `chalk`, and that is measured rather than
+     chosen: near-white on this orange is 2.81:1, which fails AA outright —
+     LiveScore ships exactly that pairing on their site and it should not be
+     copied. Dark ink on the same fill is 6.89:1. It also gives the button the
+     opposite silhouette to the white-on-violet default. */
+  --color-court: #ff6b00;
+  --color-deep-court: #e05e00; /* hover / pressed */
 
-  /* Backgrounds, darkest to lightest */
-  --color-void: #050506; /* deepest surface — behind everything */
-  --color-court-black: #09090b; /* app background */
-  --color-panel: #131318; /* cards / secondary surface */
-  --color-raised: #1c1c23; /* elevated: inputs, table headers, hovered rows */
+  /* Live — the same orange, lit. The clock, the pulsing dot, links, the search
+     rings.
+
+     This *deliberately* does not introduce a second hue. An earlier draft made
+     "live" a separate colour from "primary", which split the app's voice in
+     two: the matchmaking rings pulsed in one colour while the button that
+     started the match was another. They are the same idea — the hot thing, the
+     thing happening — so they are the same colour, one step brighter here so a
+     pulse still separates from a solid fill behind it. */
+  --color-volt: #ff8f2e;
+  --color-deep-volt: #eb7d1a;
+
+  /* Rank — gold, and kept *light* rather than bronzed. Bronze sits right on top
+     of the primary orange; separating rank from brand by lightness works where
+     separating it by hue cannot, since both live in the same warm quarter of
+     the wheel. Sparingly used — podiums, ladders, the winner's banner. */
+  --color-gold: #ffc94d;
+
+  /* Text. Near-white, matching the neutral surfaces: with a grey ground and an
+     orange accent, a warm cream text would be the third temperature on screen
+     and would read as an unintended tint rather than as a choice. */
+  --color-chalk: #fdfdfd;
+  --color-ash: #a3a3a3; /* secondary text — 7.4:1 on the app background, AAA */
+
+  /* Surfaces, darkest to lightest. Pure neutral greys, no cast in either
+     direction — `panel` is LiveScore's own #181818. This is what lets the
+     orange stay the only colour on screen: any tint in the ground either fights
+     it (blue) or muddies it (olive, which an earlier draft of this system used
+     and which turned every orange surface brown). */
+  --color-void: #0b0b0b; /* deepest surface — behind everything */
+  --color-court-black: #121212; /* app background */
+  --color-panel: #181818; /* cards / secondary surface */
+  --color-raised: #242424; /* elevated: inputs, table headers, hovered rows */
 
   /* Verdicts. Deliberately *not* the generic success/error pair: these two say
      "you got it" and "you didn't", and nothing in this app should borrow them
      to mean "saved" or "network down" — a green flash on a question board can
-     only mean one thing. */
-  --color-correct: #34d399;
-  --color-wrong: #f43f5e;
+     only mean one thing.
 
-  /* The opponent. Amber rather than a second violet: the whole live screen is
-     two sides being told apart at a glance, and two tints of the primary is
-     exactly the distinction that fails on a phone at arm's length. */
-  --color-rival: #fb923c;
+     `wrong` is pushed hard towards crimson. With the brand now orange, the
+     orange-red a "wrong" would naturally sit at would be a near-match for the
+     primary, and the one moment that must never be ambiguous is the half-second
+     after a question closes. */
+  --color-correct: #23df8c;
+  --color-wrong: #ff2e4d;
 
-  /* Everything that is neither verdict nor side: waiting, idle, disabled. */
-  --color-idle: #71717a;
+  /* The opponent. Azure, and the choice is a legibility one before it is an
+     aesthetic one: the whole live screen is two sides being told apart at a
+     glance on a phone at arm's length, and orange-versus-blue survives *both*
+     common forms of colour blindness. It is also the oldest opposition in
+     sport — the two kits that never clash. */
+  --color-rival: #2f9bff;
 
-  /* Typography. Display for headings, scores and the clock; body for prose. */
-  --font-display: 'Space Grotesk', system-ui, sans-serif;
-  --font-sans: 'Inter', system-ui, sans-serif;
+  /* Everything that is neither verdict nor side: waiting, idle, disabled.
+     Held above 4.5:1 on `panel` — "waiting for your opponent" is ordinary text
+     that people read, not decoration, and a muted tone is not a licence to fail
+     contrast. */
+  --color-idle: #8a8a8a;
 
-  /* Border radius scale. Softer than rpool's: a trivia board is a stack of big
-     tappable answer tiles, and a 12px answer tile reads as a form field. */
-  --radius-btn: 14px;
-  --radius-input: 12px;
-  --radius-tile: 18px; /* an answer option — the app's signature shape */
-  --radius-card: 20px;
-  --radius-modal: 24px;
+  /* Typography. Display for headings, scores and the clock; body for prose.
+     `--display-wide` is the width axis setting that makes Archivo read as a
+     scoreboard instead of as a generic grotesque — see the h1–h4 rule. */
+  --font-display: 'Archivo Variable', system-ui, sans-serif;
+  --font-sans: 'IBM Plex Sans', system-ui, sans-serif;
+  --display-wide: 112%;
 
-  /* Depth + glow. Elevation reads as layered, not floating; glow is reserved
-     for the interactive and the live. */
-  --shadow-card: 0 4px 20px -6px rgba(0, 0, 0, 0.6);
-  --shadow-elevated: 0 18px 44px -12px rgba(0, 0, 0, 0.75);
-  --shadow-glow-violet: 0 0 0 1px rgba(124, 58, 237, 0.4), 0 8px 30px -8px rgba(124, 58, 237, 0.65);
-  --shadow-glow-cyan: 0 0 0 1px rgba(34, 211, 238, 0.4), 0 8px 30px -8px rgba(34, 211, 238, 0.6);
-  --shadow-glow-gold: 0 0 0 1px rgba(251, 191, 36, 0.4), 0 8px 30px -8px rgba(251, 191, 36, 0.55);
-  --shadow-glow-correct: 0 0 0 1px rgba(52, 211, 153, 0.45), 0 8px 30px -8px rgba(52, 211, 153, 0.6);
-  --shadow-glow-wrong: 0 0 0 1px rgba(244, 63, 94, 0.45), 0 8px 30px -8px rgba(244, 63, 94, 0.6);
+  /* Border radius scale. Cut, not pillowed. The previous scale topped out at
+     24px, which is the soft-card look that comes bundled with the default
+     palette; broadcast graphics are plates with a barely-broken corner, and
+     the sharper geometry is what lets a big lime button read as equipment
+     rather than as a web component. The tile stays a shade rounder than the
+     button because it is the biggest tap target on the board and a true square
+     corner at that size looks like a modal. */
+  --radius-btn: 6px;
+  --radius-input: 6px;
+  --radius-tile: 8px; /* an answer option — the app's signature shape */
+  --radius-card: 10px;
+  --radius-modal: 14px;
+
+  /* Depth and emphasis.
+     Elevation is a shadow you are not meant to notice. Emphasis is a *keyline*:
+     one crisp pixel of the colour, with no blur behind it. The blurred coloured
+     halo these replace is the other half of the generated look, and on an OLED
+     phone it is also the thing that turns a clean dark screen muddy. */
+  --shadow-card: 0 1px 0 0 rgba(255, 255, 255, 0.03), 0 10px 24px -14px rgba(0, 0, 0, 0.9);
+  --shadow-elevated: 0 1px 0 0 rgba(255, 255, 255, 0.05), 0 24px 50px -22px rgba(0, 0, 0, 0.9);
+  --shadow-edge-court: 0 0 0 1px var(--color-court), 0 6px 16px -10px rgba(0, 0, 0, 0.9);
+  --shadow-edge-volt: 0 0 0 1px var(--color-volt), 0 6px 16px -10px rgba(0, 0, 0, 0.9);
+  --shadow-edge-gold: 0 0 0 1px var(--color-gold), 0 6px 16px -10px rgba(0, 0, 0, 0.9);
+  --shadow-edge-correct: 0 0 0 1px var(--color-correct), 0 6px 16px -10px rgba(0, 0, 0, 0.9);
+  --shadow-edge-wrong: 0 0 0 1px var(--color-wrong), 0 6px 16px -10px rgba(0, 0, 0, 0.9);
 
   /* ── Animation utilities ──────────────────────────────────────────────
      Registering here emits the matching `animate-*` classes. Gate motion at the
@@ -259,35 +345,50 @@
 /* ── Custom utilities ─────────────────────────────────────────────────────
    Reusable helpers so components don't re-declare the same style clusters. */
 
-/* Brand gradient text (violet → cyan) for display headings. */
-@utility text-gradient {
-  background-image: linear-gradient(100deg, var(--color-chalk), var(--color-volt));
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
+/* A display headline in its scoreboard setting: widened, heavy, cut tight.
+   This replaces a violet→cyan gradient-text utility. Gradient type is the most
+   quoted tell of the generated look, and it is also simply worse here — the
+   fade steals contrast from exactly the words that are meant to carry furthest.
+   The emphasis now comes from width and weight, which is how sport does it. */
+@utility text-headline {
+  font-family: var(--font-display);
+  font-stretch: var(--display-wide);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
 }
 
 /* "This row is you" on a ladder. Opaque on purpose: a ladder freezes its first
    columns on a phone, and a translucent tint would let the scrolled cells
    underneath show through them. */
 @utility bg-row-highlight {
-  background-color: color-mix(in oklab, var(--color-volt) 14%, var(--color-panel));
+  background-color: color-mix(in oklab, var(--color-court) 12%, var(--color-panel));
 }
 
-/* A glassmorphism surface: translucent panel + blur + hairline border. */
-@utility glass {
-  background-color: color-mix(in oklab, var(--color-panel) 78%, transparent);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+/* The app's base surface: a flat, opaque plate with a hairline edge.
+ *
+ * This replaces the glassmorphism (`glass`) it is named after. Frosted
+ * translucency was doing three unhelpful things at once: it made every panel a
+ * slightly different colour depending on what happened to scroll behind it, it
+ * cost a `backdrop-filter` composite on each of a dozen surfaces on a mid-range
+ * phone, and it is period-specific in a way that dates the app.
+ *
+ * Opaque instead, with the top edge one shade lighter than the bottom — a
+ * single-pixel highlight that reads as a physical plate catching the
+ * floodlight, which is the whole conceit of the palette. */
+@utility plate {
+  background-color: var(--color-panel);
+  border: 1px solid rgba(253, 253, 253, 0.07);
+  border-top-color: rgba(253, 253, 253, 0.12);
 }
 
 /* The animated shimmer fill used by <Skeleton />. */
 @utility skeleton-fill {
   background-image: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.04) 25%,
-    rgba(255, 255, 255, 0.1) 37%,
-    rgba(255, 255, 255, 0.04) 63%
+    rgba(253, 253, 253, 0.04) 25%,
+    rgba(253, 253, 253, 0.09) 37%,
+    rgba(253, 253, 253, 0.04) 63%
   );
   background-size: 200% 100%;
 }
@@ -440,8 +541,21 @@ body {
   overscroll-behavior-y: contain;
 }
 
-/* Layered depth instead of a flat fill: two spotlights over near-black, held
- * still while content scrolls.
+/* The floodlight, and the pitch under it.
+ *
+ * What this replaces was three coloured radial blooms — violet at the top left,
+ * cyan at the top right, violet again at the bottom. Corner blooms in the
+ * accent colours are the background half of the generated look, and two hues
+ * pulling in opposite directions leaves the middle of every screen a muddy
+ * neutral.
+ *
+ * One light source instead, and it is *white*, hung high and centred the way a
+ * floodlight is. Colour arrives only as the faintest orange spill low down —
+ * the brand bleeding up from under the content, at an alpha low enough that it
+ * is felt rather than seen. Under both, a set of hairline bands at roughly
+ * 1.5%: invisible as stripes, but enough texture that the dark areas read as a
+ * surface rather than as empty #000. Texture is the thing a default dark theme
+ * never has.
  *
  * A fixed layer rather than `background-attachment: fixed` on <body>. Mobile
  * Safari doesn't honour fixed attachment against the scrolling viewport; it
@@ -456,9 +570,13 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background-image:
-    radial-gradient(1100px 620px at 10% -14%, rgba(124, 58, 237, 0.2), transparent 60%),
-    radial-gradient(1000px 560px at 100% 0%, rgba(34, 211, 238, 0.1), transparent 55%),
-    radial-gradient(900px 700px at 50% 120%, rgba(124, 58, 237, 0.08), transparent 60%);
+    repeating-linear-gradient(
+      180deg,
+      rgba(253, 253, 253, 0.015) 0 1px,
+      transparent 1px 7px
+    ),
+    radial-gradient(1200px 700px at 50% -20%, rgba(253, 253, 253, 0.07), transparent 62%),
+    radial-gradient(900px 600px at 50% 118%, rgba(255, 107, 0, 0.07), transparent 60%);
 }
 
 /* The dynamic viewport unit tracks the mobile URL bar as it hides and shows, so
@@ -469,13 +587,20 @@ body::before {
 
 /* Display face for anything meant to be *seen* rather than read: headings, the
    clock, scores. Applied here rather than per-component so a heading is a
-   heading without every file remembering the font token. */
+   heading without every file remembering the font token.
+
+   The width axis is the point. At 112% Archivo stops being a neutral grotesque
+   and becomes the wide, flat-sided lettering of a stadium scoreboard, and the
+   negative tracking packs it into the block that broadcast type sits in. A
+   browser without variable-width support simply gets the normal width — the
+   heading is still a heading, just less loud. */
 h1,
 h2,
 h3,
 h4 {
   font-family: var(--font-display);
-  letter-spacing: -0.01em;
+  font-stretch: var(--display-wide);
+  letter-spacing: -0.025em;
 }
 
 /* Touch targets: `manipulation` opts out of double-tap-to-zoom, which is what
@@ -515,35 +640,48 @@ summary {
   }
 }
 
+/* Highlighted text takes the primary and flips to dark ink, the same way every
+   other lime surface in the app does. */
 ::selection {
-  background: color-mix(in oklab, var(--color-volt) 40%, transparent);
-  color: var(--color-chalk);
+  background: var(--color-court);
+  color: var(--color-void);
 }
 
-/* Slim, themed scrollbars. */
+/* Slim, themed scrollbars. Squared off to match the shape scale — a pill
+   scrollbar beside 6px corners is the one leftover from the old geometry that
+   is visible on every long page. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(161, 161, 170, 0.28) transparent;
+  scrollbar-color: rgba(163, 163, 163, 0.3) transparent;
 }
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background-color: rgba(161, 161, 170, 0.28);
-  border-radius: 9999px;
-  border: 2px solid transparent;
+  background-color: rgba(163, 163, 163, 0.3);
+  border-radius: 2px;
+  border: 3px solid transparent;
   background-clip: content-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(161, 161, 170, 0.45);
+  background-color: rgba(163, 163, 163, 0.5);
 }
 
-/* Consistent focus ring: a cyan halo on keyboard focus. */
+/* Consistent focus ring, in plain white.
+ *
+ * Not the brand colour, and that is the whole reason it is white. Now that the
+ * primary, the live state and the search rings are all one orange, an orange
+ * focus ring around an orange button would be invisible — the single control
+ * most likely to be focused is the one it would disappear on. White is the only
+ * value in the palette guaranteed to contrast with every surface *and* every
+ * fill the app can put underneath it. The dark offset ring underneath keeps it
+ * visible on the bright fills too. */
 :focus-visible {
-  outline: 2px solid var(--color-volt);
+  outline: 2px solid var(--color-chalk);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 3px;
+  box-shadow: 0 0 0 4px var(--color-void);
 }
 
 /* Accessibility: honour reduced-motion by neutralizing animation/transition.

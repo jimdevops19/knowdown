@@ -35,7 +35,8 @@ import { StatusBadge } from '../components/StatusBadge'
  * during play the opponent is "Rival" with a colour derived from their id.
  *
  * ── The clock decides nothing ───────────────────────────────────────────────
- * `useQuestionClock` draws the server's ten seconds; it does not enforce them.
+ * `useQuestionClock` draws the server's clock for this question — however long
+ * the server said it is — but it does not enforce it.
  * When it hits zero the board stops taking taps — that's all — and the question
  * genuinely closes when a `question.result` arrives. The two are within a round
  * trip of each other, and the gap belongs to the server.
@@ -47,7 +48,11 @@ export function MatchPage() {
   const queryClient = useQueryClient()
 
   const match = useMatchup(id || null, playerId)
-  const clock = useQuestionClock(match.phase === 'question' ? (match.current?.seenAt ?? null) : null)
+  const onQuestion = match.phase === 'question'
+  const clock = useQuestionClock(
+    onQuestion ? (match.current?.seenAt ?? null) : null,
+    onQuestion ? (match.current?.timeLimitMs ?? null) : null,
+  )
 
   // The match that just ended is a different document from the one any cached
   // box score holds, and the history list has a new row in it. Invalidate on

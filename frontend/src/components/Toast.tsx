@@ -137,7 +137,7 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
     <div
       role="status"
       aria-live={toast.level === 'error' ? 'assertive' : 'polite'}
-      className={`glass pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-modal border ${ring} px-4 py-3 shadow-elevated motion-safe:animate-slide-up`}
+      className={`plate pointer-events-auto flex w-full max-w-sm items-start gap-3 rounded-modal border ${ring} px-4 py-3 shadow-elevated motion-safe:animate-slide-up`}
     >
       <Icon size={18} className={`mt-0.5 shrink-0 ${accent}`} />
       <div className="min-w-0 flex-1">
@@ -148,7 +148,7 @@ function ToastCard({ toast, onDismiss }: { toast: Toast; onDismiss: () => void }
         type="button"
         onClick={onDismiss}
         aria-label="Dismiss"
-        className="-mr-1 -mt-1 shrink-0 rounded-btn p-1 text-ash transition-colors hover:bg-white/10 hover:text-chalk"
+        className="-mr-1 -mt-1 shrink-0 rounded-btn p-1 text-ash transition-colors hover:bg-chalk/10 hover:text-chalk"
       >
         <X size={16} />
       </button>

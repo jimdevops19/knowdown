@@ -60,15 +60,15 @@ function Choice({
   const isPicked = picked === value
   const tone = isPicked
     ? verdict === 'correct'
-      ? 'border-correct bg-correct/20 shadow-glow-correct motion-safe:animate-verdict-correct'
+      ? 'border-correct bg-correct/20 shadow-edge-correct motion-safe:animate-verdict-correct'
       : verdict === 'wrong'
-        ? 'border-wrong bg-wrong/15 shadow-glow-wrong motion-safe:animate-verdict-wrong'
-        : 'border-court bg-court/25 shadow-glow-violet'
+        ? 'border-wrong bg-wrong/15 shadow-edge-wrong motion-safe:animate-verdict-wrong'
+        : 'border-court bg-court/25 shadow-edge-court'
     : locked
-      ? 'border-white/8 bg-panel/50 opacity-55'
+      ? 'border-chalk/8 bg-panel/50 opacity-55'
       : value
-        ? 'border-white/10 bg-panel/80 hover:border-correct/50 hover:bg-correct/10 active:scale-[0.985]'
-        : 'border-white/10 bg-panel/80 hover:border-wrong/50 hover:bg-wrong/10 active:scale-[0.985]'
+        ? 'border-chalk/10 bg-panel/80 hover:border-correct/50 hover:bg-correct/10 active:scale-[0.985]'
+        : 'border-chalk/10 bg-panel/80 hover:border-wrong/50 hover:bg-wrong/10 active:scale-[0.985]'
 
   const Icon = value ? Check : X
 
