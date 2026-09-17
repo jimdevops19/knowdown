@@ -64,7 +64,15 @@ export function useQuestionClock(startedAt: number | null): QuestionClock {
     }
   }
 
-  const remainingMs = Math.max(0, QUESTION_TIME_LIMIT_MS - (now - startedAt))
+  // Clamped on both ends: the lower bound stops it reading negative once the
+  // clock runs out, and the upper bound is what keeps the read-delay window
+  // (`startedAt` in the future — see `useMatchup`'s `seenAt`) from showing a
+  // bar over-full or a numeral counting up. Nothing here draws that delay on
+  // purpose; the bar just sits full and still until the clock actually starts.
+  const remainingMs = Math.min(
+    QUESTION_TIME_LIMIT_MS,
+    Math.max(0, QUESTION_TIME_LIMIT_MS - (now - startedAt)),
+  )
   return {
     remainingMs,
     // Floored, not rounded: a clock reading "1.0s" with 40ms left has told the

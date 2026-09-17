@@ -18,6 +18,7 @@ import {
   type ServerMessage,
 } from './messages'
 import { subscribe, type ConnectionState, type Subscription } from './socket'
+import { QUESTION_READ_DELAY_MS } from '../config'
 
 /*
  * A live matchup, as a state machine over the socket's event stream.
@@ -58,11 +59,13 @@ export type MatchPhase =
 export interface LiveQuestion {
   order: number
   question: PlayQuestion
-  /** `Date.now()` when the `question.started` frame arrived. Used only to draw
-   *  the countdown, and deliberately not to compute a response time: the
-   *  server measures that against its own stamp, and it is the only figure
-   *  that is scored. The two differ by the trip time, which is precisely the
-   *  latency the client must not be able to talk its way out of. */
+  /** `Date.now() + QUESTION_READ_DELAY_MS` when the `question.started` frame
+   *  arrived — the countdown's zero-point, not the moment the board appeared.
+   *  Used only to draw the countdown, and deliberately not to compute a
+   *  response time: the server measures that against its own (similarly
+   *  delayed) stamp, and it is the only figure that is scored. The two differ
+   *  by the trip time, which is precisely the latency the client must not be
+   *  able to talk its way out of. */
   seenAt: number
 }
 
@@ -170,8 +173,16 @@ function reduce(state: MatchupState, action: Action): MatchupState {
               // Keep the original stamp when resuming: the clock has been
               // running the whole time, and restarting it here would hand a
               // reconnecting player a fresh ten seconds on screen while the
-              // server closes the question underneath them.
-              seenAt: resuming && state.current ? state.current.seenAt : Date.now(),
+              // server closes the question underneath them. A fresh question
+              // gets its zero-point pushed `QUESTION_READ_DELAY_MS` into the
+              // future rather than starting counting down immediately — the
+              // board is shown right away either way, only the clock waits —
+              // mirroring the same delay the server applies to its own stamp
+              // (`apps.matches.constants.QUESTION_READ_DELAY_SECONDS`).
+              seenAt:
+                resuming && state.current
+                  ? state.current.seenAt
+                  : Date.now() + QUESTION_READ_DELAY_MS,
             },
             mySubmission: resuming ? state.mySubmission : null,
             opponentAnswered: resuming ? state.opponentAnswered : false,

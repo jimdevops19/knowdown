@@ -31,6 +31,7 @@ badges and moves ratings exactly once.
 from __future__ import annotations
 
 import random
+from datetime import timedelta
 
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -42,6 +43,7 @@ from apps.matches import selectors
 from apps.matches.constants import (
     MATCH_QUESTION_COUNTS,
     PLAYERS_PER_MATCHUP,
+    QUESTION_READ_DELAY_MS,
     score_answer,
     time_limit_ms_for,
 )
@@ -163,13 +165,21 @@ def start_matchup(*, matchup: Matchup) -> Matchup:
 def start_question(*, matchup: Matchup, order: int) -> MatchupQuestion:
     """Stamps ``T0`` for one question. Idempotent: called again for a
     question already open, it just returns it — a reconnecting player asking
-    for the current question (Phase D) is not an error."""
+    for the current question (Phase D) is not an error.
+
+    ``T0`` is set ``QUESTION_READ_DELAY_MS`` into the future, not "now": the
+    board is broadcast the moment this returns, but the clock everything else
+    measures against — the time-limit check in ``submit_answer``, the
+    deadline in ``complete_question``, the watchdog's sleep — does not start
+    until then, giving players a beat to read the question before the
+    countdown they see is actually running against them.
+    """
     if matchup.status != Matchup.Status.ACTIVE:
         raise Conflict(f"Matchup {matchup.pk} is {matchup.status}, not active.")
 
     question = selectors.get_matchup_question(matchup=matchup, order=order)
     if question.started_at is None:
-        question.started_at = timezone.now()
+        question.started_at = timezone.now() + timedelta(milliseconds=QUESTION_READ_DELAY_MS)
         question.save(update_fields=["started_at"])
     return question
 

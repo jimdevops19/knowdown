@@ -36,7 +36,11 @@ from apps.matches import selectors as match_selectors
 from apps.matches import services as match_services
 from apps.matches.bots import controller as bot_controller
 from apps.matches.bots.selection import pick_bot_player_id
-from apps.matches.constants import RECONNECT_GRACE_SECONDS, time_limit_ms_for
+from apps.matches.constants import (
+    QUESTION_READ_DELAY_MS,
+    RECONNECT_GRACE_SECONDS,
+    time_limit_ms_for,
+)
 from apps.matches.pool import PoolTimeout, claim_for_bot, join_pool, leave_pool
 from apps.players.services import ensure_player_for_user
 from apps.questions.api.serializers import serialize_for_play
@@ -110,7 +114,14 @@ class _WatchdogMixin:
     async def _watch_question_timeout(
         self, *, matchup_id: UUID | str, order: int, time_limit_ms: int
     ) -> None:
-        await asyncio.sleep(time_limit_ms / 1000 + 0.5)  # a small margin over the server clock
+        # This is scheduled right when the question is dealt, but the clock
+        # it is watching (``MatchupQuestion.started_at``) does not start
+        # until ``QUESTION_READ_DELAY_MS`` later — so the sleep has to cover
+        # that read delay too, or the watchdog would fire while the server's
+        # own deadline still has a beat left on it.
+        await asyncio.sleep(
+            (QUESTION_READ_DELAY_MS + time_limit_ms) / 1000 + 0.5
+        )  # a small margin over the server clock
         await database_sync_to_async(_close_question_if_ready)(matchup_id=matchup_id, order=order)
 
 

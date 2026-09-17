@@ -23,6 +23,8 @@ __all__ = [
     "PLAYERS_PER_MATCHUP",
     "POOL_WAITING_TTL_SECONDS",
     "PRESENCE_TTL_SECONDS",
+    "QUESTION_READ_DELAY_MS",
+    "QUESTION_READ_DELAY_SECONDS",
     "RECONNECT_GRACE_SECONDS",
     "score_answer",
     "time_limit_ms_for",
@@ -65,6 +67,25 @@ FALLBACK_QUESTION_TIME_LIMIT_MS = FALLBACK_QUESTION_TIME_LIMIT_SECONDS * 1000
 FALLBACK_QUESTION_TIME_LIMITS_MS: dict[QuestionType, int] = {
     QuestionType.MATRIX: 20_000,
 }
+
+#: How long a question is on screen before its clock starts running — time to
+#: read it before the countdown (and eligibility to be timed out) begins.
+#: ``start_question`` stamps ``MatchupQuestion.started_at`` this far in the
+#: future of the moment the question is dealt, rather than stamping "now" and
+#: delaying the broadcast: the board still reaches the client immediately, so
+#: nothing here is a loading spinner, and a submission that lands during this
+#: window is simply timed at effectively zero elapsed rather than refused —
+#: there is no separate "not open yet" state to reject it with. Everything
+#: downstream that reasons about the clock (``submit_answer``'s time-limit
+#: check, ``complete_question``'s deadline, the realtime watchdog's sleep)
+#: reads ``started_at`` rather than "whenever the question was dealt", so all
+#: three shift together automatically and cannot drift out of step with each
+#: other. Mirrored on the frontend by ``QUESTION_READ_DELAY_MS``
+#: (``frontend/src/lib/config.ts``) purely to draw a matching, non-ticking
+#: bar during the delay — the number here is the one that actually gates
+#: scoring and the forced close.
+QUESTION_READ_DELAY_SECONDS = 3
+QUESTION_READ_DELAY_MS = QUESTION_READ_DELAY_SECONDS * 1000
 
 
 def time_limit_ms_for(*, question_type: QuestionType, override_seconds: int | None = None) -> int:
