@@ -22,8 +22,8 @@ export function useAuth() {
     useAuthStore.getState().setUser(me)
   }
 
-  async function register(email: string, password: string) {
-    const { access } = await authApi.register(email, password)
+  async function register(email: string, password1: string, password2: string) {
+    const { access } = await authApi.register(email, password1, password2)
     useAuthStore.getState().setAccessToken(access)
     const me = await authApi.getMe()
     useAuthStore.getState().setUser(me)

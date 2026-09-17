@@ -7,6 +7,7 @@ import {
   CLOSE_RATE_LIMITED,
   CLOSE_UNAUTHENTICATED,
   ERROR,
+  FORFEIT,
   MATCH_COMPLETED,
   OPPONENT_DISCONNECTED,
   OPPONENT_RECONNECTED,
@@ -18,7 +19,6 @@ import {
   type ServerMessage,
 } from './messages'
 import { subscribe, type ConnectionState, type Subscription } from './socket'
-import { QUESTION_READ_DELAY_MS } from '../config'
 
 /*
  * A live matchup, as a state machine over the socket's event stream.
@@ -59,13 +59,13 @@ export type MatchPhase =
 export interface LiveQuestion {
   order: number
   question: PlayQuestion
-  /** `Date.now() + QUESTION_READ_DELAY_MS` when the `question.started` frame
-   *  arrived — the countdown's zero-point, not the moment the board appeared.
-   *  Used only to draw the countdown, and deliberately not to compute a
-   *  response time: the server measures that against its own (similarly
-   *  delayed) stamp, and it is the only figure that is scored. The two differ
-   *  by the trip time, which is precisely the latency the client must not be
-   *  able to talk its way out of. */
+  /** The server's own `MatchupQuestion.started_at` (`started_at_ms` on the
+   *  wire) — the countdown's zero-point, not the moment this client's socket
+   *  happened to receive the frame. Used only to draw the countdown, and
+   *  deliberately not to compute a response time: the server measures that
+   *  itself against this same stamp, and it is the only figure that is
+   *  scored. The two can still differ by trip time — a difference this
+   *  client must not be able to talk its way out of either way. */
   seenAt: number
   /** How long this question stays open, in milliseconds, as the server said
    *  when it opened it. Per question rather than a constant: the limit depends
@@ -175,19 +175,17 @@ function reduce(state: MatchupState, action: Action): MatchupState {
             current: {
               order: message.order,
               question: message.question,
-              // Keep the original stamp when resuming: the clock has been
-              // running the whole time, and restarting it here would hand a
-              // reconnecting player a fresh ten seconds on screen while the
-              // server closes the question underneath them. A fresh question
-              // gets its zero-point pushed `QUESTION_READ_DELAY_MS` into the
-              // future rather than starting counting down immediately — the
-              // board is shown right away either way, only the clock waits —
-              // mirroring the same delay the server applies to its own stamp
-              // (`apps.matches.constants.QUESTION_READ_DELAY_SECONDS`).
-              seenAt:
-                resuming && state.current
-                  ? state.current.seenAt
-                  : Date.now() + QUESTION_READ_DELAY_MS,
+              // The server's own stamp, not this client's guess: relying on
+              // "did I already have this order in state" to decide whether to
+              // keep an old clock or start a new one broke the moment the
+              // client's state was gone rather than merely stale — a hard
+              // page refresh, not just a dropped socket — because `resuming`
+              // above is always false then, and a `Date.now()`-based guess
+              // handed a reconnecting player a full fresh countdown on a
+              // question the server had already been timing for a while.
+              // `started_at_ms` is the real zero-point either way, so a fresh
+              // question and a resumed one are now the same code path.
+              seenAt: message.started_at_ms,
               timeLimitMs: message.time_limit_ms,
             },
             mySubmission: resuming ? state.mySubmission : null,
@@ -258,6 +256,14 @@ export interface Matchup extends MatchupState {
   answer: (submission: AnswerSubmission) => void
   /** Whether this player may still act on the current question. */
   canAnswer: boolean
+  /** Give up the match on purpose. Fires once — there is no undo, and the
+   *  server settles it the same way a disconnect that outlasts the reconnect
+   *  grace period is: the opponent is awarded the win. The caller (the
+   *  confirmation modal) is what stands between a stray tap and this. */
+  forfeit: () => void
+  /** Whether forfeiting means anything right now — a live match, not one
+   *  already over or a socket that never connected. */
+  canForfeit: boolean
 }
 
 /**
@@ -321,7 +327,13 @@ export function useMatchup(matchupId: string | null, myPlayerId: string | null):
     [state.current?.order, state.mySubmission, state.phase],
   )
 
-  return { ...state, answer, canAnswer }
+  const canForfeit = state.phase === 'question' || state.phase === 'result'
+
+  const forfeit = useCallback(() => {
+    subscriptionRef.current?.send({ type: FORFEIT })
+  }, [])
+
+  return { ...state, answer, canAnswer, forfeit, canForfeit }
 }
 
 /** The close codes this hook turns into `phase: 'unavailable'`, and what each

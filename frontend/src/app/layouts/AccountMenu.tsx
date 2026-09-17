@@ -4,15 +4,16 @@ import { LogOut, Swords, User } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 /*
- * The account dropdown behind the profile circle — Profile and Matches
- * history, the two destinations "My matches" used to spend its own tab bar
- * slot on, plus Sign out beneath a divider. One component so the desktop
- * header avatar and the phone tab bar's profile icon open the same menu
- * rather than two things that drift apart — Sign out included, which used to
- * live in its own header-only button and so had no way in on the phone bar.
+ * The account dropdown behind the avatar in the header — Profile and Matches
+ * history, the two destinations "My matches" used to spend its own tab bar slot
+ * on, plus Sign out beneath a divider.
  *
- * `placement` flips the panel above the trigger on the phone bar, which is
- * pinned to the bottom edge and has no room to open downward.
+ * The avatar is the only thing that opens it, at every width. The phone tab
+ * bar's Profile tab used to open it too, which meant the one control in that
+ * row that looked like a link wasn't one: tapping it popped a sheet instead of
+ * going to the profile page, and a tab that behaves differently from the four
+ * beside it is a bug however it's spelled. That tab is now a plain link, and
+ * the menu lives where a menu is expected — behind the face, not behind a tab.
  */
 
 const MENU_ITEMS = [
@@ -24,9 +25,7 @@ export function AccountMenu({
   trigger,
   triggerClassName,
   triggerLabel,
-  placement = 'down',
   align = 'end',
-  rootClassName = '',
   onSignOut,
 }: {
   /** The circle/pill itself — icon or avatar. The menu owns the surrounding
@@ -34,11 +33,7 @@ export function AccountMenu({
   trigger: ReactNode
   triggerClassName: string
   triggerLabel: string
-  placement?: 'up' | 'down'
   align?: 'start' | 'end' | 'center'
-  /** Extra classes on the positioning wrapper, e.g. `flex-1` so this item
-   *  claims the same width as its siblings in a flex row of tabs. */
-  rootClassName?: string
   /** Renders a divider and a Sign out row beneath the destinations, when
    *  given — omitted where the trigger has nothing to sign out of. */
   onSignOut?: () => void
@@ -64,10 +59,9 @@ export function AccountMenu({
 
   const alignClass =
     align === 'start' ? 'left-0' : align === 'center' ? 'left-1/2 -translate-x-1/2' : 'right-0'
-  const placementClass = placement === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'
 
   return (
-    <div ref={rootRef} className={`relative flex ${rootClassName}`.trim()}>
+    <div ref={rootRef} className="relative flex">
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
@@ -75,14 +69,14 @@ export function AccountMenu({
         aria-expanded={open}
         aria-label={triggerLabel}
         title={triggerLabel}
-        className={`min-w-0 flex-1 ${triggerClassName}`}
+        className={`min-w-0 ${triggerClassName}`}
       >
         {trigger}
       </button>
       {open && (
         <div
           role="menu"
-          className={`absolute z-50 w-48 overflow-hidden rounded-btn border border-chalk/10 bg-raised py-1 shadow-elevated ${placementClass} ${alignClass}`}
+          className={`absolute top-full z-50 mt-2 w-48 overflow-hidden rounded-btn border border-chalk/10 bg-raised py-1 shadow-elevated ${alignClass}`}
         >
           {MENU_ITEMS.map((item) => {
             const Icon = item.icon

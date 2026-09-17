@@ -78,6 +78,11 @@ export const OPPONENT_RECONNECTED = 'opponent.reconnected'
 /** Client → server: an answer to the question currently open. */
 export const ANSWER_SUBMIT = 'answer.submit'
 
+/** Client → server: give up the match on purpose. Settled the same way a
+ *  disconnect that outlasts the reconnect grace period is — the opponent is
+ *  awarded the win and an ordinary `match.completed` follows. */
+export const FORFEIT = 'match.forfeit'
+
 /* --- Both sockets ---------------------------------------------------------- */
 
 /** A submission the server refused — malformed, or aimed at a question that is
@@ -113,6 +118,14 @@ export interface QuestionStartedMessage {
    *  number to fall back on: drawing the default here would run the countdown
    *  to zero while the server still held the question open. */
   time_limit_ms: number
+  /** The server's own `MatchupQuestion.started_at`, as epoch milliseconds —
+   *  the clock's real zero-point, already past the read-delay window. The
+   *  client draws its countdown from this stamp rather than from whenever its
+   *  own socket happened to receive the frame, which is what lets a
+   *  reconnect — including a hard page refresh, which remembers nothing about
+   *  the question in progress — rebuild the same clock everyone else sees
+   *  instead of guessing a fresh one. */
+  started_at_ms: number
 }
 
 export interface PlayerAnsweredMessage {
@@ -185,6 +198,10 @@ export interface AnswerSubmitMessage {
   type: typeof ANSWER_SUBMIT
   order: number
   payload: AnswerSubmission
+}
+
+export interface ForfeitMessage {
+  type: typeof FORFEIT
 }
 
 /* --- Close codes ------------------------------------------------------------

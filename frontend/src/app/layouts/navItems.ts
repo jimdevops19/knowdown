@@ -26,9 +26,6 @@ export interface NavItem {
    *  again; a lit glyph is enough to say "start here" without the chrome
    *  competing with the screen it frames. */
   accent?: 'court'
-  /** Renders as an account dropdown (Profile / Matches history) instead of a
-   *  plain link — see `AccountMenu`. */
-  dropdown?: true
   /** Only shown once signed in — a guest sees neither the nav slot nor the
    *  page it points at with real content (see `RankingsPage`'s own guard for
    *  the case where the URL is reached directly). */
@@ -63,11 +60,14 @@ export const NAV_ITEMS: NavItem[] = [
 /*
  * Destinations that only make sense — and only route — when signed in.
  *
- * Profile renders as a dropdown (see `AccountMenu`) rather than a plain link:
- * match history moved under it, so the tab bar keeps its five-slot budget
- * without giving "My matches" a slot of its own.
+ * Profile is a plain link in both navs: a tab that looks like every other tab
+ * has to behave like every other tab, and tapping it goes to the profile page.
+ * The account *menu* (Matches history, Sign out) hangs off the avatar in the
+ * header instead, which is where a menu is expected and which is on screen at
+ * every width. That also keeps the tab bar's five-slot budget without giving
+ * "My matches" a slot of its own.
  */
-export const AUTH_NAV_ITEMS: NavItem[] = [{ to: '/me', label: 'Profile', icon: User, dropdown: true }]
+export const AUTH_NAV_ITEMS: NavItem[] = [{ to: '/me', label: 'Profile', icon: User }]
 
 /** Every top-level destination, Play centred, for the signed-in state given. */
 export function navItemsFor(isAuthenticated: boolean): NavItem[] {

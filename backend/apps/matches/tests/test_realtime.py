@@ -289,6 +289,32 @@ class MatchupPlayTests(TransactionTestCase):
         assert matchup.status == Matchup.Status.COMPLETED
         await sock_two.disconnect()
 
+    async def test_a_deliberate_forfeit_awards_the_opponent_the_win_immediately(self):
+        matchup_id, sock_one, sock_two = await self._paired_players()
+        await sock_one.receive_json_from(timeout=5)
+        await sock_two.receive_json_from(timeout=5)
+
+        await sock_one.send_json_to({"type": events.FORFEIT})
+
+        # No grace period to wait out — unlike a disconnect, a forfeit is a
+        # deliberate choice, so the opponent's `MATCH_COMPLETED` follows right
+        # away, with nothing between it and this send.
+        completed_two = await sock_two.receive_json_from(timeout=5)
+        assert completed_two["type"] == events.MATCH_COMPLETED
+        assert completed_two["outcome"] == Matchup.Outcome.ABANDONED
+
+        matchup = await database_sync_to_async(Matchup.objects.get)(pk=matchup_id)
+        assert matchup.status == Matchup.Status.COMPLETED
+        players = await database_sync_to_async(
+            lambda: list(match_selectors.matchup_players(matchup=matchup))
+        )()
+        winner = next(p for p in players if p.is_winner)
+        loser = next(p for p in players if not p.is_winner)
+        assert str(winner.player_id) != str(loser.player_id)
+
+        await sock_one.disconnect()
+        await sock_two.disconnect()
+
     async def test_reconnecting_to_an_already_finished_match_gets_the_result_not_silence(self):
         # The browser-back case: a player who has already seen the result
         # screen navigates away and then back into `/match/:id`, opening a

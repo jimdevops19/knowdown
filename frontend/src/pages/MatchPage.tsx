@@ -1,7 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { WifiOff } from 'lucide-react'
+import { Flag, WifiOff } from 'lucide-react'
 import { useAuth } from '../features/auth/useAuth'
 import { useMatchup, UNAVAILABLE_REASONS } from '../lib/realtime'
 import { useQuestionClock } from '../hooks/useQuestionClock'
@@ -14,6 +14,7 @@ import { MatchSummary } from '../features/play/MatchSummary'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { StatusBadge } from '../components/StatusBadge'
+import { ConfirmDialog } from '../components/ConfirmDialog'
 
 /*
  * `/match/:id` — the live game. The screen this whole app is for.
@@ -48,6 +49,7 @@ export function MatchPage() {
   const queryClient = useQueryClient()
 
   const match = useMatchup(id || null, playerId)
+  const [confirmingForfeit, setConfirmingForfeit] = useState(false)
   const onQuestion = match.phase === 'question'
   const clock = useQuestionClock(
     onQuestion ? (match.current?.seenAt ?? null) : null,
@@ -118,12 +120,29 @@ export function MatchPage() {
               seen is, and that is what is shown. */}
           Question {match.current?.order ?? 1}
         </StatusBadge>
-        {match.phase === 'connecting' && (
-          <span className="flex items-center gap-1.5 text-xs text-gold">
-            <WifiOff size={13} aria-hidden />
-            Reconnecting…
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {match.phase === 'connecting' && (
+            <span className="flex items-center gap-1.5 text-xs text-gold">
+              <WifiOff size={13} aria-hidden />
+              Reconnecting…
+            </span>
+          )}
+          {/* Tucked into the header rather than near the board: a forfeit is
+              reached for between questions, never in the middle of tapping an
+              answer, so it lives beside the other status chrome instead of
+              competing with the tiles for thumb space. */}
+          {match.canForfeit && (
+            <button
+              type="button"
+              onClick={() => setConfirmingForfeit(true)}
+              aria-label="Forfeit match"
+              className="flex items-center gap-1 rounded-btn px-2 py-1 text-xs text-ash transition-colors hover:bg-wrong/10 hover:text-wrong"
+            >
+              <Flag size={13} aria-hidden />
+              Forfeit
+            </button>
+          )}
+        </div>
       </header>
 
       <div className="shrink-0">
@@ -197,6 +216,19 @@ export function MatchPage() {
           <QuestionVerdict results={match.results} myPlayerId={playerId} />
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmingForfeit}
+        title="Forfeit this match?"
+        description="You'll lose immediately and your rival is awarded the win. This can't be undone."
+        confirmLabel="Forfeit"
+        cancelLabel="Keep playing"
+        onCancel={() => setConfirmingForfeit(false)}
+        onConfirm={() => {
+          setConfirmingForfeit(false)
+          match.forfeit()
+        }}
+      />
     </div>
   )
 }

@@ -453,6 +453,19 @@ class MatchupConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
         if message_type == events.PING:
             await self.send_json({"type": events.PONG})
             return
+        if message_type == events.FORFEIT:
+            # Same terminal path a disconnect's grace-period timeout takes
+            # (`_abandon_after_grace` below) — `_abandon` is already
+            # idempotent against a matchup that got there first, so a forfeit
+            # racing the other player's own disconnect settles once either way.
+            summary = await database_sync_to_async(_abandon)(
+                matchup_id=self.matchup_id, player_id=self.player_id
+            )
+            if summary is not None:
+                await _apublish(
+                    publish.publish_match_completed, matchup_id=self.matchup_id, summary=summary
+                )
+            return
         if message_type != events.ANSWER_SUBMIT:
             return
 
@@ -545,6 +558,7 @@ class MatchupConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
                 "order": message["order"],
                 "question": message["question"],
                 "time_limit_ms": message["time_limit_ms"],
+                "started_at_ms": message["started_at_ms"],
             }
         )
         self._spawn(
@@ -629,6 +643,7 @@ def _current_state(*, matchup) -> dict | None:
         "time_limit_ms": time_limit_ms_for(
             question_type=question.question_type, override_seconds=concrete.time_limit_seconds
         ),
+        "started_at_ms": _epoch_ms(question.started_at),
     }
 
 
@@ -662,6 +677,12 @@ def _match_summary(*, matchup) -> dict:
     }
 
 
+def _epoch_ms(dt) -> int:
+    """A ``started_at`` timestamp as epoch milliseconds — the units a
+    ``Date.now()``-based client clock can compare itself against directly."""
+    return int(dt.timestamp() * 1000)
+
+
 def _reconnect_flag_key(matchup_id: str, player_id: str) -> str:
     return f"matches:disconnect:{matchup_id}:{player_id}"
 
@@ -681,6 +702,7 @@ def _close_question_if_ready(*, matchup_id: str, order: int) -> None:
             order=outcome["next"]["order"],
             board=outcome["next"]["question"],
             time_limit_ms=outcome["next"]["time_limit_ms"],
+            started_at_ms=outcome["next"]["started_at_ms"],
         )
     if outcome["summary"] is not None:
         publish.publish_match_completed(matchup_id=matchup_id, summary=outcome["summary"])
@@ -739,6 +761,7 @@ def _try_close_question(*, matchup_id: str, order: int) -> dict | None:
                     question_type=upcoming.question_type,
                     override_seconds=upcoming_concrete.time_limit_seconds,
                 ),
+                "started_at_ms": _epoch_ms(upcoming.started_at),
             }
 
     return {"results": results, "next": next_question, "summary": summary}

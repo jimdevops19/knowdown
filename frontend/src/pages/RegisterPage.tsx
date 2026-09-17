@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../features/auth/useAuth'
 import { useAuthConfig } from '../features/auth/useAuthConfig'
 import { AuthLayout } from '../features/auth/AuthLayout'
+import { GoogleButton } from '../features/auth/GoogleButton'
 import { Button } from '../components/Button'
 import { Field } from '../components/Field'
 import { Input } from '../components/Input'
@@ -32,10 +33,12 @@ export function RegisterPage() {
   const { passwordEnabled } = useAuthConfig()
 
   const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [password1, setPassword1] = useState('')
+  const [password2, setPassword2] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [general, setGeneral] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [googleError, setGoogleError] = useState<string | null>(null)
 
   const next = params.get('next') ?? '/'
 
@@ -47,7 +50,7 @@ export function RegisterPage() {
     setErrors({})
     setGeneral(null)
     try {
-      await register(email, password)
+      await register(email, password1, password2)
       // Straight to the second half. `replace`, so Back from /welcome doesn't
       // land on a sign-up form for an account that now exists.
       navigate(`/welcome?next=${encodeURIComponent(next)}`, { replace: true })
@@ -65,9 +68,15 @@ export function RegisterPage() {
   if (!passwordEnabled) {
     return (
       <AuthLayout title="Create an account">
-        <p className="text-center text-sm text-ash">
-          This deployment doesn't offer email sign-up.
-        </p>
+        <GoogleButton
+          onSuccess={() => navigate(next, { replace: true })}
+          onError={setGoogleError}
+        />
+        {googleError && (
+          <p role="alert" className="mt-4 text-center text-sm text-wrong">
+            {googleError}
+          </p>
+        )}
       </AuthLayout>
     )
   }
@@ -99,16 +108,27 @@ export function RegisterPage() {
           label="Password"
           // The server's own rules, verbatim, when it refuses. Nothing is
           // duplicated here — the hint below is the shape, not the rule.
-          error={errors.password1 ?? errors.password2}
+          error={errors.password1}
           hint="At least 8 characters, with one that isn't a letter or a number."
         >
           <Input
             type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={password1}
+            onChange={(e) => setPassword1(e.target.value)}
             required
             autoComplete="new-password"
-            invalid={!!(errors.password1 ?? errors.password2)}
+            invalid={!!errors.password1}
+          />
+        </Field>
+
+        <Field label="Confirm password" error={errors.password2}>
+          <Input
+            type="password"
+            value={password2}
+            onChange={(e) => setPassword2(e.target.value)}
+            required
+            autoComplete="new-password"
+            invalid={!!errors.password2}
           />
         </Field>
 
@@ -122,6 +142,19 @@ export function RegisterPage() {
           {pending ? 'Creating…' : 'Create account'}
         </Button>
       </form>
+
+      <div className="flex items-center gap-3 text-xs text-ash">
+        <span className="h-px flex-1 bg-chalk/10" />
+        or
+        <span className="h-px flex-1 bg-chalk/10" />
+      </div>
+
+      <GoogleButton onSuccess={() => navigate(next, { replace: true })} onError={setGoogleError} />
+      {googleError && (
+        <p role="alert" className="text-center text-sm text-wrong">
+          {googleError}
+        </p>
+      )}
 
       <p className="text-center text-sm text-ash">
         Already have one?{' '}

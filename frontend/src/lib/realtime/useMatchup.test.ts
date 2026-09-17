@@ -55,13 +55,14 @@ function question(id: string): PlayQuestion {
   }
 }
 
-function open(order: number, id = `q-${order}`, timeLimitMs = 10_000) {
+function open(order: number, id = `q-${order}`, timeLimitMs = 10_000, startedAtMs = Date.now()) {
   act(() =>
     emit({
       type: 'question.started',
       order,
       question: question(id),
       time_limit_ms: timeLimitMs,
+      started_at_ms: startedAtMs,
     }),
   )
 }
@@ -246,6 +247,22 @@ describe('useMatchup', () => {
 
     act(() => emit({ type: 'opponent.reconnected', player_id: RIVAL }))
     expect(result.current.opponentAway).toBe(false)
+  })
+
+  it("draws the clock from the server's stamp, not from when this client saw the frame", () => {
+    // A hard page refresh, not just a dropped socket: this `useMatchup`
+    // instance has never seen the match before, so `state.current` starts
+    // null and the "resuming" heuristic that used to gate the clock stamp
+    // cannot fire. The question the server hands back may already be several
+    // seconds into its time limit — `started_at_ms` says so — and the client
+    // must draw the countdown from that real zero-point rather than minting
+    // a fresh one from `Date.now()`, which would hand the player a reset
+    // timer for a question the server is about to close.
+    const { result } = renderHook(() => useMatchup('m-1', ME))
+    const startedAtMs = Date.now() - 7_000 // already 7s into a 10s question
+    open(1, 'q-1', 10_000, startedAtMs)
+
+    expect(result.current.current?.seenAt).toBe(startedAtMs)
   })
 
   it('holds the board on screen through a reconnect rather than blanking it', () => {

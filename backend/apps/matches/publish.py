@@ -37,14 +37,22 @@ def publish_match_found(*, player_id: UUID | str, matchup_id: UUID | str) -> Non
 
 
 def publish_question_started(
-    *, matchup_id: UUID | str, order: int, board: dict, time_limit_ms: int
+    *, matchup_id: UUID | str, order: int, board: dict, time_limit_ms: int, started_at_ms: int
 ) -> None:
     """One question opened. ``board`` is already play-time-serialized
     (``questions.api.serializers.serialize_for_play``) — this module does not
     know a question's shape, only that it must forward whatever it is given.
     ``time_limit_ms`` (``apps.matches.constants.time_limit_ms_for``) is what a
     client counts down from — it varies by question type, so it has to ride
-    the broadcast rather than be assumed client-side."""
+    the broadcast rather than be assumed client-side. ``started_at_ms`` is the
+    server's own ``MatchupQuestion.started_at`` (epoch milliseconds) — the
+    clock's real zero-point, already ``QUESTION_READ_DELAY_MS`` past when the
+    question was dealt. A client draws its countdown from this stamp rather
+    than from the moment its own socket happened to receive the frame, which
+    is what lets a reconnect (or a hard page refresh, which throws away
+    anything the client remembered about the question in progress) rebuild
+    the same clock everyone else is looking at instead of guessing a fresh
+    one."""
     _send_to_matchup(
         matchup_id=matchup_id,
         message={
@@ -52,6 +60,7 @@ def publish_question_started(
             "order": order,
             "question": board,
             "time_limit_ms": time_limit_ms,
+            "started_at_ms": started_at_ms,
         },
     )
 

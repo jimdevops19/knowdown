@@ -129,7 +129,6 @@ function AccountControl() {
 
   return (
     <AccountMenu
-      placement="down"
       align="end"
       triggerLabel="Your account"
       triggerClassName="flex items-center gap-2 rounded-btn px-1 py-1 transition-colors hover:bg-chalk/6"

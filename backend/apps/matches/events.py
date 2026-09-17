@@ -92,3 +92,11 @@ ANSWER_SUBMIT = "answer.submit"
 #: The only write a client may make over the matchmaking socket, besides
 #: connecting: give up the search.
 SEARCH_CANCEL = "search.cancel"
+
+#: A player gives up the match on purpose — the deliberate counterpart to
+#: ``services.abandon_matchup`` firing off a disconnect timer. Carries no
+#: payload: the socket already knows which matchup and which side. Routed
+#: through the same ``_abandon`` helper a dropped connection uses, so a
+#: forfeit and a timed-out disconnect settle the match identically — the
+#: opponent is awarded the win and ``MATCH_COMPLETED`` follows.
+FORFEIT = "match.forfeit"

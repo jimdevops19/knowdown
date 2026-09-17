@@ -1,6 +1,4 @@
 import { NavLink, useLocation } from 'react-router-dom'
-import { useAuth } from '../../features/auth/useAuth'
-import { AccountMenu } from './AccountMenu'
 import { isNavItemActive, type NavItem } from './navItems'
 
 /*
@@ -22,6 +20,11 @@ import { isNavItemActive, type NavItem } from './navItems'
  * one screen where a mis-tap costs a question, and a translucent bar means the
  * contrast behind every icon depends on whatever happens to be passing under
  * it at that moment.
+ *
+ * Every tab is a link, with no exceptions: five controls that look alike have to
+ * act alike, so each one navigates and none of them opens a menu. Account
+ * actions that aren't destinations — Matches history, Sign out — live behind the
+ * avatar in the header, which is on screen here too.
  *
  * There is no overflow sheet, because there is nothing to overflow — knowdown
  * has four top-level destinations at most, and they fit. If a fifth is ever
@@ -70,7 +73,6 @@ function labelClass(active: boolean): string {
 
 export function MobileTabBar({ items }: { items: NavItem[] }) {
   const { pathname } = useLocation()
-  const { logout } = useAuth()
 
   return (
     <nav
@@ -81,30 +83,6 @@ export function MobileTabBar({ items }: { items: NavItem[] }) {
       {items.map((item) => {
         const Icon = item.icon
         const active = isNavItemActive(pathname, item)
-
-        if (item.dropdown) {
-          return (
-            <AccountMenu
-              key={item.to}
-              placement="up"
-              align="end"
-              rootClassName="min-w-0 flex-1"
-              triggerLabel={item.label}
-              triggerClassName={TAB_CLASS}
-              onSignOut={logout}
-              trigger={
-                <>
-                  <span className={plateClass(active, item.accent)}>
-                    <Icon size={20} />
-                  </span>
-                  <span aria-hidden className={labelClass(active)}>
-                    {item.tabLabel ?? item.label}
-                  </span>
-                </>
-              }
-            />
-          )
-        }
 
         return (
           <NavLink

@@ -53,11 +53,15 @@ export async function logout(): Promise<void> {
  * part, because that name is published on every scoreboard — and the caller
  * sends the player straight to `/welcome` to choose the real one.
  */
-export async function register(email: string, password: string): Promise<AuthTokens> {
+export async function register(
+  email: string,
+  password1: string,
+  password2: string,
+): Promise<AuthTokens> {
   const res = await apiClient.post<AuthTokens>('/auth/registration/', {
     email,
-    password1: password,
-    password2: password,
+    password1,
+    password2,
   })
   return res.data
 }

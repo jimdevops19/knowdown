@@ -3,6 +3,7 @@ import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../features/auth/useAuth'
 import { useAuthConfig } from '../features/auth/useAuthConfig'
 import { AuthLayout } from '../features/auth/AuthLayout'
+import { GoogleButton } from '../features/auth/GoogleButton'
 import { Button } from '../components/Button'
 import { Field } from '../components/Field'
 import { Input } from '../components/Input'
@@ -28,6 +29,7 @@ export function LoginPage() {
   const navigate = useNavigate()
   const { login, isAuthenticated } = useAuth()
   const { passwordEnabled } = useAuthConfig()
+  const [googleError, setGoogleError] = useState<string | null>(null)
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -106,6 +108,21 @@ export function LoginPage() {
         // form would post into a 404. Say so rather than showing one.
         <p className="text-center text-sm text-ash">
           This deployment doesn't offer email sign-in.
+        </p>
+      )}
+
+      {passwordEnabled && (
+        <div className="flex items-center gap-3 text-xs text-ash">
+          <span className="h-px flex-1 bg-chalk/10" />
+          or
+          <span className="h-px flex-1 bg-chalk/10" />
+        </div>
+      )}
+
+      <GoogleButton onSuccess={() => navigate(next, { replace: true })} onError={setGoogleError} />
+      {googleError && (
+        <p role="alert" className="text-center text-sm text-wrong">
+          {googleError}
         </p>
       )}
 

@@ -52,22 +52,18 @@ export const QUESTION_TIME_LIMIT_MS = positiveIntEnv(
   10_000,
 )
 
-/**
- * How long a question sits on screen before its countdown starts ticking, in
- * milliseconds — mirroring `apps.matches.constants.QUESTION_READ_DELAY_SECONDS`.
- *
- * The board renders the moment `question.started` arrives; only the clock's
- * zero-point is pushed out by this much (`useMatchup`'s `seenAt`), so a
- * player gets a beat to read the question before the bar is doing anything.
- * Purely a picture of the server's own delay — same status as
- * `QUESTION_TIME_LIMIT_MS` above, and for the same reason: the server, not
- * this constant, is what actually holds a submission arriving during the
- * delay to be "answered instantly" rather than refused.
+/*
+ * There used to be a client-side guess here for how long a question sits on
+ * screen before its countdown starts ticking — the read delay, picked
+ * per-question from a word count. It is gone: `question.started` now carries
+ * the server's own `MatchupQuestion.started_at` (`started_at_ms`), the real
+ * zero-point of the clock, already past `apps.matches.constants
+ * .QUESTION_READ_DELAY_SECONDS`. `useMatchup`'s `seenAt` reads that stamp
+ * directly, so there is nothing left for this client to approximate — and no
+ * way, any more, for a page refresh mid-question to hand a reconnecting
+ * player a freshly-guessed read delay on top of a clock the server has
+ * already been running for a while.
  */
-export const QUESTION_READ_DELAY_MS = positiveIntEnv(
-  import.meta.env.VITE_QUESTION_READ_DELAY_MS,
-  3_000,
-)
 
 /**
  * How long the server gives a disconnected player to come back before their
