@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.worker.tsbuildinfo",
+    "target": "es2023",
+    /* WebWorker, not DOM: a service worker has no `document`, and pulling DOM
+       in here would let a `window` reference typecheck and then fail at runtime
+       inside a worker nobody is watching. That is the whole reason sw.ts needs
+       its own project instead of living in tsconfig.app.json. */
+    "lib": ["ES2023", "WebWorker"],
+    "module": "esnext",
+    "types": ["vite/client", "vite-plugin-pwa/info"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src/sw.ts"]
+}

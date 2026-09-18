@@ -4,6 +4,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { queryClient } from '../lib/query/queryClient'
 import { AuthProvider } from '../features/auth/AuthProvider'
 import { ToastProvider } from '../components/Toast'
+import { PwaPrompts } from '../features/pwa/PwaPrompts'
 
 /*
  * App-wide providers. Anything the whole tree needs is composed here and wraps
@@ -20,6 +21,11 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <ToastProvider>
         <AuthProvider>{children}</AuthProvider>
       </ToastProvider>
+      {/* Service-worker registration plus the install / update-ready banners.
+          Outside ToastProvider on purpose: these outlive any one page, say
+          nothing about a session, and must still render if the app tree below
+          them fails. */}
+      <PwaPrompts />
       {/* Dev-only panel for inspecting queries and the cache. Its corner button
           would sit on a phone nav-bar tab; index.css lifts it above the bar
           there. */}

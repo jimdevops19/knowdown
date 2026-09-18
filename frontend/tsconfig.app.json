@@ -4,7 +4,9 @@
     "target": "es2023",
     "lib": ["ES2023", "DOM"],
     "module": "esnext",
-    "types": ["vite/client"],
+    /* vite-plugin-pwa/react declares the `virtual:pwa-register/react` module the
+       update prompt imports; without it that import has no types at all. */
+    "types": ["vite/client", "vite-plugin-pwa/react"],
     "skipLibCheck": true,
 
     /* Bundler mode */
@@ -22,5 +24,8 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  /* sw.ts belongs to tsconfig.worker.json — it is typed against WebWorker,
+     not DOM, and would not compile here. */
+  "exclude": ["src/sw.ts"]
 }

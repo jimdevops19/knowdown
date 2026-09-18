@@ -100,6 +100,21 @@ server {
         proxy_send_timeout 3600s;
     }
 
+    # ── PWA ───────────────────────────────────────────────────────────────
+    # The service worker must never be served stale: a cached sw.js pins the
+    # whole app to the build it shipped with, and no deploy can dislodge it.
+    location = /sw.js {
+        add_header Cache-Control "no-cache, must-revalidate" always;
+        try_files $uri =404;
+    }
+    # nginx's default mime.types has no entry for .webmanifest, and a manifest
+    # served as text/plain is a manifest Chrome ignores — no install prompt.
+    location = /manifest.webmanifest {
+        types { } default_type application/manifest+json;
+        add_header Cache-Control "no-cache" always;
+        try_files $uri =404;
+    }
+
     # Long-cache fingerprinted build assets.
     location /assets/ {
         expires 1y;
