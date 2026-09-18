@@ -30,6 +30,16 @@ EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 # `manage.py seed_bots` once to populate the roster this pairs against.
 FF_ENABLE_BOTS_IF_TIMEOUT = True
 
+# The question tester, on. Hardcoded rather than read from the environment for
+# the same reason the line above is: this is the tier it was built for, and a
+# developer who has to remember an env var before they can look at the question
+# they are debugging will simply not look at it. Every other tier reads
+# TESTER_ENDPOINT_ENABLED (base.py) — staging sets it true, production does not
+# set it at all. Even here it is still staff-only: `manage.py createsuperuser`
+# is what opens it, so the mounted surface behaves in dev exactly as it does
+# anywhere else it is turned on.
+TESTER_ENDPOINT_ENABLED = True
+
 # --- Development-only API affordances ----------------------------------------
 # base.py ships hardened defaults (JSON-only, admin-only schema) since the
 # deployed tiers inherit them. Relaxed only here, patched after the import

@@ -55,6 +55,17 @@ CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS  # noqa: F405
 # one ingress rule can cover the admin page and the assets it pulls in — see
 # OPS_STATIC_PATH in shared.admin_url and apps.ops.middleware.
 ADMIN_GATE_ENABLED = env_bool("ADMIN_GATE_ENABLED", True)
+
+# The question tester (apps.tester), off unless the deployment asks for it.
+#
+# This module is what *both* deployed tiers run, so the two are told apart by
+# their environment and not by a settings file: **staging sets
+# TESTER_ENDPOINT_ENABLED=true** and production sets nothing, which is what
+# this default is for. Re-read here rather than left to base.py's identical
+# default so that the decision is written down where a production deployment
+# is described — the surface hands out live answer keys, and "why is this off
+# in production" should be answerable without reading two files.
+TESTER_ENDPOINT_ENABLED = env_bool("TESTER_ENDPOINT_ENABLED", False)
 STATIC_URL = env("STATIC_URL", OPS_STATIC_PATH)
 
 # base.py's default (BASE_DIR / "media") is only correct for local dev, where

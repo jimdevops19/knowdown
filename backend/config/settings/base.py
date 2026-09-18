@@ -113,6 +113,13 @@ LOCAL_APPS: list[str] = [
     "apps.rankings",
     "apps.achievements",
     "apps.ops",
+    # The maintainers' rehearsal room. Listed unconditionally — the app holds no
+    # models and no migrations, and what TESTER_ENDPOINT_ENABLED switches is
+    # whether config/urls.py *mounts* it, not whether Django knows it exists.
+    # An app that appears and disappears from INSTALLED_APPS per tier is a
+    # `makemigrations` that produces a different answer depending on where it
+    # was run.
+    "apps.tester",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -619,6 +626,28 @@ CORS_ALLOW_CREDENTIALS = True
 # every visitor as the gateway. Raise it only where the forwarding chain in
 # front of a given deployment has been confirmed.
 TRUSTED_PROXY_HOPS = env_int("TRUSTED_PROXY_HOPS", 0)
+
+
+# --- Question tester (maintainers only) --------------------------------------
+# The rehearsal room: `apps.tester`, a surface that lists the catalog, plays any
+# one question as a matchup would show it, and then says what the answer was.
+#
+# It is the only place in the platform that will hand a live question's answer
+# key to somebody who is not in a finished match, so it is gated twice over and
+# the two gates are different in kind:
+#
+#   1. **This flag unmounts it** (config/urls.py). Off, there are no such URLs —
+#      nothing to authenticate against, nothing in the OpenAPI document, nothing
+#      to get wrong later in a view.
+#   2. **`apps.tester.permissions.IsMaintainer` refuses everyone but staff.** On
+#      a tier where it *is* mounted, only a `is_staff` account — one made with
+#      `manage.py createsuperuser` — gets past it.
+#
+# Off by default, so a tier that says nothing gets nothing. `local.py` turns it
+# on outright (a solo developer debugging their own questions is the entire
+# point of it); a staging deployment sets TESTER_ENDPOINT_ENABLED=true in its
+# environment; production leaves it unset, which is what this default means.
+TESTER_ENDPOINT_ENABLED = env_bool("TESTER_ENDPOINT_ENABLED", False)
 
 
 # --- Django admin ------------------------------------------------------------

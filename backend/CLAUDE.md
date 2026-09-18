@@ -74,6 +74,11 @@ The question authoring pipeline and the scaffolding under it:
   a `get_or_create`), so a matchup that cannot complete twice cannot grant a
   badge twice either. Embedded in the player profile
   (`GET /players/{display_name}/`); no standalone list endpoint yet.
+- **`apps/tester`** — the maintainers' **rehearsal room**: list the catalog,
+  play any one question exactly as a matchup would show it, and then see what
+  the answer was. No models, no writes, and mounted only where
+  `TESTER_ENDPOINT_ENABLED` says so (local on, staging on by environment,
+  production off) — see "tester" below.
 
 ## Commands
 
@@ -724,6 +729,54 @@ field (and the sentence built from it) ever reach the logger — the access-log
 line for the very request that used the token must not become a second copy
 of the credential. `apps.ops.tests.test_redaction` proves both the helper and
 the real logged line.
+
+### tester — the maintainers' rehearsal room
+
+A question is authored in YAML, loaded by `sync_questions`, and then the next
+person to see it is a stranger racing a clock. `apps.tester` is the step in
+between: `GET /api/v1/tester/questions/` lists every question across all eight
+tables (searchable by slug, text or category; **inactive ones included by
+default** — "why does this never come up?" is what the page is for),
+`GET …/{type}/{id}/` stages one as a matchup would, `POST …/answer/` marks a
+submission and returns the answer key with it, and `GET …/answer-key/` just
+tells you.
+
+**Two gates, different in kind.** `TESTER_ENDPOINT_ENABLED` decides whether
+`config/urls.py` mounts any of it — off, there is no view to authenticate
+against and nothing in the OpenAPI document (`local.py` hardcodes it on;
+`production.py` reads the env var, which is how **staging turns it on and
+production leaves it off**, since both run that same settings module). Past
+the mount, `apps.tester.permissions.IsMaintainer` allows only `is_staff`,
+which in this platform means an account made with `manage.py createsuperuser`
+and nothing else — no endpoint and no sign-in path can set that flag. The
+permission re-reads the setting too, so a second mount somewhere cannot
+quietly un-gate the surface. `tests/test_mounting.py` reloads the URLconf with
+the flag off to cover the branch the rest of the suite (which runs with it on)
+never takes.
+
+**It borrows; it does not re-implement.** The board comes from
+`questions.api.serializers.serialize_for_play`, the verdict from
+`questions.services.evaluation.evaluate_answer`, the key from
+`questions.api.reveal.serialize_answer_key`, and the clock and points from
+`matches.constants` — so a question that rehearses correctly and plays wrong is
+not a thing that can happen. Spanning those two domains is also why it is its
+own app: `apps.questions` may not import `apps.matches`, so a tester living
+there would have had to give up the clock and the scoring.
+
+**Two things it publishes that no live payload may.** A catalog card carries
+the question's `slug` (sometimes a complete answer, which is why
+`_QuestionPlaySerializer` drops it), and a gradual-hints rehearsal carries every
+clue with the offset it is due at (a live board carries only the *shape* of the
+reveal; the socket pays the text out on a timer). Both are deliberate — there is
+no opponent and no socket here — and both are the reason the whole surface is
+gated the way it is.
+
+**It writes nothing.** No `Matchup`, no `PlayerAnswer`, no rating: answering the
+same question forty times while fixing its accepted spellings leaves the
+database as it found it. The one trace is a log line per rehearsed answer.
+The client half is `frontend/src/features/tester` + `/tester` and
+`/tester/:type/:id`, which mount the *same* `QuestionBoard` and
+`useQuestionClock` a live match does.
 
 ### Container and deploy
 

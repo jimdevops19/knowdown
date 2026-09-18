@@ -13,9 +13,15 @@ import type { ReactNode } from 'react'
  *             ordinary, and painting it red would make every second game feel
  *             like an error)
  *   draw    — the double tie the server leaves unbroken (plain white)
+ *   off     — switched off, and not in play because of it (a deactivated
+ *             question in the tester's catalog). The app's crimson, the same
+ *             one a wrong answer takes: it is the only tone here that means
+ *             "this is not working as intended", and it has to read that way
+ *             at a glance down a list of fifty cards. Distinct from `loss`,
+ *             which is grey precisely because losing a match is ordinary.
  *   neutral — everything else: a level band, a category, a count
  */
-export type StatusTone = 'live' | 'win' | 'loss' | 'draw' | 'neutral' | 'warn'
+export type StatusTone = 'live' | 'win' | 'loss' | 'draw' | 'neutral' | 'warn' | 'off'
 
 const TONES: Record<StatusTone, string> = {
   live: 'border-volt/40 bg-volt/12 text-volt',
@@ -35,6 +41,7 @@ const TONES: Record<StatusTone, string> = {
   draw: 'border-chalk/25 bg-chalk/10 text-chalk',
   neutral: 'border-chalk/10 bg-chalk/5 text-ash',
   warn: 'border-rival/40 bg-rival/12 text-rival',
+  off: 'border-wrong/45 bg-wrong/12 text-wrong',
 }
 
 export function StatusBadge({

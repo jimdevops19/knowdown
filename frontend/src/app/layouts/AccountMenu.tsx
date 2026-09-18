@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { LogOut, Swords, User } from 'lucide-react'
+import { LogOut, Swords, User, Wrench } from 'lucide-react'
 import type { ReactNode } from 'react'
+import { useTesterAccess } from '../../features/tester/useTesterAccess'
 
 /*
  * The account dropdown behind the avatar in the header — Profile and Matches
@@ -14,6 +15,14 @@ import type { ReactNode } from 'react'
  * going to the profile page, and a tab that behaves differently from the four
  * beside it is a bug however it's spelled. That tab is now a plain link, and
  * the menu lives where a menu is expected — behind the face, not behind a tab.
+ *
+ * The question tester hangs here too, for the handful of accounts that have one
+ * (`useTesterAccess` asks the server; almost every caller is told no). It is
+ * deliberately *not* in `navItems.ts` beside Home, Play and Rankings: those are
+ * the product, this is a workbench, and the phone tab bar has a five-slot
+ * budget that a maintainer tool has no business spending. A menu is also where
+ * an entry that exists for some people and not others belongs — a nav with a
+ * hole in it reads as a bug, a menu with one more row does not.
  */
 
 const MENU_ITEMS = [
@@ -40,6 +49,7 @@ export function AccountMenu({
 }) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
+  const tester = useTesterAccess()
 
   useEffect(() => {
     if (!open) return
@@ -93,6 +103,17 @@ export function AccountMenu({
               </Link>
             )
           })}
+          {tester.available && (
+            <Link
+              to="/tester"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-ash transition-colors hover:bg-chalk/6 hover:text-chalk"
+            >
+              <Wrench size={16} />
+              Question tester
+            </Link>
+          )}
           {onSignOut && (
             <>
               <div role="separator" aria-hidden className="my-1 border-t border-chalk/10" />

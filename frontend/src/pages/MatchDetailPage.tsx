@@ -7,13 +7,21 @@ import { useAuth } from '../features/auth/useAuth'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
+import { AnswerKeyRow } from '../features/matches/answerKey/AnswerKeyRow'
+import { RevealCell } from '../features/matches/answerKey/RevealCell'
+import { describeSubmission } from '../features/matches/answerKey/submissions'
 import { LevelChip } from '../components/LevelChip'
 import { SectionHeading } from '../components/SectionHeading'
 import { StatusBadge } from '../components/StatusBadge'
 import { ErrorState, Loading } from '../components/states'
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow } from '../components/Table'
 import { formatDateTime, formatResponseTime } from '../lib/format'
-import type { MatchupDetail, MatchupQuestionRecord, PlayerAnswerRecord } from '../lib/api/types'
+import type {
+  MatchupDetail,
+  MatchupQuestionRecord,
+  PlayQuestion,
+  PlayerAnswerRecord,
+} from '../lib/api/types'
 
 /*
  * `/matches/:id` — the box score, question by question.
@@ -24,11 +32,23 @@ import type { MatchupDetail, MatchupQuestionRecord, PlayerAnswerRecord } from '.
  * inherits the anti-cheat guarantee rather than re-deciding it — plus each
  * side's own submission and verdict.
  *
- * **Which means the right answer is not on this page either.** The API never
- * publishes an answer key, and a box score is not an exception to that: a
- * question you got wrong here can come up again in a later match, against
- * somebody who hasn't seen it. What you get is what you said, whether it was
- * right, and how long you took.
+ * **This is the one screen in the app that shows the right answer**, and it is
+ * the platform's single deliberate exception to "no payload names a correct
+ * answer" — see `apps.questions.api.reveal`, which is a module apart from the
+ * anti-cheat surface rather than a hole punched in it. A box score read after
+ * the whistle by the two people who just played is a post-mortem, and "you got
+ * it wrong" with no way to find out what was right is a scoreboard pretending
+ * to be one.
+ *
+ * The exception is paid for and it is worth knowing the price: a question whose
+ * key somebody has read can be dealt again, to an opponent who has not. What
+ * keeps that bounded is the endpoint, not this component — it refuses a live
+ * match and refuses anyone who did not play in it — so a screen reusing
+ * `answer_key` anywhere else would be spending a budget it did not earn.
+ *
+ * Long answers are truncated **server-side**: a grid square listing five names
+ * out of twenty-two has seventeen the client was never sent. "… and 17 more" is
+ * a count, not a fold.
  *
  * The answers map is keyed by **display name**, which is the backend's shape —
  * so finding your own row means looking yourself up by name, not by id.
@@ -184,15 +204,34 @@ function QuestionRecord({ record, myName }: { record: MatchupQuestionRecord; myN
           <TableHeaderCell align="right">Points</TableHeaderCell>
         </TableHead>
         <TableBody>
-          <AnswerRow label="You" answer={mine} />
-          <AnswerRow label={theirs?.[0] ?? 'Rival'} answer={theirs?.[1] ?? null} />
+          <AnswerRow label="You" answer={mine} question={record.question} />
+          <AnswerRow
+            label={theirs?.[0] ?? 'Rival'}
+            answer={theirs?.[1] ?? null}
+            question={record.question}
+          />
+          {record.answer_key && (
+            <AnswerKeyRow
+              question={record.question}
+              answerKey={record.answer_key}
+              mine={mine}
+            />
+          )}
         </TableBody>
       </Table>
     </Card>
   )
 }
 
-function AnswerRow({ label, answer }: { label: string; answer: PlayerAnswerRecord | null }) {
+function AnswerRow({
+  label,
+  answer,
+  question,
+}: {
+  label: string
+  answer: PlayerAnswerRecord | null
+  question: PlayQuestion
+}) {
   // No record at all means the clock ran out on them. That is a different thing
   // from a wrong answer, and worth showing as one — the API distinguishes them
   // by the absence of a row, and so does this.
@@ -217,23 +256,35 @@ function AnswerRow({ label, answer }: { label: string; answer: PlayerAnswerRecor
   }
 
   const partial = !answer.is_correct && answer.score > 0
+  // The verdict is the tone and the icon; the cell says what they actually put.
+  // A row reading only "Wrong" answers "did they take the question" and not
+  // "what did they say", and the second is the one you re-read a box score for.
+  // Partial credit keeps its number, because on a grid "60% right" is the
+  // finding and the fill is the detail behind it.
+  const tone = answer.is_correct ? 'text-correct' : partial ? 'text-gold' : 'text-wrong'
 
   return (
     <TableRow>
       <TableCell className="text-ash">{label}</TableCell>
       <TableCell>
-        <span
-          className={`flex items-center gap-1.5 ${
-            answer.is_correct ? 'text-correct' : partial ? 'text-gold' : 'text-wrong'
-          }`}
-        >
-          {answer.is_correct ? (
-            <Check size={14} className="shrink-0" aria-hidden />
-          ) : (
-            <X size={14} className="shrink-0" aria-hidden />
+        <div className="flex items-center gap-2">
+          <RevealCell
+            reveal={describeSubmission({ question, submitted: answer.submitted })}
+            tone={tone}
+            icon={
+              answer.is_correct ? (
+                <Check size={14} className="shrink-0" aria-hidden />
+              ) : (
+                <X size={14} className="shrink-0" aria-hidden />
+              )
+            }
+          />
+          {partial && (
+            <span className="nums shrink-0 text-xs text-ash">
+              {Math.round(answer.score * 100)}%
+            </span>
           )}
-          {answer.is_correct ? 'Correct' : partial ? `${Math.round(answer.score * 100)}% right` : 'Wrong'}
-        </span>
+        </div>
       </TableCell>
       <TableCell align="right" className="nums text-ash">
         {formatResponseTime(answer.response_time_ms)}

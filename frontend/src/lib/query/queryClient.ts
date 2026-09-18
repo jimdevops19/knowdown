@@ -59,4 +59,14 @@ export const queryKeys = {
   auth: {
     config: ['auth', 'config'] as const,
   },
+  /* The maintainers' question tester. `access` is the probe that decides
+   * whether the page and its nav entry exist at all, and it is cached for the
+   * session: a deployment does not mount the tester, and an account does not
+   * become staff, while somebody is looking at a list of questions. */
+  tester: {
+    access: ['tester', 'access'] as const,
+    questions: (filters: unknown) => ['tester', 'questions', filters] as const,
+    rehearsal: (type: string, id: string, seed: string) =>
+      ['tester', 'rehearsal', type, id, seed] as const,
+  },
 }

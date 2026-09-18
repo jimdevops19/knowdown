@@ -58,6 +58,13 @@ EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 # testing the URLconf rather than the view.
 PERMIT_PASSWORD_AUTH = True
 
+# The question tester is mounted for the suite, for the same reason as the line
+# above: config/urls.py mounts it conditionally, and testing an unmounted route
+# is testing the URLconf rather than the view. That the flag *does* unmount it
+# is a test of its own (apps.tester.tests.test_mounting), which reloads the
+# URLconf with it off rather than asking the rest of the suite to run blind.
+TESTER_ENDPOINT_ENABLED = True
+
 # Match abuse limits: counted, never enforced. Same reasoning as
 # LOGIN_LOCKOUT_ENFORCED below — test_realtime.py opens many sockets and sends
 # many answer frames in a tight loop by design, and the counters are not

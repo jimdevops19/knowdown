@@ -79,6 +79,19 @@ class MatchHistoryDetailView(RetrieveAPIView):
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
+    def get_serializer_context(self):
+        """Adds ``viewer`` — the player doing the reading.
+
+        The box score's ``answer_key`` uses it to float this player's own
+        answer to the front of a pool it had to truncate. Nothing about *what*
+        is revealed turns on it: the two sides of a match see the same answers,
+        possibly ordered differently.
+        """
+        context = super().get_serializer_context()
+        if not getattr(self, "swagger_fake_view", False):
+            context["viewer"] = ensure_player_for_user(user=self.request.user)
+        return context
+
     def get_object(self):
         player = ensure_player_for_user(user=self.request.user)
         matchup = selectors.get_matchup(matchup_id=self.kwargs["matchup_id"])

@@ -22,6 +22,17 @@ api_v1_patterns = [
     path("rankings/", include("apps.rankings.api.urls")),
 ]
 
+# The maintainers' question tester, mounted only where the tier asks for it —
+# the same conditional-mount pattern the admin uses below and the password door
+# uses in `apps/accounts/api/urls.py`. Off, these URLs do not exist: there is no
+# view to authenticate against, nothing in the generated OpenAPI document, and
+# no permission check that has to be right. That matters more here than it does
+# for the password door, because this surface answers with a live question's
+# **answer key** — `apps.tester.permissions.IsMaintainer` is the second gate
+# (staff only), and this is the first.
+if settings.TESTER_ENDPOINT_ENABLED:
+    api_v1_patterns += [path("tester/", include("apps.tester.api.urls"))]
+
 urlpatterns = [
     path("api/v1/", include((api_v1_patterns, "v1"))),
 ]

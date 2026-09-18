@@ -3,9 +3,30 @@
 Reuses ``apps.questions.api.serializers.serialize_for_play`` for the question
 payload rather than inventing a second one: a box score gets the same board a
 player saw while the clock ran, never the raw question row, so this layer
-inherits the anti-cheat guarantee instead of re-deciding it. What a box score
-adds beyond that board is each side's own submission and its verdict — never
-the *other* player's presumed-correct answer dressed up as "the answer".
+inherits the anti-cheat guarantee instead of re-deciding it.
+
+On top of that board it adds two things, and they are different in kind:
+
+- **each side's own submission and verdict**, which are facts about the match;
+- **``answer_key`` — what was actually right**, which is a fact about the
+  *question*, and the one thing this module publishes that the play-time layer
+  exists to withhold.
+
+The second is a deliberate exception, and this is where the reasoning for it
+lives, because this is the only place that takes it. A box score is read after
+the whistle by the two people who just played, and "you got it wrong" without
+"and here is the answer" is a scoreboard, not a post-mortem. The cost is real
+and is worth naming: a question whose key somebody has read can be drawn again,
+against an opponent who has not — so the exception is bounded by
+``MatchHistoryDetailView``'s two gates (only the players, and only once the
+match is over) and by this serializer's own ``completed_at`` check, which is the
+second mechanism behind the first. The key is built by
+``apps.questions.api.reveal``, a module that deliberately sits outside the
+anti-cheat surface rather than punching a hole in it.
+
+The opponent's presumed-correct answer is still never dressed up as "the
+answer" — that was the old workaround for not having a key, and having one is
+what retires it.
 """
 
 from __future__ import annotations
@@ -13,6 +34,7 @@ from __future__ import annotations
 from rest_framework import serializers
 
 from apps.players.api.serializers import PlayerSerializer
+from apps.questions.api.reveal import serialize_answer_key
 from apps.questions.api.serializers import serialize_for_play
 from apps.questions.selectors import QuestionRef, get_question
 
@@ -41,12 +63,71 @@ class MatchupQuestionSerializer(serializers.Serializer):
     completed_at = serializers.DateTimeField()
     question = serializers.SerializerMethodField()
     answers = serializers.SerializerMethodField()
+    answer_key = serializers.SerializerMethodField()
+
+    def _question(self, matchup_question):
+        """The question row, resolved once per record.
+
+        ``get_question`` is a query, and both ``question`` and ``answer_key``
+        want the same row — cached on the instance rather than looked up twice,
+        since a seven-question box score would otherwise double its queries for
+        nothing.
+        """
+        cached = getattr(matchup_question, "_resolved_question", None)
+        if cached is None:
+            cached = get_question(
+                ref=QuestionRef(
+                    matchup_question.question_type, matchup_question.question_id
+                )
+            )
+            matchup_question._resolved_question = cached
+        return cached
 
     def get_question(self, matchup_question) -> dict:
-        question = get_question(
-            ref=QuestionRef(matchup_question.question_type, matchup_question.question_id)
+        return serialize_for_play(
+            question=self._question(matchup_question),
+            matchup_id=matchup_question.matchup_id,
         )
-        return serialize_for_play(question=question, matchup_id=matchup_question.matchup_id)
+
+    def get_answer_key(self, matchup_question) -> dict | None:
+        """What was actually right — or ``None`` while the question is open.
+
+        The same gate ``get_answers`` below applies, and for a sharper reason:
+        an open question's key is the answer handed to a player whose clock is
+        still running, which is the whole thing the platform is built not to do.
+        A caller that reaches this serializer without checking the matchup's
+        status gets ``None`` rather than a key.
+
+        The viewer's own submission goes in so the reveal can float what *they*
+        said to the front of a truncated pool. It orders the answer; it never
+        decides it.
+        """
+        if matchup_question.completed_at is None:
+            return None
+        return serialize_answer_key(
+            question=self._question(matchup_question),
+            submitted=self._viewers_submission(matchup_question),
+        )
+
+    def _viewers_submission(self, matchup_question):
+        """What the player *reading this box score* sent, if anything.
+
+        ``None`` covers both "ran out of time" and "no viewer in context" — a
+        pool shown in its authored order is a correct answer to the question
+        either way, so neither case needs to be told apart here.
+        """
+        viewer = self.context.get("viewer")
+        if viewer is None:
+            return None
+        answer = next(
+            (
+                answer
+                for answer in matchup_question.answers.all()
+                if answer.player_id == viewer.id
+            ),
+            None,
+        )
+        return answer.answer if answer else None
 
     def get_answers(self, matchup_question) -> dict:
         # An open question publishes nobody's answer. The view above already
@@ -123,4 +204,5 @@ class MatchupDetailSerializer(MatchupListSerializer):
         return MatchupQuestionSerializer(
             matchup.questions.filter(completed_at__isnull=False).order_by("order"),
             many=True,
+            context=self.context,
         ).data

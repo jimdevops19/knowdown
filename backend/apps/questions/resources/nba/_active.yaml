@@ -2,11 +2,11 @@
 # questions: they stop being served (and are deactivated on the next sync),
 # and come back by uncommenting it. Order is the load order.
 resources:
-  #- free-text.yaml
+  - free-text.yaml
   - gradual-hints.yaml
-  #- image-answer.yaml
-  #- matrix.yaml
-  #- multiple-answer.yaml
-  #- ordering.yaml
-  #- single-answer.yaml
-  #- true-false.yaml
+  - image-answer.yaml
+  - matrix.yaml
+  - multiple-answer.yaml
+  - ordering.yaml
+  - single-answer.yaml
+  - true-false.yaml

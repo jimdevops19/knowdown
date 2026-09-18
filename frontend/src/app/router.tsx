@@ -17,6 +17,8 @@ import { RegisterPage } from '../pages/RegisterPage'
 import { ChooseNamePage } from '../pages/ChooseNamePage'
 import { ForgotPasswordPage } from '../pages/ForgotPasswordPage'
 import { ResetPasswordPage } from '../pages/ResetPasswordPage'
+import { TesterPage } from '../pages/TesterPage'
+import { TesterQuestionPage } from '../pages/TesterQuestionPage'
 import { NotFoundPage } from '../pages/NotFoundPage'
 
 /*
@@ -84,6 +86,20 @@ export const router = createBrowserRouter([
           // status that may have changed since the link was made.
           { path: 'matches/:id', element: <MatchDetailPage /> },
           { path: 'me', element: <MePage /> },
+          /*
+           * The maintainers' question tester. Guarded like everything else
+           * here, and that guard is the *weakest* of the three things keeping
+           * people out — it only checks that somebody is signed in. The other
+           * two are on the server, where they belong: the backend mounts the
+           * routes only where `TESTER_ENDPOINT_ENABLED` is on, and refuses any
+           * account that is not `is_staff`. So these pages are reachable by URL
+           * for every signed-in player and show them nothing (see
+           * `TesterUnavailable`) — which is the right shape, because a route
+           * hidden by a client is not hidden at all, and the data was never
+           * this client's to gate.
+           */
+          { path: 'tester', element: <TesterPage /> },
+          { path: 'tester/:questionType/:questionId', element: <TesterQuestionPage /> },
         ],
       },
       { path: '*', element: <NotFoundPage /> },

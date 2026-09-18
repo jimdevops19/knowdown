@@ -199,6 +199,11 @@ export interface MatchupQuestionRecord {
   completed_at: string
   question: PlayQuestion
   answers: Record<string, PlayerAnswerRecord>
+  /** What was actually right. Null for a question that has not closed — which
+   *  a box score never contains, since the endpoint refuses a live match, but
+   *  the field is nullable because the serializer's own gate is what guarantees
+   *  it and a client that assumed otherwise would be trusting the wrong layer. */
+  answer_key: AnswerKey | null
 }
 
 /** A full box score — `GET /matches/{id}/`. */
@@ -459,3 +464,193 @@ export type AnswerSubmission =
   | OrderingSubmission
   | MatrixSubmission
   | GradualHintsSubmission
+
+/* --- The answer, once the question is over ----------------------------------
+ *
+ * Mirrors `apps.questions.api.reveal`, which is the backend's one deliberate
+ * exception to everything the block above describes — and is a separate module
+ * there for the same reason this is a separate section here: the difference
+ * between a payload that may name an answer and one that may not should be
+ * visible at the point of use, not buried in a flag.
+ *
+ * A key is only ever reached through `MatchupQuestionRecord`, which only exists
+ * for a finished match between the two people who played it. Nothing on the
+ * play path has a field of this type, and nothing should grow one.
+ *
+ * Two shapes recur and are worth naming up front:
+ *
+ *  - **Correct options arrive as ids**, never as text, because the board beside
+ *    them names its options by id and matching on text would break on two
+ *    options worded the same.
+ *  - **A pool of accepted spellings is truncated server-side** to
+ *    `accepted.length` items out of `total`. The rest are not hidden in the
+ *    payload — they were never sent. A UI showing "… and 17 more" is reporting
+ *    a count, which is all it has.
+ */
+
+/** A set of accepted spellings, cut to what the server was willing to publish.
+ *
+ *  `total` is the size of the whole pool, so `total - accepted.length` is the
+ *  tail nobody gets to see. When this player answered correctly their own
+ *  spelling is `accepted[0]` — the server floats it, so a UI can render the
+ *  list in order and have the player's own answer lead it without knowing
+ *  which one it was. */
+export interface AnswerPool {
+  accepted: string[]
+  total: number
+}
+
+/** One intersection of a grid, and what filled it. */
+export interface MatrixCellAnswerKey extends AnswerPool {
+  row_id: number
+  column_id: number
+}
+
+/** One box of a gradual-hints question, and what filled it. */
+export interface GradualHintsFieldAnswerKey extends AnswerPool {
+  field_id: number
+  label: string
+}
+
+export interface OptionIdsAnswerKey {
+  type: 'single-answer' | 'image-answer' | 'multiple-answer'
+  /** Every option that was correct. One id for the two single-pick types; the
+   *  whole set for multiple-answer, which is also the first time the client
+   *  learns how many there were — the board deliberately never said. */
+  option_ids: number[]
+}
+export interface TrueFalseAnswerKey {
+  type: 'true-false'
+  answer: boolean
+}
+export interface FreeTextAnswerKey extends AnswerPool {
+  type: 'free-text'
+}
+export interface OrderingAnswerKey {
+  type: 'ordering'
+  /** The authored arrangement, first to last — the thing the board's shuffle
+   *  existed to hide. */
+  option_ids: number[]
+}
+export interface MatrixAnswerKey {
+  type: 'matrix'
+  cells: MatrixCellAnswerKey[]
+}
+export interface GradualHintsAnswerKey {
+  type: 'gradual-hints'
+  /** The clues, in reveal order. They reach the client here rather than on the
+   *  board because waiting for them is what the question costs — and none of
+   *  them is stored per match, so without this a played-out gradual-hints
+   *  question would render as a row of empty slots. */
+  hints: string[]
+  answer_fields: GradualHintsFieldAnswerKey[]
+}
+
+/** What was right, discriminated on `type` — the same `type` the question
+ *  beside it carries, so a key and a board that disagree is a visible bug
+ *  rather than a silently mis-rendered one. */
+export type AnswerKey =
+  | OptionIdsAnswerKey
+  | TrueFalseAnswerKey
+  | FreeTextAnswerKey
+  | OrderingAnswerKey
+  | MatrixAnswerKey
+  | GradualHintsAnswerKey
+
+/* --- The maintainers' question tester ---------------------------------------
+ *
+ * Mirrors `apps.tester`, a surface that exists on a tier only when
+ * `TESTER_ENDPOINT_ENABLED` mounted it and answers only an `is_staff` account.
+ * Everything below is therefore reachable by nobody this app ships for — which
+ * is why `useTesterAccess` probes for it rather than assuming, and why a 404 on
+ * the probe is the expected answer, not an error.
+ *
+ * Two of these types carry things the play-time payloads above deliberately do
+ * not: a card names the question's `slug`, and a rehearsal of a gradual-hints
+ * question carries every clue with the offset it is due at. Both are fine here
+ * for the same reason — there is no opponent and no clock that matters — and
+ * both would be leaks anywhere else, so they are spelled out in their own types
+ * rather than widening the ones a match uses.
+ */
+
+/** One question as the tester's catalog lists it. */
+export interface TesterQuestionCard {
+  id: string
+  type: QuestionType
+  /** The name the question is authored under, and often a complete answer —
+   *  which is exactly why `PlayQuestion` has no such field. */
+  slug: string
+  description: string
+  level: number
+  category: string
+  category_name: string
+  tags: Record<string, string>
+  /** False means matchmaking will never draw it. The catalog lists these by
+   *  default: "why does this never come up" is a question this page answers. */
+  is_active: boolean
+  /** The author's override in seconds, or null for "the type's default". The
+   *  resolved figure is `time_limit_ms` on a rehearsal. */
+  time_limit_seconds: number | null
+  image: string | null
+}
+
+/** One clue of a gradual-hints question, and when the server would pay it out. */
+export interface TesterHint {
+  index: number
+  text: string
+  /** Milliseconds after the clock starts. The first is 0 — the read delay has
+   *  already given the player their beat. */
+  offset_ms: number
+}
+
+/** One question staged for rehearsal — `GET /tester/questions/{type}/{id}/`. */
+export interface TesterRehearsal extends TesterQuestionCard {
+  /** The board order. Ask again with a different one to re-deal. */
+  seed: string
+  /** What a matchup would give this question, resolved through the same
+   *  function the match engine uses. */
+  time_limit_ms: number
+  read_delay_ms: number
+  /** The *real* play-time board — the identical payload a live socket sends,
+   *  so a rehearsal cannot look right while a match looks wrong. */
+  board: PlayQuestion
+  /** Empty for every type but gradual-hints, whose clues arrive here because
+   *  there is no socket to pay them out. */
+  hints: TesterHint[]
+}
+
+/** The verdict on a rehearsed answer — `POST …/answer/`. */
+export interface TesterVerdict {
+  is_correct: boolean
+  /** Credit, 0.0–1.0. A grid with one cell wrong is `is_correct: false` and
+   *  `score: 0.89`, and the two together are usually the interesting part. */
+  score: number
+  /** What that credit would have paid at `elapsed_ms`, on the same curve a real
+   *  match pays on. */
+  points: number
+  elapsed_ms: number
+  time_limit_ms: number
+  submitted: AnswerSubmission
+  /** What was actually right — the same shape a box score's reveal uses, built
+   *  by the same backend module, so the same components render it. */
+  answer_key: AnswerKey
+}
+
+/** `GET /tester/config/` — the filter bar's vocabulary, and proof of entry. */
+export interface TesterConfig {
+  enabled: boolean
+  question_count: number
+  categories: { slug: string; name: string; question_count: number }[]
+  /** Every question type, including those with nothing authored yet. */
+  types: { value: QuestionType; label: string; question_count: number }[]
+  /** The difficulty bands (easy/medium/hard), each carrying the level range it
+   *  covers — the catalog filters on `level_min`/`level_max`, so the band is
+   *  named here and cut here, and the page never hardcodes "medium is 4..7". */
+  levels: {
+    value: string
+    label: string
+    level_min: number
+    level_max: number
+    question_count: number
+  }[]
+}

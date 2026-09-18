@@ -5,6 +5,7 @@ from __future__ import annotations
 from rest_framework.test import APIClient, APITestCase
 
 from apps.matches import services
+from apps.matches.api.serializers import MatchupQuestionSerializer
 from apps.matches.tests.factories import make_matchup
 from apps.players.tests.factories import make_player
 from apps.questions.selectors import QuestionRef, get_question
@@ -175,6 +176,103 @@ class MatchHistoryDetailTests(APITestCase):
         response = _authed_client(alice).get(f"/api/v1/matches/{matchup.pk}/")
 
         self.assertEqual(response.status_code, 200)
+
+
+class AnswerKeyTests(APITestCase):
+    """The box score publishes the answer — and only where it is meant to.
+
+    This is the platform's one deliberate exception to "no payload names a
+    correct answer", so the tests that matter are the ones about its edges
+    rather than the one about it working.
+    """
+
+    def _played_out(self, alice, bob):
+        """A one-question match, answered by both and closed."""
+        matchup = make_matchup(player_one=alice, player_two=bob, question_count=3)
+        services.start_matchup(matchup=matchup)
+        first = matchup.questions.get(order=1)
+        option = _first_option(first)
+        for player in (alice, bob):
+            services.submit_answer(
+                matchup=matchup,
+                player=player,
+                order=1,
+                payload={"type": "single-answer", "option_id": option.pk},
+            )
+        services.complete_question(matchup=matchup, order=1)
+        services.abandon_matchup(matchup=matchup, leaving_player=bob)
+        return matchup, option
+
+    def test_a_played_question_reveals_what_was_correct(self):
+        alice = make_player(email="alice@example.com")
+        bob = make_player(email="bob@example.com")
+        matchup, option = self._played_out(alice, bob)
+
+        response = _authed_client(alice).get(f"/api/v1/matches/{matchup.pk}/")
+
+        self.assertEqual(response.status_code, 200)
+        key = response.json()["data"]["questions"][0]["answer_key"]
+        self.assertEqual(key["type"], "single-answer")
+        self.assertEqual(key["option_ids"], [option.pk])
+
+    def test_the_board_beside_it_still_names_nothing(self):
+        """The reveal is a sibling of the board, not a change to it. A future
+        edit that merged them would pass the test above and quietly make every
+        *live* board carry the key, since the board is the payload the socket
+        sends."""
+        alice = make_player(email="alice@example.com")
+        bob = make_player(email="bob@example.com")
+        matchup, _ = self._played_out(alice, bob)
+
+        response = _authed_client(alice).get(f"/api/v1/matches/{matchup.pk}/")
+
+        board = response.json()["data"]["questions"][0]["question"]
+        self.assertNotIn("option_ids", board)
+        for option in board["options"]:
+            self.assertEqual(set(option), {"id", "text"})
+
+    def test_a_live_matchup_reveals_nothing_because_it_answers_nothing(self):
+        """Belt and braces: the view refuses a live matchup outright, so the
+        key never gets the chance to be withheld. Asserted at the status code
+        because that is the gate doing the work — if this ever becomes a 200,
+        the serializer's own `completed_at` check is what stands behind it, and
+        the test below is the one that proves *that*."""
+        alice = make_player(email="alice@example.com")
+        bob = make_player(email="bob@example.com")
+        matchup = make_matchup(player_one=alice, player_two=bob, question_count=3)
+        services.start_matchup(matchup=matchup)
+
+        response = _authed_client(alice).get(f"/api/v1/matches/{matchup.pk}/")
+
+        self.assertEqual(response.status_code, 409)
+
+    def test_an_open_question_has_no_key_even_reached_directly(self):
+        """The second mechanism, tested without the first in front of it.
+
+        `MatchupDetailSerializer` is what a future caller reaching past the view
+        would use, and an open question's key is the answer handed to somebody
+        whose clock is still running.
+        """
+        alice = make_player(email="alice@example.com")
+        bob = make_player(email="bob@example.com")
+        matchup = make_matchup(player_one=alice, player_two=bob, question_count=3)
+        services.start_matchup(matchup=matchup)
+        open_question = matchup.questions.get(order=1)
+
+        rendered = MatchupQuestionSerializer(open_question).data
+
+        self.assertIsNone(rendered["answer_key"])
+        self.assertEqual(rendered["answers"], {})
+
+    def test_a_stranger_gets_no_key_because_they_get_no_box_score(self):
+        alice = make_player(email="alice@example.com")
+        bob = make_player(email="bob@example.com")
+        stranger = make_player(email="stranger@example.com")
+        matchup, _ = self._played_out(alice, bob)
+
+        response = _authed_client(stranger).get(f"/api/v1/matches/{matchup.pk}/")
+
+        self.assertEqual(response.status_code, 403)
 
 
 class MatchParticipantsTests(APITestCase):
