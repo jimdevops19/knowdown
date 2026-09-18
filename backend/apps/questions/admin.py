@@ -30,6 +30,7 @@ from .models import (
     MatrixRow,
     MultipleAnswerOption,
     MultipleAnswerQuestion,
+    NameAsManyQuestion,
     OrderingOption,
     OrderingQuestion,
     SingleAnswerImageQuestion,
@@ -137,6 +138,28 @@ class FreeTextQuestionAdmin(_QuestionAdmin):
 @admin.register(OrderingQuestion)
 class OrderingQuestionAdmin(_QuestionAdmin):
     inlines = [OrderingOptionInline]
+
+
+@admin.register(NameAsManyQuestion)
+class NameAsManyQuestionAdmin(_QuestionAdmin):
+    """The one question type with nothing to proofread underneath it.
+
+    There are no inlines because there are no child rows: who qualifies is a
+    line through a column of a baked CSV (``apps.questions.career_stats``), not
+    a table of answers somebody wrote. So what the changelist shows *is* the
+    question — the stat, which way the comparison runs, where the line sits and
+    what a full answer costs — and reading a question back here means reading
+    those four and asking whether they say what the description says.
+    """
+
+    list_display = (
+        *_QuestionAdmin.list_display,
+        "stat",
+        "comparison",
+        "threshold",
+        "target_score",
+    )
+    list_filter = (*_QuestionAdmin.list_filter, "dataset", "stat", "comparison")
 
 
 @admin.register(MatrixCell)

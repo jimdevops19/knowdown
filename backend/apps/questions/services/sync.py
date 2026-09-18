@@ -511,6 +511,17 @@ def _type_specific_fields(spec) -> dict:
         }
     if spec.type == QuestionType.GRADUAL_HINTS:
         return {"hint_interval_seconds": spec.hint_interval_seconds}
+    if spec.type == QuestionType.NAME_AS_MANY:
+        # The whole question, and the only type with no children at all: who
+        # qualifies is in the baked artifact rather than in a table, so there is
+        # nothing under this row for ``_write_children`` to replace.
+        return {
+            "dataset": spec.dataset,
+            "stat": spec.stat,
+            "comparison": spec.comparison,
+            "threshold": spec.threshold,
+            "target_score": spec.target_score,
+        }
     return {}
 
 

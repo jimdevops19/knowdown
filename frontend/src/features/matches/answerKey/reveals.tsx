@@ -186,6 +186,51 @@ export function describeAnswerKey({
       return matrixReveal(question, answerKey, mine)
     }
 
+    case 'name-as-many': {
+      // Always behind a button: the interesting part is a list of what each
+      // name paid, which is a table's worth of content and not a cell's.
+      return {
+        kind: 'modal',
+        label: `${answerKey.earned} of ${answerKey.target_score} pts`,
+        title: 'What each name paid',
+        description:
+          'A name is worth how hard it was to think of — 2 for an obvious pick, up to 10 for a deep cut.',
+        body: (
+          <div className="flex flex-col gap-4">
+            <ul className="flex flex-col gap-1.5">
+              {answerKey.named.map((entry) => (
+                <li
+                  key={entry.name}
+                  className="flex items-center justify-between gap-3 rounded-tile border border-chalk/8 bg-panel/60 px-3 py-2 text-sm"
+                >
+                  <span className={entry.points > 0 ? 'text-chalk' : 'text-ash line-through'}>
+                    {entry.name}
+                  </span>
+                  <span
+                    className={`font-display text-xs font-bold ${
+                      entry.points > 0 ? 'text-correct' : 'text-ash'
+                    }`}
+                  >
+                    {entry.points > 0 ? `+${entry.points}` : '0'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            {/* The ones they did not get, capped by the server — see
+                `AnswerPoolList` on why the tail is a count and not a tease. */}
+            {answerKey.total > 0 && (
+              <section className="flex flex-col gap-1.5 border-t border-chalk/8 pt-4">
+                <h3 className="font-display text-xs font-bold uppercase tracking-wider text-ash">
+                  Names they missed
+                </h3>
+                <AnswerPoolList pool={answerKey} />
+              </section>
+            )}
+          </div>
+        ),
+      }
+    }
+
     case 'gradual-hints': {
       if (question.type !== 'gradual-hints') return brokenPair()
       return {

@@ -201,6 +201,11 @@ export function Rehearsal({ rehearsal }: { rehearsal: TesterRehearsal }) {
           submission={submission}
           verdict={verdictTone}
           locked={locked}
+          // No clock runs in a rehearsal, so there is no instant to act on:
+          // the one board that submits itself at the wire (`NameAsManyBoard`)
+          // simply waits for the maintainer to press the button, which is the
+          // behaviour a rehearsal wants anyway.
+          deadlineAt={null}
           onAnswer={(answer) => void onAnswer(answer)}
           revealOptions={clock.started}
         />

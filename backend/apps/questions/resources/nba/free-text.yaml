@@ -52,3 +52,218 @@ questions:
       - Golden State Warriors
       - Golden State
       - Warriors
+
+  - type: free-text
+    slug: nba-diesel-three-straight-finals-mvp-lakers
+    description: >-
+      Which center, nicknamed "The Diesel," won three straight Finals MVP
+      awards with the Lakers from 2000 to 2002?
+    level: 3
+    tags: {topic: awards, era: 2000s}
+    accepted_answers:
+      - Shaquille O'Neal
+      - Shaq
+      - O'Neal
+
+  - type: free-text
+    slug: nba-the-answer-2001-mvp
+    description: >-
+      Which point guard, nicknamed "The Answer," won regular-season MVP in
+      2001 with the Philadelphia 76ers?
+    level: 3
+    tags: {topic: awards, era: 2000s}
+    accepted_answers:
+      - Allen Iverson
+      - Iverson
+      - AI
+
+  - type: free-text
+    slug: nba-2003-draft-cleveland-first-pick
+    description: Who was drafted first overall by the Cleveland Cavaliers in 2003?
+    level: 2
+    tags: {topic: draft, era: 2000s}
+    accepted_answers:
+      - LeBron James
+      - LeBron
+      - James
+
+  - type: free-text
+    slug: nba-suns-back-to-back-mvp-guard
+    description: >-
+      Which Phoenix Suns point guard won back-to-back MVP awards in 2005 and
+      2006?
+    level: 3
+    tags: {topic: awards, era: 2000s}
+    accepted_answers:
+      - Steve Nash
+      - Nash
+
+  - type: free-text
+    slug: nba-2002-draft-first-pick-china
+    description: Which center, drafted first overall in 2002, became the first NBA star out of China?
+    level: 3
+    tags: {topic: draft, era: 2000s}
+    accepted_answers:
+      - Yao Ming
+      - Yao
+
+  - type: free-text
+    slug: nba-pistons-2004-finals-mvp-guard
+    description: >-
+      Which Detroit Pistons point guard won Finals MVP as the team upset the
+      Lakers in 2004?
+    level: 5
+    tags: {topic: finals, era: 2000s}
+    accepted_answers:
+      - Chauncey Billups
+      - Billups
+
+  - type: free-text
+    slug: nba-vinsanity-2000-dunk-contest
+    description: >-
+      Which high-flying small forward, nicknamed "Vinsanity," won the 2000
+      Slam Dunk Contest?
+    level: 2
+    tags: {topic: awards, era: 2000s}
+    accepted_answers:
+      - Vince Carter
+      - Carter
+      - Vince
+
+  - type: free-text
+    slug: nba-60-points-wizards-2006
+    description: Who scored 60 points in a single game for the Washington Wizards in December 2006?
+    level: 5
+    tags: {topic: records, era: 2000s}
+    accepted_answers:
+      - Gilbert Arenas
+      - Arenas
+
+  - type: free-text
+    slug: nba-spurs-finals-mvp-2003-2005
+    description: Which Spurs big man won Finals MVP in both 2003 and 2005?
+    level: 4
+    tags: {topic: finals, era: 2000s}
+    accepted_answers:
+      - Tim Duncan
+      - Duncan
+
+  - type: free-text
+    slug: nba-heat-first-title-finals-mvp-guard
+    description: >-
+      Which Miami Heat guard won Finals MVP in the team's first championship
+      in 2006?
+    level: 3
+    tags: {topic: finals, era: 2000s}
+    accepted_answers:
+      - Dwyane Wade
+      - Wade
+      - D-Wade
+
+  - type: free-text
+    slug: nba-grizzlies-vancouver-relocation
+    description: >-
+      Which franchise relocated from Vancouver in 2001 and took on its
+      current name?
+    level: 3
+    tags: {topic: history, era: 2000s}
+    accepted_answers:
+      - Memphis Grizzlies
+      - Grizzlies
+      - Memphis
+
+  - type: free-text
+    slug: nba-celtics-2007-08-trio-nickname
+    description: >-
+      What nickname was given to Boston's trio of Kevin Garnett, Paul Pierce
+      and Ray Allen in 2007-08?
+    level: 3
+    tags: {topic: teams, era: 2000s}
+    accepted_answers:
+      - Big Three
+      - The Big Three
+
+  - type: free-text
+    slug: nba-nuggets-2003-third-pick-syracuse
+    description: >-
+      Which Denver Nuggets forward was drafted third overall in 2003 out of
+      Syracuse?
+    level: 3
+    tags: {topic: draft, era: 2000s}
+    accepted_answers:
+      - Carmelo Anthony
+      - Melo
+      - Anthony
+
+  - type: free-text
+    slug: nba-pistons-2004-head-coach
+    description: Name the head coach who led the Detroit Pistons to the 2004 championship.
+    level: 6
+    tags: {topic: finals, era: 2000s}
+    accepted_answers:
+      - Larry Brown
+      - Brown
+
+  - type: free-text
+    slug: nba-pistons-defensive-anchor-early-2000s
+    description: >-
+      Which defensive-minded center won Defensive Player of the Year multiple
+      times for the Pistons in the early 2000s?
+    level: 5
+    tags: {topic: awards, era: 2000s}
+    accepted_answers:
+      - Ben Wallace
+      - Wallace
+
+  - type: free-text
+    slug: nba-malice-at-the-palace-name
+    description: >-
+      What name is commonly given to the November 2004 brawl between the
+      Pistons and Pacers that spilled into the stands?
+    level: 4
+    tags: {topic: history, era: 2000s}
+    accepted_answers:
+      - Malice at the Palace
+      - The Malice at the Palace
+
+  - type: free-text
+    slug: nba-magic-center-2009-finals
+    description: >-
+      Which Orlando Magic center led the league in blocked shots and reached
+      the 2009 NBA Finals?
+    level: 4
+    tags: {topic: finals, era: 2000s}
+    accepted_answers:
+      - Dwight Howard
+      - Howard
+
+  - type: free-text
+    slug: nba-sonics-thunder-2008-rookie-of-year
+    description: >-
+      Which Seattle SuperSonics forward won Rookie of the Year for the
+      2007-08 season?
+    level: 3
+    tags: {topic: awards, era: 2000s}
+    accepted_answers:
+      - Kevin Durant
+      - Durant
+      - KD
+
+  - type: free-text
+    slug: nba-argentine-sixth-man-spurs-2008
+    description: Which Argentine guard won Sixth Man of the Year for the Spurs in 2008?
+    level: 5
+    tags: {topic: awards, era: 2000s}
+    accepted_answers:
+      - Manu Ginobili
+      - Ginobili
+
+  - type: free-text
+    slug: nba-lakers-2002-finals-sweep-opponent
+    description: Name the team the Lakers swept to complete their three-peat in the 2002 NBA Finals.
+    level: 5
+    tags: {topic: finals, era: 2000s}
+    accepted_answers:
+      - New Jersey Nets
+      - Nets
+      - New Jersey

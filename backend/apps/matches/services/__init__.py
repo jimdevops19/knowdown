@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import random
 from datetime import timedelta
+from functools import partial
 
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -39,6 +40,8 @@ from django.utils import timezone
 from apps.achievements.services import award_achievements_for_matchup
 from apps.categories.models import Category
 from apps.core_common.exceptions import Conflict, NotFound, ValidationFailed
+from apps.exposure.selectors import pick_least_exposed
+from apps.exposure.services import record_exposures
 from apps.matches import selectors
 from apps.matches.constants import (
     MATCH_QUESTION_COUNTS,
@@ -121,12 +124,24 @@ def select_match_questions(
 ) -> list[MatchupQuestion]:
     """Draw ``matchup.question_count`` questions and freeze them onto the
     matchup, in order. Refuses to redraw a matchup that already has a board —
-    the board is fixed the moment it exists, so both players see one game."""
+    the board is fixed the moment it exists, so both players see one game.
+
+    The draw itself is biased away from repeats: ``pick_least_exposed`` is
+    passed in as ``select_questions``'s ``choose`` strategy, so a question
+    neither side has faced before always outranks one either has, and
+    ``record_exposures`` then bumps both players' counts for exactly the
+    board that was frozen — never for a board that was drawn and then
+    refused (this all happens after the pool-size check above has passed).
+    """
     if matchup.questions.exists():
         raise Conflict("Questions have already been selected for this matchup.")
 
+    player_ids = [side.player_id for side in matchup.players.all()]
     refs = select_questions(
-        category=matchup.category, count=matchup.question_count, rng=rng
+        category=matchup.category,
+        count=matchup.question_count,
+        rng=rng,
+        choose=partial(pick_least_exposed, player_ids=player_ids),
     )
     rows = MatchupQuestion.objects.bulk_create(
         [
@@ -139,6 +154,7 @@ def select_match_questions(
             for order, ref in enumerate(refs, start=1)
         ]
     )
+    record_exposures(player_ids=player_ids, refs=refs)
     return rows
 
 
@@ -231,7 +247,12 @@ def submit_answer(
     response_time_ms = max(0, min(elapsed_ms, time_limit_ms))
 
     result = evaluate_answer(question=concrete_question, submitted=payload)
-    points = score_answer(credit=result.score, response_time_ms=response_time_ms, time_limit_ms=time_limit_ms)
+    points = score_answer(
+        credit=result.score,
+        response_time_ms=response_time_ms,
+        time_limit_ms=time_limit_ms,
+        question_type=question.question_type,
+    )
 
     try:
         with transaction.atomic():

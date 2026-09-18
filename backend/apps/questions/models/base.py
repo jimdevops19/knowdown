@@ -38,6 +38,7 @@ class QuestionType(models.TextChoices):
     ORDERING = "ordering", "Ordering"
     MATRIX = "matrix", "Columns and rows"
     GRADUAL_HINTS = "gradual-hints", "Gradual hints"
+    NAME_AS_MANY = "name-as-many", "Name as many as you can"
 
 
 class BaseQuestion(BaseModel):

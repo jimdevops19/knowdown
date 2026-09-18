@@ -116,3 +116,365 @@ questions:
       - label: Points scored
         kind: number
         accepted_answers: [60]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-kobe-81-points
+    description: Guess the game.
+    level: 5
+    tags: {topic: records, era: 2000s}
+    hints:
+      - He scored more points in the second half alone than the Raptors had at halftime.
+      - His team trailed by 18 points at one stage before storming back to win.
+      - The final line was 81 points on 28-of-46 shooting.
+      - It is the second-highest single-game scoring total in NBA history.
+      - It happened at the Staples Center against the Toronto Raptors.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2006]
+      - label: Points scored
+        kind: number
+        accepted_answers: [81]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-malice-at-the-palace
+    description: Guess the brawl.
+    level: 6
+    tags: {topic: history, era: 2000s}
+    hints:
+      - A hard foul with 45 seconds left sparked a shoving match near the scorer's table.
+      - A fan threw a cup of soda that hit a Pacers star lying on the scorer's table.
+      - That player charged into the stands after the fan who threw it.
+      - Punches were thrown between players and fans, and the game was abandoned.
+      - It happened at the Palace of Auburn Hills between the Pacers and Pistons.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2004]
+      - label: Month
+        accepted_answers: [November, Nov]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-2004-finals-pistons-upset
+    description: Guess the Finals upset.
+    level: 6
+    tags: {topic: finals, era: 2000s}
+    hints:
+      - The heavy favorites had won three of the previous four championships.
+      - The underdogs' defense held their opponent's superstar duo well below their scoring averages.
+      - Chauncey Billups was named Finals MVP despite not being the game's biggest name.
+      - The series ended in five games, not seven.
+      - The Detroit Pistons beat the Los Angeles Lakers for the title.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2004]
+      - label: Winning team
+        accepted_answers: [Pistons, Detroit Pistons, Detroit]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-vince-carter-2000-dunk-contest
+    description: Guess the moment.
+    level: 4
+    tags: {topic: awards, era: 2000s}
+    hints:
+      - He hung on the rim by his elbow after one dunk, earning it a nickname of its own.
+      - He led off Team USA's roster that same summer at the Sydney Olympics.
+      - Judges gave him a perfect 50 on more than one attempt that night.
+      - He was representing the Toronto Raptors at All-Star Weekend.
+      - He won the NBA Slam Dunk Contest that year.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2000]
+      - label: Player
+        accepted_answers: [Vince Carter, Carter, Vince]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-2006-finals-wade-heat
+    description: Guess the Finals.
+    level: 6
+    tags: {topic: finals, era: 2000s}
+    hints:
+      - The winning team trailed the series two games to none before winning four straight.
+      - The Finals MVP averaged nearly 35 points a game across the series.
+      - Shaquille O'Neal was his co-star but not the Finals MVP.
+      - The Dallas Mavericks lost a series they once led comfortably.
+      - The Miami Heat won their first championship in franchise history.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2006]
+      - label: Finals MVP
+        accepted_answers: [Dwyane Wade, Wade, D-Wade]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-suns-seven-seconds-or-less-mvp
+    description: Guess the player and team.
+    level: 5
+    tags: {topic: awards, era: 2000s}
+    hints:
+      - His team's fast-paced offense was nicknamed "Seven Seconds or Less."
+      - He led the league in assists that season while playing for a Western Conference team.
+      - He won back-to-back MVP awards despite never reaching the Finals.
+      - He was famously edged out by teammates as a two-time MVP many felt was overlooked in ring count.
+      - He ran the point for the Phoenix Suns.
+    answer_fields:
+      - label: Year of first MVP
+        kind: number
+        accepted_answers: [2005]
+      - label: Player
+        accepted_answers: [Steve Nash, Nash]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-lakers-2000-title-opponent
+    description: Guess the Finals.
+    level: 5
+    tags: {topic: finals, era: 2000s}
+    hints:
+      - It was the first championship of a three-peat for the winning team.
+      - Shaquille O'Neal was named Finals MVP, his only Finals MVP with this franchise.
+      - Reggie Miller's team came up short in six games.
+      - The winning team was coached by Phil Jackson in his first season with them.
+      - The Los Angeles Lakers beat the Indiana Pacers for the title.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2000]
+      - label: Losing team
+        accepted_answers: [Pacers, Indiana Pacers, Indiana]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-spurs-sweep-2007
+    description: Guess the Finals.
+    level: 6
+    tags: {topic: finals, era: 2000s}
+    hints:
+      - The losing team was led by a 22-year-old superstar playing in his first Finals.
+      - The winning team's big man won his third career Finals MVP award.
+      - Tony Parker was named Finals MVP instead, his only Finals MVP.
+      - The series was over in four straight games.
+      - The San Antonio Spurs swept the Cleveland Cavaliers.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2007]
+      - label: Losing team
+        accepted_answers: [Cavaliers, Cleveland Cavaliers, Cleveland]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-yao-ming-debut-season
+    description: Guess the player and season.
+    level: 5
+    tags: {topic: draft, era: 2000s}
+    hints:
+      - He was taller than every player who had ever won Rookie of the Year before him.
+      - He was picked first overall by the Houston Rockets.
+      - He had never played a minute of American basketball before that draft.
+      - He became the first player from his home country to be an NBA first overall pick.
+      - He was born and trained in Shanghai, China.
+    answer_fields:
+      - label: Year drafted
+        kind: number
+        accepted_answers: [2002]
+      - label: Player
+        accepted_answers: [Yao Ming, Yao]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-celtics-2008-title
+    description: Guess the Finals.
+    level: 6
+    tags: {topic: finals, era: 2000s}
+    hints:
+      - The winning team had missed the playoffs entirely the season before.
+      - Two superstars were traded to the team that same summer to team up with a franchise veteran.
+      - The Finals MVP had been with the franchise the longest of the trio.
+      - The series went six games, ending with a blowout in the finale.
+      - The Boston Celtics beat the Los Angeles Lakers for the title.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2008]
+      - label: Finals MVP
+        accepted_answers: [Paul Pierce, Pierce]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-gilbert-arenas-60-points
+    description: Guess the game.
+    level: 7
+    tags: {topic: records, era: 2000s}
+    hints:
+      - He hit a game-winning three-pointer despite the opponent double-teaming him afterward.
+      - The opposing team's roster still featured Kobe Bryant, who scored 50 himself that night.
+      - It happened in December, at the MCI Center.
+      - He was nicknamed "Agent Zero" for his jersey number.
+      - He scored 60 points for the Washington Wizards.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2006]
+      - label: Points scored
+        kind: number
+        accepted_answers: [60]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-2003-draft-first-pick
+    description: Guess the draft class.
+    level: 5
+    tags: {topic: draft, era: 2000s}
+    hints:
+      - Five future All-Stars went in the first five picks that night.
+      - The consensus top prospect had skipped college entirely, straight from an Ohio high school.
+      - Darko Milicic went second overall, a pick many teams came to regret.
+      - Carmelo Anthony and Chris Bosh were both drafted later that same night.
+      - The Cleveland Cavaliers held the first pick.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2003]
+      - label: Player picked first
+        accepted_answers: [LeBron James, LeBron, James]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-shaq-traded-to-heat
+    description: Guess the trade.
+    level: 6
+    tags: {topic: teams, era: 2000s}
+    hints:
+      - Tensions with a younger co-star had grown too large for one roster to hold.
+      - The centerpiece coming back the other way was a young shooting guard named Lamar Odom.
+      - The deal sent a four-time champion center out of Los Angeles.
+      - He would go on to win a Finals MVP with his new team two years later.
+      - Shaquille O'Neal was traded to the Miami Heat.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2004]
+      - label: Team he joined
+        accepted_answers: [Heat, Miami Heat, Miami]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-sonics-become-thunder
+    description: Guess the relocation.
+    level: 5
+    tags: {topic: history, era: 2000s}
+    hints:
+      - A young forward who had just won Rookie of the Year was the roster's centerpiece.
+      - The franchise had called the same Pacific Northwest city home since 1967.
+      - New ownership moved the team roughly 2,000 miles southeast.
+      - The team was renamed after a weather phenomenon common on the southern Plains.
+      - The Seattle SuperSonics became the Oklahoma City Thunder.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2008]
+      - label: New city
+        accepted_answers: [Oklahoma City, OKC]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-iverson-2001-mvp-finals-run
+    description: Guess the player and season.
+    level: 6
+    tags: {topic: awards, era: 2000s}
+    hints:
+      - He stood just six feet tall yet carried the league's scoring race that season.
+      - His team was given little chance against the three-peat Lakers in the Finals.
+      - He famously stepped over a defender after a clutch shot in Game 1 of that Finals.
+      - He won the regular-season MVP award with the Philadelphia 76ers.
+      - His nickname was "The Answer."
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2001]
+      - label: Player
+        accepted_answers: [Allen Iverson, Iverson, AI]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-dirk-nowitzki-2006-finals-loss
+    description: Guess the Finals.
+    level: 7
+    tags: {topic: finals, era: 2000s}
+    hints:
+      - The losing team led the series two games to none before it slipped away.
+      - A German forward put up historic numbers in a losing effort.
+      - A controversial late foul call in Game 5 became one of the series' defining moments.
+      - Dwyane Wade was named Finals MVP for the winning side.
+      - The Dallas Mavericks lost to the Miami Heat.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2006]
+      - label: Losing team's star
+        accepted_answers: [Dirk Nowitzki, Nowitzki, Dirk]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-ginobili-sixth-man-2008
+    description: Guess the player and award.
+    level: 7
+    tags: {topic: awards, era: 2000s}
+    hints:
+      - He came off the bench for a perennial contender coached by Gregg Popovich.
+      - He had already won an NBA championship as a starter, then embraced a reserve role.
+      - He represented Argentina internationally, including an Olympic gold medal in 2004.
+      - He became the first international player to win this particular award.
+      - He won the Sixth Man of the Year award with the San Antonio Spurs.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2008]
+      - label: Player
+        accepted_answers: [Manu Ginobili, Ginobili]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-carmelo-anthony-2003-draft
+    description: Guess the player.
+    level: 5
+    tags: {topic: draft, era: 2000s}
+    hints:
+      - He led his college team to a national championship as a freshman that same year.
+      - He was picked one spot after Darko Milicic in a draft loaded with future stars.
+      - He spent his college season at Syracuse before turning pro.
+      - He was drafted by a Western Conference franchise based in the Mile High City.
+      - The Denver Nuggets selected him third overall.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2003]
+      - label: Player
+        accepted_answers: [Carmelo Anthony, Melo, Anthony]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-2008-redeem-team-gold
+    description: Guess the tournament.
+    level: 6
+    tags: {topic: awards, era: 2000s}
+    hints:
+      - The roster was built in response to a disappointing bronze-medal finish four years earlier.
+      - Kobe Bryant and LeBron James anchored a roster of NBA superstars.
+      - The team beat Spain in a tense gold-medal game.
+      - Mike Krzyzewski coached the squad, his first Olympics in charge.
+      - The tournament was the 2008 Beijing Summer Olympics.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2008]
+      - label: Host city
+        accepted_answers: [Beijing]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-mcgrady-thirteen-in-thirty-three
+    description: Guess the moment.
+    level: 8
+    tags: {topic: records, era: 2000s}
+    hints:
+      - His team trailed by 10 points with under 40 seconds on the clock.
+      - He scored four straight three-pointers in a span of well under a minute.
+      - The stunned opponent was the San Antonio Spurs, on their own home floor.
+      - It happened in December 2004, while he played for the Houston Rockets.
+      - He scored 13 points in the final 33 seconds to steal the win.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Tracy McGrady, McGrady, T-Mac]
+      - label: Points scored in the stretch
+        kind: number
+        accepted_answers: [13]

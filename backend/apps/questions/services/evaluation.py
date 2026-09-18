@@ -38,6 +38,11 @@ is not a correct answer, and it is not worth nothing either.
   a grid. "Guess the game" asks for a year, a round and a game number, and
   somebody with the first two knew most of it; all-or-nothing would score that
   identically to having no idea.
+- name as many — **per popularity point**, ``collected / target``, capped at
+  full. The only shape where a right answer is worth *more* than another right
+  answer, and the only one where that does not break anything: its board is
+  every qualifying player in NBA history rather than a fixed set of claims, so
+  the question is how deep you went rather than how much of a board you filled.
 """
 
 from __future__ import annotations
@@ -49,6 +54,7 @@ from typing import Callable
 from pydantic import TypeAdapter, ValidationError
 
 from apps.core_common.exceptions import ValidationFailed
+from apps.questions.career_stats import load_career_stats
 from apps.questions.matching import normalise_answer as _normalise
 from apps.questions.models import (
     BaseQuestion,
@@ -57,6 +63,7 @@ from apps.questions.models import (
     GradualHintsQuestion,
     MatrixKind,
     MultipleAnswerQuestion,
+    NameAsManyQuestion,
     OrderingQuestion,
     QuestionType,
     TrueFalseQuestion,
@@ -69,6 +76,7 @@ from apps.questions.schemas.answers import (
     ImageAnswerSubmission,
     MatrixSubmission,
     MultipleAnswerSubmission,
+    NameAsManySubmission,
     OrderingSubmission,
     SingleAnswerSubmission,
     TrueFalseSubmission,
@@ -372,6 +380,61 @@ def _evaluate_gradual_hints(
     return AnswerResult.of(matched / len(accepted))
 
 
+def _evaluate_name_as_many(
+    *, question: NameAsManyQuestion, submitted: NameAsManySubmission
+) -> AnswerResult:
+    """name-as-many: credit is the popularity points collected, over the
+    question's target.
+
+    **The one type where ``probability_score`` is paid rather than hidden.**
+    Everywhere else, two players who both filled the board in correctly must
+    score the same, and paying more for a rarer name would break that. Here the
+    board has no bottom — every qualifying player in NBA history is on it — so
+    "how deep did you go?" *is* the question, and a mode that paid a flat rate
+    per name would be won by whoever types the five most famous shooters
+    fastest. See ``apps.questions.career_stats``.
+
+    Three rules, and each is the counterpart of one an authored type keeps:
+
+    - **A name nobody has is worth nothing, and is not malformed.** Unlike a
+      matrix cell that was never asked about, a wrong guess here is an ordinary
+      wrong answer — the player was invited to name anybody at all, so there is
+      no such thing as naming something they were not asked for. Nothing is
+      *deducted* for it either: a mode that punished a guess would be one where
+      the right play is to stop typing, which is the opposite of the mode.
+    - **The denominator is the question's target, not the board.** Every
+      qualifying player is worth hundreds of points and nobody types hundreds of
+      names; scoring against the whole board would make full credit unreachable
+      and every answer a rounding error. ``target_score`` is the author's
+      statement of what a complete answer looks like, checked at load time
+      against the points that actually exist.
+    - **Credit is capped at 1.0.** A player who beats the target has answered
+      the question; there is no extra credit, because points past full credit
+      would be this domain deciding what a question is worth, which is
+      ``apps.matches``'.
+    """
+    stats = load_career_stats()
+    qualifiers = stats.qualifiers(
+        stat=question.stat,
+        comparison=question.comparison,
+        threshold=question.threshold,
+    )
+
+    # A question whose target is zero cannot happen — the schema floors it and
+    # the column validates it — but dividing by it here would be a 500 rather
+    # than a refusal, and the admin can write one.
+    if not question.target_score:
+        raise _refuse(question, "it asks for no points at all")
+
+    earned = 0
+    for name in submitted.names:
+        player = qualifiers.find(name)
+        if player is not None:
+            earned += player.probability_score
+
+    return AnswerResult.of(min(1.0, earned / question.target_score))
+
+
 #: One evaluator per question type, keyed the way
 #: ``models.QUESTION_MODELS`` and ``schemas.answers.ANSWER_SUBMISSIONS`` are —
 #: the three registries are siblings, and adding a question type means adding a
@@ -387,6 +450,7 @@ ANSWER_EVALUATORS: dict[str, Callable[..., AnswerResult]] = {
     QuestionType.ORDERING: _evaluate_ordering,
     QuestionType.MATRIX: _evaluate_matrix,
     QuestionType.GRADUAL_HINTS: _evaluate_gradual_hints,
+    QuestionType.NAME_AS_MANY: _evaluate_name_as_many,
 }
 
 

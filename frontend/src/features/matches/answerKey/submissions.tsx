@@ -130,6 +130,19 @@ export function describeSubmission({
       }
     }
 
+    case 'name-as-many': {
+      if (question.type !== 'name-as-many') return unknown()
+      // Which of them counted is the *answer key's* business, not this one —
+      // a submission renderer says what was sent, and the key beside it says
+      // what that was worth, name by name.
+      return {
+        kind: 'modal',
+        label: `${submitted.names.length} named`,
+        title: 'The names they gave',
+        body: <AnswerList items={submitted.names} />,
+      }
+    }
+
     case 'gradual-hints': {
       if (question.type !== 'gradual-hints') return unknown()
       const labels = new Map(

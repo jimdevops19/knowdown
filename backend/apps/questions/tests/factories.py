@@ -36,12 +36,14 @@ from apps.questions.models import (
     MatrixRow,
     MultipleAnswerOption,
     MultipleAnswerQuestion,
+    NameAsManyQuestion,
     OrderingOption,
     OrderingQuestion,
     QuestionType,
     SingleAnswerImageQuestion,
     SingleAnswerOption,
     SingleAnswerQuestion,
+    StatComparison,
     TrueFalseQuestion,
 )
 
@@ -332,6 +334,34 @@ def make_team_matrix(
     return question
 
 
+def make_name_as_many(
+    *,
+    slug: str = "name-as-many",
+    level: int = 5,
+    category: Category | None = None,
+    stat: str = "fg3m",
+    comparison: str = StatComparison.AT_LEAST,
+    threshold: float = 1000,
+    target_score: int = 10,
+) -> NameAsManyQuestion:
+    """A question with no children at all — the line *is* the question.
+
+    The defaults are the real artifact's: ``fg3m`` at 1,000, which is what
+    ``resources/nba/name-as-many.yaml`` asks and what the test fixtures in
+    ``test_career_stats`` are cut against. A suite wanting a question the
+    artifact cannot answer passes a stat nobody baked; nothing here validates
+    it, because validating it is the *loader's* job and a factory that enforced
+    load-time rules would make every evaluator test a loader test.
+    """
+    return NameAsManyQuestion.objects.create(
+        **_base(slug, level, category),
+        stat=stat,
+        comparison=comparison,
+        threshold=threshold,
+        target_score=target_score,
+    )
+
+
 #: One builder per question type, keyed by the type's YAML key — so a suite can
 #: walk every shape without naming them, and a new question type joins those
 #: suites by adding a line here.
@@ -344,4 +374,5 @@ QUESTION_FACTORIES = {
     QuestionType.ORDERING: make_ordering,
     QuestionType.MATRIX: make_matrix,
     QuestionType.GRADUAL_HINTS: make_gradual_hints,
+    QuestionType.NAME_AS_MANY: make_name_as_many,
 }

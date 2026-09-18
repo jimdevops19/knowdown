@@ -28,10 +28,12 @@ import random
 import uuid
 from typing import Callable
 
+from apps.questions.career_stats import load_career_stats
 from apps.questions.models import (
     BaseQuestion,
     ColumnsRowsQuestion,
     GradualHintsQuestion,
+    NameAsManyQuestion,
     QuestionType,
 )
 
@@ -140,6 +142,51 @@ def _gradual_hints(*, question: GradualHintsQuestion, correct: bool) -> dict:
     return {"type": QuestionType.GRADUAL_HINTS, "answer_fields": submitted}
 
 
+def _name_as_many(*, question: NameAsManyQuestion, correct: bool) -> dict:
+    """Names picked off the top of the qualifying list until the target is met.
+
+    The bot reads the same artifact the evaluator does
+    (``apps.questions.career_stats``) rather than a board, which is the
+    shortcut every builder here takes — see this module's docstring.
+
+    **It takes the most obvious names, not the best ones.** A bot that reached
+    for the deepest cuts would need two names where a person needs six, and
+    would be a strictly better player than any human at exactly this type; its
+    strength is supposed to come from its ``BotProfile``, not from the shape of
+    a registry entry. So it plays the list the way a person does — from the
+    top, stopping when it has enough — and the accuracy dice have already
+    decided whether it gets there at all.
+    """
+    if not correct:
+        # Names nobody has, so the list is well-formed and worth nothing: the
+        # counterpart of the ``not-the-answer-…`` a free-text bot types.
+        return {
+            "type": QuestionType.NAME_AS_MANY,
+            "names": [f"Nobody Atall {uuid.uuid4().hex[:6]}"],
+        }
+
+    qualifiers = load_career_stats().qualifiers(
+        stat=question.stat,
+        comparison=question.comparison,
+        threshold=question.threshold,
+    )
+    names, earned = [], 0
+    for player in qualifiers.players:
+        if earned >= question.target_score:
+            break
+        names.append(player.name)
+        earned += player.probability_score
+
+    # A question whose board cannot reach its target is refused at load time,
+    # so this is only reachable for a row written by hand in the admin. One
+    # name keeps the payload well-formed (the schema needs at least one) and
+    # lets the evaluator score it honestly short.
+    return {
+        "type": QuestionType.NAME_AS_MANY,
+        "names": names or [f"Nobody Atall {uuid.uuid4().hex[:6]}"],
+    }
+
+
 #: One builder per ``QuestionType`` — the sibling of ``ANSWER_EVALUATORS``
 #: (``apps.questions.services.evaluation``) for the write side a bot needs.
 BOT_ANSWER_BUILDERS: dict[str, Callable[..., dict]] = {
@@ -151,6 +198,7 @@ BOT_ANSWER_BUILDERS: dict[str, Callable[..., dict]] = {
     QuestionType.ORDERING: _ordering,
     QuestionType.MATRIX: _matrix,
     QuestionType.GRADUAL_HINTS: _gradual_hints,
+    QuestionType.NAME_AS_MANY: _name_as_many,
 }
 
 

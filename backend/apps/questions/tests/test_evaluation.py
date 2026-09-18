@@ -14,6 +14,7 @@ from __future__ import annotations
 from django.test import TestCase
 
 from apps.core_common.exceptions import ValidationFailed
+from apps.questions.career_stats import load_career_stats
 from apps.questions.models import QUESTION_MODELS, MatrixCellAnswer, QuestionType
 from apps.questions.schemas.answers import ANSWER_SUBMISSIONS
 from apps.questions.services.evaluation import ANSWER_EVALUATORS, evaluate_answer
@@ -21,6 +22,7 @@ from apps.questions.services.evaluation import ANSWER_EVALUATORS, evaluate_answe
 from .factories import (
     QUESTION_FACTORIES,
     make_free_text,
+    make_name_as_many,
     make_gradual_hints,
     make_matrix,
     make_team_matrix,
@@ -138,6 +140,22 @@ CASES: dict[str, dict] = {
         # The one intersection the question does not author.
         "malformed": lambda q: cell_payload(q, ("Bulls", "2000s", "1996")),
     },
+    QuestionType.NAME_AS_MANY: {
+        # Read off the artifact rather than hard-coded, so re-baking the CSV
+        # after a season cannot turn this suite red for a reason that has
+        # nothing to do with the evaluator.
+        "right": lambda q: {"type": q.question_type, "names": names_reaching_target(q)},
+        "wrong": lambda q: {
+            "type": q.question_type,
+            "names": ["Nobody Atall", "Neither Isthisone"],
+        },
+        # One name twice: the board de-duplicates as it is typed, so a list
+        # repeating itself is a client that stopped doing that.
+        "malformed": lambda q: {
+            "type": q.question_type,
+            "names": ["Stephen Curry", "stephen  curry"],
+        },
+    },
     QuestionType.GRADUAL_HINTS: {
         "right": lambda q: field_payload(q, ("Year", "2016"), ("Round", "NBA Finals"), ("Game number", "7")),
         "wrong": lambda q: field_payload(q, ("Year", "1776"), ("Round", "1776"), ("Game number", "1776")),
@@ -148,6 +166,28 @@ CASES: dict[str, dict] = {
         },
     },
 }
+
+
+def names_reaching_target(question) -> list[str]:
+    """Enough qualifying players to clear ``target_score``, most obvious first.
+
+    The same walk the bot builder does (``apps.matches.bots.answering``), for
+    the same reason: what a *complete* answer to this type looks like is a fact
+    about the artifact, and writing one out by hand would be a fixture that goes
+    stale the next time the CSV is baked.
+    """
+    qualifiers = load_career_stats().qualifiers(
+        stat=question.stat,
+        comparison=question.comparison,
+        threshold=question.threshold,
+    )
+    names, earned = [], 0
+    for player in qualifiers.players:
+        if earned >= question.target_score:
+            break
+        names.append(player.name)
+        earned += player.probability_score
+    return names
 
 
 def field_payload(question, *labels_and_answers: tuple[str, str]) -> dict:
@@ -615,6 +655,91 @@ class TeamMatrixTests(TestCase):
         self.assertEqual(
             MatrixCellAnswer.objects.filter(cell__question=self.question).count(), 0
         )
+
+
+class NameAsManyTests(TestCase):
+    """The only type where one right answer is worth more than another.
+
+    Every case here is written against the *real* artifact, because that is
+    where the answer key is — there is nothing to seed. What is pinned is the
+    arithmetic, never a particular player's grade: a name's price is read back
+    out of the index rather than written into the assertion, so re-baking the
+    CSV after a season cannot fail this suite for a reason unrelated to it.
+    """
+
+    def setUp(self) -> None:
+        self.question = make_name_as_many(target_score=10)
+        self.qualifiers = load_career_stats().qualifiers(
+            stat=self.question.stat,
+            comparison=self.question.comparison,
+            threshold=self.question.threshold,
+        )
+
+    def submit(self, *names: str):
+        return evaluate_answer(
+            question=self.question,
+            submitted={"type": self.question.question_type, "names": list(names)},
+        )
+
+    def price(self, name: str) -> int:
+        return self.qualifiers.find(name).probability_score
+
+    def deepest(self, count: int) -> list[str]:
+        """The least obvious qualifying names — the expensive end of the list."""
+        return [player.name for player in self.qualifiers.players[-count:]]
+
+    def test_a_name_pays_its_own_popularity_score(self) -> None:
+        result = self.submit("Stephen Curry")
+        self.assertEqual(result.score, self.price("Stephen Curry") / 10)
+
+    def test_a_deep_cut_is_worth_more_than_an_obvious_name(self) -> None:
+        """The whole reason this type exists. If these two ever score the same,
+        the mode is "type the five most famous shooters" and nothing else."""
+        obvious = self.submit("Stephen Curry").score
+        deep = self.submit(self.deepest(1)[0]).score
+        self.assertGreater(deep, obvious)
+
+    def test_names_accumulate_until_the_target_is_met(self) -> None:
+        names = self.deepest(2)
+        expected = sum(self.price(name) for name in names) / 10
+        self.assertEqual(self.submit(*names).score, min(1.0, expected))
+
+    def test_beating_the_target_is_a_correct_answer_and_no_more(self) -> None:
+        """Capped at full credit: what a question is *worth* past that is the
+        match engine's to decide, not this domain's."""
+        result = self.submit(*self.deepest(6))
+        self.assertTrue(result.is_correct)
+        self.assertEqual(result.score, 1.0)
+
+    def test_a_name_nobody_has_is_wrong_and_not_malformed(self) -> None:
+        """Unlike a matrix cell nobody asked about: the player was invited to
+        name anybody at all, so a guess is an ordinary wrong answer."""
+        result = self.submit("Somebody Whodidnotexist")
+        self.assertFalse(result.is_correct)
+        self.assertEqual(result.score, 0.0)
+
+    def test_a_wrong_name_costs_nothing_it_only_earns_nothing(self) -> None:
+        """A mode that deducted for a guess would be one where the right play
+        is to stop typing."""
+        alone = self.submit("Stephen Curry").score
+        with_a_miss = self.submit("Stephen Curry", "Somebody Whodidnotexist").score
+        self.assertEqual(alone, with_a_miss)
+
+    def test_a_name_is_folded_the_way_every_typed_answer_is(self) -> None:
+        self.assertEqual(self.submit("  stephen   CURRY ").score, self.submit("Stephen Curry").score)
+
+    def test_a_player_below_the_line_earns_nothing(self) -> None:
+        """A real player, and not one this question asked for."""
+        below = make_name_as_many(slug="high-bar", threshold=10**6, target_score=10)
+        result = evaluate_answer(
+            question=below,
+            submitted={"type": below.question_type, "names": ["Stephen Curry"]},
+        )
+        self.assertEqual(result.score, 0.0)
+
+    def test_the_same_name_twice_is_malformed(self) -> None:
+        with self.assertRaises(ValidationFailed):
+            self.submit("Stephen Curry", "stephen curry")
 
 
 class GradualHintsTests(TestCase):

@@ -34,6 +34,7 @@ that meant to tell them they were right.
 
 from __future__ import annotations
 
+from apps.questions.career_stats import load_career_stats
 from apps.questions.matching import normalise_answer
 from apps.questions.models import QUESTION_MODELS, MatrixKind, QuestionType
 from apps.questions.rosters import load_rosters
@@ -205,6 +206,74 @@ def _gradual_hints(question, submitted) -> dict:
     }
 
 
+def _name_as_many(question, submitted) -> dict:
+    """What each name the player listed was worth, and a taste of the rest.
+
+    Two halves, and the first is the one that matters. ``named`` walks the
+    player's own list **in the order they typed it** and says what each entry
+    paid — ``Vince Carter +3``, ``Michael Finley +6``, ``Steve Nash 0`` — which
+    is the only way to read this question back: a single credit figure cannot
+    tell somebody which of their twelve names was the one that did not count.
+    Nothing is revealed there that the player did not already write down.
+
+    The second half is the pool: the qualifying players they *missed*, **most
+    obvious first**, cut to :data:`POOL_REVEAL_LIMIT` with a count of the whole
+    tail beside it (``total``, which is therefore how many they did not get, not
+    how many qualify — the first is the useful number and the second is most of
+    the answer key). Cut hard,
+    because the whole answer key here is hundreds of names and a client handed
+    all of them once would hold the answer to every question drawing a line
+    anywhere near this one. "… and 214 more" is a count, and a count is not an
+    answer.
+
+    The names already named are left out of that pool, so the five shown are
+    five the player did *not* think of — which is what they would have wanted to
+    know, and the same instinct behind floating a correct answer to the front of
+    a free-text pool.
+    """
+    stats = load_career_stats()
+    qualifiers = stats.qualifiers(
+        stat=question.stat,
+        comparison=question.comparison,
+        threshold=question.threshold,
+    )
+
+    typed = []
+    if isinstance(submitted, dict):
+        typed = [name for name in (submitted.get("names") or []) if isinstance(name, str)]
+
+    named = []
+    for name in typed:
+        player = qualifiers.find(name)
+        named.append(
+            {
+                "name": name,
+                # The points a name paid, which is the player's fame grade — and
+                # zero for one that did not qualify. Safe here for the reason
+                # nothing else about the grade is: the question is over, and
+                # this is arithmetic on what they themselves typed.
+                "points": player.probability_score if player is not None else 0,
+            }
+        )
+
+    already = {normalise_answer(name) for name in typed}
+    missed = [
+        player.name
+        for player in qualifiers.players
+        if normalise_answer(player.name) not in already
+    ]
+
+    return {
+        "target_score": question.target_score,
+        "earned": sum(entry["points"] for entry in named),
+        "named": named,
+        # ``_pool`` with no preference: the ordering that matters was applied
+        # above (most obvious first), and there is no single "their answer" to
+        # float — they gave a list, and it is reported in full beside this.
+        **_pool(missed, preferred=None),
+    }
+
+
 #: One builder per question type, keyed the way ``models.QUESTION_MODELS``,
 #: ``schemas.answers.ANSWER_SUBMISSIONS``, ``services.evaluation
 #: .ANSWER_EVALUATORS`` and ``api.serializers.QUESTION_SERIALIZERS`` are. The
@@ -220,6 +289,7 @@ ANSWER_KEY_BUILDERS = {
     QuestionType.ORDERING: _ordering,
     QuestionType.MATRIX: _matrix,
     QuestionType.GRADUAL_HINTS: _gradual_hints,
+    QuestionType.NAME_AS_MANY: _name_as_many,
 }
 
 

@@ -28,7 +28,7 @@ from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from apps.questions.models import QuestionType
+from apps.questions.models import MAX_SUBMITTED_NAMES, QuestionType
 
 #: An option id as it travels: the ``BigAutoField`` primary key of one of the
 #: option/heading tables, which the play-time serializers emit alongside the text
@@ -203,6 +203,46 @@ class GradualHintsSubmission(_StrictSubmission):
         return self
 
 
+class NameAsManySubmission(_StrictSubmission):
+    """Every name the player listed, as they typed them.
+
+    **One payload, not one per name.** The board accumulates names locally and
+    sends the list once, which is what keeps the server from being an oracle: a
+    client that submitted each name as it was typed would be handed a verdict
+    per guess, and three guesses in, the question would have answered itself.
+    The engine's one-answer-per-question rule (``matches.services
+    .submit_answer`` is idempotent) is the other half of the same guarantee.
+
+    Kept verbatim for the reason :class:`FreeTextSubmission` is: what is
+    recorded should be the thing the player can be shown afterwards, and the
+    folding is the evaluator's business.
+
+    Two names that fold to the same thing are **malformed**, not a repeat worth
+    zero: the board de-duplicates as the player types, so a list containing one
+    name twice is a client that stopped doing that — the sibling of a matrix
+    payload answering one intersection twice.
+    """
+
+    type: Literal[QuestionType.NAME_AS_MANY]
+    names: list[str] = Field(min_length=1, max_length=MAX_SUBMITTED_NAMES)
+
+    @field_validator("names")
+    @classmethod
+    def _non_blank(cls, values: list[str]) -> list[str]:
+        if any(not value.strip() for value in values):
+            raise ValueError("names may not contain a blank entry")
+        if any(len(value) > 255 for value in values):
+            raise ValueError("names may not contain an entry longer than 255 characters")
+        return values
+
+    @model_validator(mode="after")
+    def _each_name_once(self) -> NameAsManySubmission:
+        folded = {" ".join(name.split()).casefold() for name in self.names}
+        if len(folded) != len(self.names):
+            raise ValueError("names lists the same name twice")
+        return self
+
+
 #: The discriminated union a submitted payload is parsed as. ``type`` picks the
 #: model — the same discriminator, drawn from the same
 #: :class:`~apps.questions.models.QuestionType`, as the resource union — so a
@@ -218,6 +258,7 @@ AnswerSubmission = Annotated[
         OrderingSubmission,
         MatrixSubmission,
         GradualHintsSubmission,
+        NameAsManySubmission,
     ],
     Field(discriminator="type"),
 ]
@@ -235,6 +276,7 @@ ANSWER_SUBMISSIONS: dict[str, type[_StrictSubmission]] = {
     QuestionType.ORDERING: OrderingSubmission,
     QuestionType.MATRIX: MatrixSubmission,
     QuestionType.GRADUAL_HINTS: GradualHintsSubmission,
+    QuestionType.NAME_AS_MANY: NameAsManySubmission,
 }
 
 __all__ = [
@@ -247,6 +289,7 @@ __all__ = [
     "MatrixCellSubmission",
     "MatrixSubmission",
     "MultipleAnswerSubmission",
+    "NameAsManySubmission",
     "OptionId",
     "OrderingSubmission",
     "SingleAnswerSubmission",

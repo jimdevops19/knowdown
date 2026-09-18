@@ -44,3 +44,265 @@ questions:
       - {text: Golden State Warriors, is_correct: true}
       - {text: Los Angeles Lakers}
       - {text: Chicago Bulls}
+
+  - type: multiple-answer
+    slug: nba-lakers-threepeat-roster-2000-2002
+    description: >-
+      Which of these players were on the Los Angeles Lakers' roster for their
+      2000-2002 championship three-peat?
+    level: 5
+    tags: {topic: teams, era: 2000s}
+    options:
+      - {text: Shaquille O'Neal, is_correct: true}
+      - {text: Kobe Bryant, is_correct: true}
+      - {text: Robert Horry, is_correct: true}
+      - {text: Gary Payton}
+      - {text: Karl Malone}
+
+  - type: multiple-answer
+    slug: nba-pistons-2004-championship-roster
+    description: >-
+      Which of these players were on the Detroit Pistons' roster when they won
+      the 2004 NBA championship?
+    level: 5
+    tags: {topic: teams, era: 2000s}
+    options:
+      - {text: Chauncey Billups, is_correct: true}
+      - {text: Ben Wallace, is_correct: true}
+      - {text: Rasheed Wallace, is_correct: true}
+      - {text: Grant Hill}
+      - {text: Allen Iverson}
+
+  - type: multiple-answer
+    slug: nba-celtics-2008-big-three
+    description: >-
+      Which of these players made up the Boston Celtics' "Big Three" that won
+      the 2008 championship?
+    level: 3
+    tags: {topic: teams, era: 2000s}
+    options:
+      - {text: Paul Pierce, is_correct: true}
+      - {text: Kevin Garnett, is_correct: true}
+      - {text: Ray Allen, is_correct: true}
+      - {text: Antoine Walker}
+      - {text: Vin Baker}
+
+  - type: multiple-answer
+    slug: nba-2000s-mvp-winners-iverson-nash-garnett
+    description: >-
+      Which of these players won a regular-season MVP award at some point
+      during the 2000s decade?
+    level: 6
+    tags: {topic: awards, era: 2000s}
+    options:
+      - {text: Allen Iverson, is_correct: true}
+      - {text: Steve Nash, is_correct: true}
+      - {text: Kevin Garnett, is_correct: true}
+      - {text: Tracy McGrady}
+      - {text: Vince Carter}
+
+  - type: multiple-answer
+    slug: nba-2000s-champion-franchises
+    description: Which of these teams won an NBA championship during the 2000s decade?
+    level: 4
+    tags: {topic: finals, era: 2000s}
+    options:
+      - {text: San Antonio Spurs, is_correct: true}
+      - {text: Detroit Pistons, is_correct: true}
+      - {text: Miami Heat, is_correct: true}
+      - {text: Phoenix Suns}
+      - {text: Sacramento Kings}
+
+  - type: multiple-answer
+    slug: nba-high-school-draftees-2000s
+    description: Which of these players were drafted directly out of high school in the 2000s?
+    level: 6
+    tags: {topic: draft, era: 2000s}
+    options:
+      - {text: LeBron James, is_correct: true}
+      - {text: Dwight Howard, is_correct: true}
+      - {text: Amar'e Stoudemire, is_correct: true}
+      - {text: Carmelo Anthony}
+      - {text: Chris Paul}
+
+  - type: multiple-answer
+    slug: nba-2008-redeem-team-roster
+    description: >-
+      Which of these players were on Team USA's 2008 "Redeem Team" that won
+      Olympic gold in Beijing?
+    level: 5
+    tags: {topic: awards, era: 2000s}
+    options:
+      - {text: Kobe Bryant, is_correct: true}
+      - {text: LeBron James, is_correct: true}
+      - {text: Dwyane Wade, is_correct: true}
+      - {text: Vince Carter}
+      - {text: Allen Iverson}
+
+  - type: multiple-answer
+    slug: nba-2000s-sixth-man-of-the-year-winners
+    description: Which of these players won the NBA Sixth Man of the Year award during the 2000s?
+    level: 7
+    tags: {topic: awards, era: 2000s}
+    options:
+      - {text: Manu Ginobili, is_correct: true}
+      - {text: Jason Terry, is_correct: true}
+      - {text: Leandro Barbosa, is_correct: true}
+      - {text: Vince Carter}
+      - {text: Steve Nash}
+
+  - type: multiple-answer
+    slug: nba-2000s-finals-mvp-winners
+    description: Which of these players won an NBA Finals MVP award during the 2000s?
+    level: 5
+    tags: {topic: finals, era: 2000s}
+    options:
+      - {text: Shaquille O'Neal, is_correct: true}
+      - {text: Tim Duncan, is_correct: true}
+      - {text: Dwyane Wade, is_correct: true}
+      - {text: Steve Nash}
+      - {text: Karl Malone}
+
+  - type: multiple-answer
+    slug: nba-2000s-fifty-point-games
+    description: Which of these players scored 50 or more points in a single game during the 2000s?
+    level: 6
+    tags: {topic: records, era: 2000s}
+    options:
+      - {text: Kobe Bryant, is_correct: true}
+      - {text: Gilbert Arenas, is_correct: true}
+      - {text: LeBron James, is_correct: true}
+      - {text: Yao Ming}
+      - {text: Ben Wallace}
+
+  - type: multiple-answer
+    slug: nba-2000s-new-franchises-relocations
+    description: >-
+      Which of these franchises were created or relocated to a new city during
+      the 2000s decade?
+    level: 6
+    tags: {topic: history, era: 2000s}
+    options:
+      - {text: New Orleans Hornets, is_correct: true}
+      - {text: Memphis Grizzlies, is_correct: true}
+      - {text: Charlotte Bobcats, is_correct: true}
+      - {text: Miami Heat}
+      - {text: Toronto Raptors}
+
+  - type: multiple-answer
+    slug: nba-2000s-dunk-contest-winners
+    description: Which of these players won the NBA Slam Dunk Contest during the 2000s?
+    level: 5
+    tags: {topic: awards, era: 2000s}
+    options:
+      - {text: Vince Carter, is_correct: true}
+      - {text: Jason Richardson, is_correct: true}
+      - {text: Nate Robinson, is_correct: true}
+      - {text: Tracy McGrady}
+      - {text: Kobe Bryant}
+
+  - type: multiple-answer
+    slug: nba-2003-spurs-championship-roster
+    description: >-
+      Which of these players were on the San Antonio Spurs' roster when they
+      won the 2003 NBA championship?
+    level: 6
+    tags: {topic: teams, era: 2000s}
+    options:
+      - {text: Tim Duncan, is_correct: true}
+      - {text: David Robinson, is_correct: true}
+      - {text: Tony Parker, is_correct: true}
+      - {text: Kawhi Leonard}
+      - {text: LaMarcus Aldridge}
+
+  - type: multiple-answer
+    slug: nba-2007-celtics-trade-acquisitions
+    description: >-
+      Which of these players did the Boston Celtics acquire via trade in the
+      summer of 2007, ahead of their 2008 title run?
+    level: 5
+    tags: {topic: teams, era: 2000s}
+    options:
+      - {text: Kevin Garnett, is_correct: true}
+      - {text: Ray Allen, is_correct: true}
+      - {text: Paul Pierce}
+      - {text: Rajon Rondo}
+      - {text: Kendrick Perkins}
+
+  - type: multiple-answer
+    slug: nba-2000s-number-one-draft-picks
+    description: Which of these players were number one overall draft picks during the 2000s?
+    level: 5
+    tags: {topic: draft, era: 2000s}
+    options:
+      - {text: LeBron James, is_correct: true}
+      - {text: Yao Ming, is_correct: true}
+      - {text: Dwight Howard, is_correct: true}
+      - {text: Carmelo Anthony}
+      - {text: Chris Paul}
+
+  - type: multiple-answer
+    slug: nba-2008-olympics-team-usa-coach-era-roster
+    description: >-
+      Which of these players won an Olympic gold medal with Team USA at the
+      2008 Beijing Games?
+    level: 5
+    tags: {topic: awards, era: 2000s}
+    options:
+      - {text: Kobe Bryant, is_correct: true}
+      - {text: LeBron James, is_correct: true}
+      - {text: Carmelo Anthony, is_correct: true}
+      - {text: Vince Carter}
+      - {text: Tracy McGrady}
+
+  - type: multiple-answer
+    slug: nba-2000s-seattle-sonics-players
+    description: >-
+      Which of these players spent time with the Seattle SuperSonics before
+      the franchise relocated to Oklahoma City in 2008?
+    level: 7
+    tags: {topic: teams, era: 2000s}
+    options:
+      - {text: Kevin Durant, is_correct: true}
+      - {text: Nick Collison, is_correct: true}
+      - {text: Chris Wilcox, is_correct: true}
+      - {text: Kevin Garnett}
+      - {text: Gary Payton}
+
+  - type: multiple-answer
+    slug: nba-2000s-scoring-title-winners
+    description: Which of these players led the NBA in scoring for at least one season during the 2000s?
+    level: 6
+    tags: {topic: records, era: 2000s}
+    options:
+      - {text: Allen Iverson, is_correct: true}
+      - {text: Tracy McGrady, is_correct: true}
+      - {text: Kobe Bryant, is_correct: true}
+      - {text: Steve Nash}
+      - {text: Jason Kidd}
+
+  - type: multiple-answer
+    slug: nba-2000s-finals-runners-up
+    description: Which of these teams reached the NBA Finals but did not win during the 2000s?
+    level: 6
+    tags: {topic: finals, era: 2000s}
+    options:
+      - {text: New Jersey Nets, is_correct: true}
+      - {text: Indiana Pacers, is_correct: true}
+      - {text: Orlando Magic, is_correct: true}
+      - {text: Sacramento Kings}
+      - {text: Utah Jazz}
+
+  - type: multiple-answer
+    slug: nba-2000-lakers-championship-teammates
+    description: >-
+      Which of these players were teammates of Kobe Bryant on the 2000
+      championship Los Angeles Lakers roster?
+    level: 6
+    tags: {topic: teams, era: 2000s}
+    options:
+      - {text: Shaquille O'Neal, is_correct: true}
+      - {text: Robert Horry, is_correct: true}
+      - {text: Rick Fox, is_correct: true}
+      - {text: Pau Gasol}
+      - {text: Lamar Odom}

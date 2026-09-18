@@ -12,6 +12,7 @@ different question tables.
 from __future__ import annotations
 
 import random
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -151,6 +152,7 @@ def select_questions(
     tags: dict[str, str] | None = None,
     types: list[str] | None = None,
     rng: random.Random | None = None,
+    choose: Callable[..., list[QuestionRef]] | None = None,
 ) -> list[QuestionRef]:
     """Draw ``count`` distinct questions for one matchup.
 
@@ -162,6 +164,15 @@ def select_questions(
 
     ``rng`` is injectable so a test can pin the draw; production passes nothing
     and gets ``random``'s own.
+
+    ``choose`` is the same kind of seam, one level up: called as
+    ``choose(pool=pool, count=count, rng=rng)``, it decides *which* ``count``
+    refs come out of the pool once the pool is known big enough. Left unset,
+    that is a uniform ``rng.sample`` — the caller who knows something about
+    who is asking (``apps.matches.services.select_match_questions``, biasing
+    away from questions ``apps.exposure`` has already shown either player)
+    passes its own strategy instead, which is what keeps this domain from
+    ever needing to import a caller's.
     """
     if count < 1:
         raise ValidationFailed("A matchup needs at least one question.")
@@ -175,6 +186,8 @@ def select_questions(
             f"{count} were requested.",
             code="not_enough_questions",
         )
+    if choose is not None:
+        return choose(pool=pool, count=count, rng=rng)
     return (rng or random).sample(pool, count)
 
 

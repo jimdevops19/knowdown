@@ -103,6 +103,13 @@ export function MatchPage() {
 
   const locked = !match.canAnswer || clock.expired
 
+  // When the server closes this question, as one stable instant. Derived from
+  // the same two numbers the countdown is drawn from, so a board acting on it
+  // and the bar the player is watching cannot disagree — and stable, so a board
+  // holding a timer against it is not re-arming it sixty times a second.
+  const deadlineAt =
+    onQuestion && match.current ? match.current.seenAt + match.current.timeLimitMs : null
+
   // The read delay's whole purpose: the player has nothing to look at but the
   // question until it has elapsed, so the options and the running clock stay
   // out of the DOM rather than sitting there inert for those three seconds.
@@ -209,6 +216,7 @@ export function MatchPage() {
             submission={match.mySubmission}
             verdict={verdictFor(match, playerId)}
             locked={locked}
+            deadlineAt={deadlineAt}
             onAnswer={match.answer}
             revealOptions={revealOptions}
           />

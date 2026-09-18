@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest'
-import { fireEvent, render } from '@testing-library/react'
+import { describe, expect, it, vi } from 'vitest'
+import { act, fireEvent, render } from '@testing-library/react'
 import { QuestionBoard } from './QuestionBoard'
 import type { PlayQuestion, QuestionType } from '../../lib/api/types'
 
@@ -114,6 +114,17 @@ const QUESTION_FIXTURES: Record<QuestionType, PlayQuestion> = {
     ],
     ...POISON,
   },
+  'name-as-many': {
+    ...BASE,
+    type: 'name-as-many',
+    target_score: 24,
+    dataset: 'nba-career-stats',
+    max_names: 200,
+    // The poison matters most on this one: its answer key is a list of
+    // hundreds of names living in a baked CSV, so a board that rendered
+    // whatever keys arrived would publish the whole thing.
+    ...POISON,
+  },
   // The fixtures are deliberately poisoned with fields the real types don't
   // have, which is exactly what the cast is admitting to.
 } as Record<QuestionType, PlayQuestion>
@@ -129,6 +140,7 @@ describe('QuestionBoard', () => {
         submission={null}
         verdict={null}
         locked={false}
+        deadlineAt={null}
         onAnswer={() => {}}
         revealOptions
       />,
@@ -151,6 +163,7 @@ describe('QuestionBoard', () => {
         submission={null}
         verdict={null}
         locked={false}
+        deadlineAt={null}
         onAnswer={() => {}}
         revealOptions
       />,
@@ -177,6 +190,7 @@ describe('QuestionBoard', () => {
         submission={null}
         verdict={null}
         locked={false}
+        deadlineAt={null}
         onAnswer={() => {}}
         revealOptions
       />,
@@ -197,6 +211,7 @@ describe('QuestionBoard', () => {
         submission={null}
         verdict={null}
         locked={false}
+        deadlineAt={null}
         onAnswer={() => {}}
         revealOptions
       />,
@@ -227,6 +242,7 @@ describe('QuestionBoard', () => {
         submission={null}
         verdict={null}
         locked={false}
+        deadlineAt={null}
         onAnswer={(submission) => submissions.push(submission)}
         revealOptions
       />,
@@ -238,5 +254,70 @@ describe('QuestionBoard', () => {
     expect(submissions).toEqual([
       { type: 'gradual-hints', answer_fields: [{ field_id: 1, text: '2016' }] },
     ])
+  })
+
+  it('collects names into one payload, ignoring a repeat', () => {
+    // The mode's whole shape in one case: names pile up locally, nothing is
+    // graded on the way in, a repeat is absorbed rather than refused (the
+    // server calls a repeated name malformed), and the list goes out once.
+    const submissions: unknown[] = []
+    const { getByLabelText, getByRole } = render(
+      <QuestionBoard
+        question={QUESTION_FIXTURES['name-as-many']}
+        hints={[]}
+        submission={null}
+        verdict={null}
+        locked={false}
+        deadlineAt={null}
+        onAnswer={(submission) => submissions.push(submission)}
+        revealOptions
+      />,
+    )
+
+    const field = getByLabelText('Add a name')
+    const add = getByRole('button', { name: 'Add this name' })
+    for (const name of ['Ray Allen', 'Vince Carter', '  ray   ALLEN ']) {
+      fireEvent.change(field, { target: { value: name } })
+      fireEvent.click(add)
+    }
+
+    fireEvent.click(getByRole('button', { name: /Lock in 2/ }))
+
+    expect(submissions).toEqual([
+      { type: 'name-as-many', names: ['Ray Allen', 'Vince Carter'] },
+    ])
+  })
+
+  it('sends what it has before the server closes the question', async () => {
+    // A player still typing at the whistle would otherwise score nothing at
+    // all — the one way to lose this question that has nothing to do with
+    // knowing any basketball.
+    vi.useFakeTimers()
+    try {
+      const submissions: unknown[] = []
+      const { getByLabelText, getByRole } = render(
+        <QuestionBoard
+          question={QUESTION_FIXTURES['name-as-many']}
+          hints={[]}
+          submission={null}
+          verdict={null}
+          locked={false}
+          deadlineAt={Date.now() + 30_000}
+          onAnswer={(submission) => submissions.push(submission)}
+          revealOptions
+        />,
+      )
+
+      fireEvent.change(getByLabelText('Add a name'), { target: { value: 'Ray Allen' } })
+      fireEvent.click(getByRole('button', { name: 'Add this name' }))
+
+      expect(submissions).toEqual([])
+      act(() => {
+        vi.advanceTimersByTime(30_000)
+      })
+      expect(submissions).toEqual([{ type: 'name-as-many', names: ['Ray Allen'] }])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

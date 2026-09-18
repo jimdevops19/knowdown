@@ -7,6 +7,7 @@ resources:
   - image-answer.yaml
   - matrix.yaml
   - multiple-answer.yaml
+  - name-as-many.yaml
   - ordering.yaml
   - single-answer.yaml
   - true-false.yaml

@@ -52,3 +52,245 @@ questions:
       - Karl Malone
       - Kobe Bryant
       - Michael Jordan
+
+  - type: ordering
+    slug: nba-order-2000s-champions-by-year
+    description: Five different franchises won the NBA championship during the 2000s decade.
+    instruction: Order these teams by the year they won their title, earliest first.
+    level: 5
+    tags: {topic: finals, era: 2000s}
+    items:
+      - Los Angeles Lakers
+      - San Antonio Spurs
+      - Detroit Pistons
+      - Miami Heat
+      - Boston Celtics
+
+  - type: ordering
+    slug: nba-order-2000s-mvp-winners
+    description: Five players each won a regular-season MVP award at some point during the 2000s.
+    instruction: Order these MVP winners by the year they won the award, earliest first.
+    level: 6
+    tags: {topic: awards, era: 2000s}
+    items:
+      - Allen Iverson
+      - Tim Duncan
+      - Kevin Garnett
+      - Dirk Nowitzki
+      - Kobe Bryant
+
+  - type: ordering
+    slug: nba-order-number-one-draft-picks-early-2000s
+    description: Five players were each selected first overall in the NBA Draft during the early 2000s.
+    instruction: Order these players by the year they were drafted, earliest first.
+    level: 6
+    tags: {topic: draft, era: 2000s}
+    items:
+      - Kenyon Martin
+      - Kwame Brown
+      - Yao Ming
+      - LeBron James
+      - Dwight Howard
+
+  - type: ordering
+    slug: nba-order-finals-runners-up-2000s
+    description: Five teams each reached the NBA Finals but lost during the 2000s decade.
+    instruction: Order these losing finalists by the year they made the Finals, earliest first.
+    level: 7
+    tags: {topic: finals, era: 2000s}
+    items:
+      - Philadelphia 76ers
+      - New Jersey Nets
+      - Los Angeles Lakers
+      - Dallas Mavericks
+      - Orlando Magic
+
+  - type: ordering
+    slug: nba-order-dunk-contest-champions-2000s
+    description: Five different players won the NBA Slam Dunk Contest during the 2000s.
+    instruction: Order these champions by the year they won, earliest first.
+    level: 7
+    tags: {topic: awards, era: 2000s}
+    items:
+      - Vince Carter
+      - Desmond Mason
+      - Fred Jones
+      - Josh Smith
+      - Gerald Green
+
+  - type: ordering
+    slug: nba-order-2000s-nba-milestones
+    description: Five moments define the NBA's 2000s decade in the public memory.
+    instruction: Order these moments by when they happened, earliest first.
+    level: 6
+    tags: {topic: history, era: 2000s}
+    items:
+      - LeBron James is drafted first overall
+      - The Malice at the Palace brawl erupts
+      - Kobe Bryant scores 81 points in a game
+      - The Celtics trade for Kevin Garnett
+      - The Sonics announce their move to Oklahoma City
+
+  - type: ordering
+    slug: nba-order-2000s-stars-career-scoring-average
+    description: Four retired 2000s stars, by career regular-season scoring average.
+    instruction: Order them from highest scoring average to lowest.
+    level: 7
+    tags: {topic: records, era: 2000s}
+    items:
+      - Allen Iverson
+      - Kobe Bryant
+      - Tracy McGrady
+      - Vince Carter
+
+  - type: ordering
+    slug: nba-order-2000s-stars-career-points
+    description: Four retired 2000s stars, by total career regular-season points scored.
+    instruction: Order them from most points to fewest.
+    level: 7
+    tags: {topic: records, era: 2000s}
+    items:
+      - Kobe Bryant
+      - Tim Duncan
+      - Vince Carter
+      - Allen Iverson
+
+  - type: ordering
+    slug: nba-order-teams-relocations-2000s
+    description: Four franchises were founded or relocated to a new city during the 2000s decade.
+    instruction: Order these relocations and expansions by year, earliest first.
+    level: 5
+    tags: {topic: history, era: 2000s}
+    items:
+      - Memphis Grizzlies move from Vancouver
+      - New Orleans Hornets move from Charlotte
+      - Charlotte Bobcats join as an expansion team
+      - Seattle SuperSonics become the Oklahoma City Thunder
+
+  - type: ordering
+    slug: nba-order-2000s-championships-count
+    description: Three players won a different number of NBA championships during the 2000s decade.
+    instruction: Order them by how many titles they won in the 2000s, most to fewest.
+    level: 7
+    tags: {topic: finals, era: 2000s}
+    items:
+      - Kobe Bryant
+      - Tim Duncan
+      - Chauncey Billups
+
+  - type: ordering
+    slug: nba-order-rookie-of-the-year-2000s
+    description: Five players each won NBA Rookie of the Year during the 2000s.
+    instruction: Order these winners by the season they won, earliest first.
+    level: 6
+    tags: {topic: awards, era: 2000s}
+    items:
+      - Elton Brand
+      - Pau Gasol
+      - LeBron James
+      - Chris Paul
+      - Kevin Durant
+
+  - type: ordering
+    slug: nba-order-2000s-finals-winning-coaches
+    description: Five head coaches each won their first 2000s-decade NBA championship in a different year.
+    instruction: Order these coaches by the year of that title, earliest first.
+    level: 7
+    tags: {topic: finals, era: 2000s}
+    items:
+      - Phil Jackson
+      - Gregg Popovich
+      - Larry Brown
+      - Pat Riley
+      - Doc Rivers
+
+  - type: ordering
+    slug: nba-order-2000s-bigs-career-rebounds
+    description: Three retired 2000s-era big men, by total career rebounds.
+    instruction: Order them from most career rebounds to fewest.
+    level: 7
+    tags: {topic: records, era: 2000s}
+    items:
+      - Tim Duncan
+      - Kevin Garnett
+      - Shaquille O'Neal
+
+  - type: ordering
+    slug: nba-order-2000s-guards-career-assists
+    description: Three retired 2000s-era guards, by total career assists.
+    instruction: Order them from most career assists to fewest.
+    level: 7
+    tags: {topic: records, era: 2000s}
+    items:
+      - Jason Kidd
+      - Steve Nash
+      - Allen Iverson
+
+  - type: ordering
+    slug: nba-order-2003-draft-first-five-picks
+    description: The 2003 NBA Draft produced five future All-Stars in its first five selections.
+    instruction: Order these players by the order they were picked, first to last.
+    level: 6
+    tags: {topic: draft, era: 2000s}
+    items:
+      - LeBron James
+      - Darko Milicic
+      - Carmelo Anthony
+      - Chris Bosh
+      - Dwyane Wade
+
+  - type: ordering
+    slug: nba-order-2000s-shot-blockers-career-blocks
+    description: Three retired 2000s-era shot blockers, by total career blocked shots.
+    instruction: Order them from most career blocks to fewest.
+    level: 8
+    tags: {topic: records, era: 2000s}
+    items:
+      - Dikembe Mutombo
+      - Tim Duncan
+      - Kevin Garnett
+
+  - type: ordering
+    slug: nba-order-2000s-three-point-shooters-career
+    description: Three retired sharpshooters whose careers spanned the 2000s, by total career three-pointers made.
+    instruction: Order them from most career three-pointers made to fewest.
+    level: 8
+    tags: {topic: records, era: 2000s}
+    items:
+      - Ray Allen
+      - Reggie Miller
+      - Jason Kidd
+
+  - type: ordering
+    slug: nba-order-2000s-star-milestones
+    description: Four milestones for stars who defined the 2000s.
+    instruction: Order these milestones by the year they happened, earliest first.
+    level: 5
+    tags: {topic: history, era: 2000s}
+    items:
+      - Yao Ming makes his NBA debut
+      - Kobe Bryant scores 81 points in a game
+      - Kevin Durant wins Rookie of the Year
+      - LeBron James wins his first MVP award
+
+  - type: ordering
+    slug: nba-order-2000s-guards-career-steals
+    description: Three retired 2000s-era guards, by total career steals.
+    instruction: Order them from most career steals to fewest.
+    level: 7
+    tags: {topic: records, era: 2000s}
+    items:
+      - Jason Kidd
+      - Gary Payton
+      - Allen Iverson
+
+  - type: ordering
+    slug: nba-order-2000s-finals-series-length
+    description: Three 2000s NBA Finals matchups, each decided in a different number of games.
+    instruction: Order these series by how many games they lasted, fewest to most.
+    level: 7
+    tags: {topic: finals, era: 2000s}
+    items:
+      - Lakers vs. Nets (2002)
+      - Spurs vs. Nets (2003)
+      - Spurs vs. Pistons (2005)

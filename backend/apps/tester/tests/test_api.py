@@ -11,6 +11,7 @@ from rest_framework.test import APIClient, APITestCase
 
 from apps.accounts.models import User
 from apps.players.services import ensure_player_for_user
+from apps.questions.models import QUESTION_MODELS
 from apps.questions.tests.factories import (
     make_category,
     make_free_text,
@@ -234,7 +235,7 @@ class CatalogTests(APITestCase):
         )
         # Every type, including the empty ones — a type with nothing authored
         # still needs somewhere to click.
-        self.assertEqual(len(body["types"]), 8)
+        self.assertEqual(len(body["types"]), len(QUESTION_MODELS))
 
 
 class RehearsalTests(APITestCase):

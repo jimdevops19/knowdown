@@ -48,3 +48,157 @@ questions:
     level: 4
     tags: {topic: finals, era: 2010s}
     answer: false
+
+  - type: true-false
+    slug: nba-iverson-mvp-2001
+    description: Allen Iverson was named NBA regular-season MVP for the 2000-01 season.
+    level: 3
+    tags: {topic: awards, era: 2000s}
+    answer: true
+
+  - type: true-false
+    slug: nba-lakers-threepeat-2000-2002
+    description: The Los Angeles Lakers completed a championship three-peat from 2000 to 2002.
+    level: 2
+    tags: {topic: finals, era: 2000s}
+    answer: true
+
+  - type: true-false
+    slug: nba-vince-carter-2000-dunk-contest
+    description: Vince Carter won the NBA Slam Dunk Contest in 2000.
+    level: 2
+    tags: {topic: awards, era: 2000s}
+    answer: true
+
+  - type: true-false
+    slug: nba-lebron-drafted-cavaliers-2003
+    description: LeBron James was drafted first overall by the Cleveland Cavaliers in the 2003 NBA Draft.
+    level: 2
+    tags: {topic: draft, era: 2000s}
+    answer: true
+
+  - type: true-false
+    slug: nba-pistons-upset-lakers-2004-finals
+    description: The Detroit Pistons upset the Los Angeles Lakers to win the 2004 NBA Finals.
+    level: 4
+    tags: {topic: finals, era: 2000s}
+    answer: true
+
+  - type: true-false
+    slug: nba-yao-ming-first-pick-2002
+    description: Yao Ming was the first overall pick in the 2002 NBA Draft.
+    level: 3
+    tags: {topic: draft, era: 2000s}
+    answer: true
+
+  - type: true-false
+    slug: nba-duncan-never-won-2000s-mvp
+    description: Tim Duncan never won a regular-season MVP award during the 2000s.
+    level: 5
+    tags: {topic: awards, era: 2000s}
+    answer: false
+
+  - type: true-false
+    slug: nba-nash-back-to-back-mvp-no-title
+    description: >-
+      Steve Nash won back-to-back regular-season MVP awards despite never
+      winning an NBA championship.
+    level: 5
+    tags: {topic: awards, era: 2000s}
+    answer: true
+
+  - type: true-false
+    slug: nba-celtics-2008-title-drought
+    description: >-
+      The Boston Celtics' 2008 championship ended a 22-year title drought for
+      the franchise, dating back to 1986.
+    level: 6
+    tags: {topic: finals, era: 2000s}
+    answer: true
+
+  - type: true-false
+    slug: nba-kobe-81-points-toronto
+    description: >-
+      Kobe Bryant scored 81 points in a single game during the 2005-06 season
+      against the Toronto Raptors.
+    level: 3
+    tags: {topic: records, era: 2000s}
+    answer: true
+
+  - type: true-false
+    slug: nba-wade-finals-mvp-2006
+    description: >-
+      The Miami Heat's first championship, in 2006, came with Dwyane Wade
+      winning Finals MVP.
+    level: 4
+    tags: {topic: finals, era: 2000s}
+    answer: true
+
+  - type: true-false
+    slug: nba-spurs-four-titles-2000s
+    description: The San Antonio Spurs won four NBA championships during the 2000s decade.
+    level: 6
+    tags: {topic: finals, era: 2000s}
+    answer: false
+
+  - type: true-false
+    slug: nba-sonics-to-thunder-2008
+    description: The Seattle SuperSonics relocated to Oklahoma City and became the Thunder in 2008.
+    level: 3
+    tags: {topic: history, era: 2000s}
+    answer: true
+
+  - type: true-false
+    slug: nba-shaq-traded-heat-2004
+    description: Shaquille O'Neal was traded from the Lakers to the Miami Heat in 2004.
+    level: 4
+    tags: {topic: teams, era: 2000s}
+    answer: true
+
+  - type: true-false
+    slug: nba-hornets-played-oklahoma-city-katrina
+    description: >-
+      The New Orleans Hornets franchise played some home games in Oklahoma
+      City after Hurricane Katrina in 2005.
+    level: 6
+    tags: {topic: history, era: 2000s}
+    answer: true
+
+  - type: true-false
+    slug: nba-iverson-more-scoring-titles-than-kobe-2000s
+    description: >-
+      Allen Iverson led the NBA in scoring more times than Kobe Bryant did
+      during the 2000s decade.
+    level: 7
+    tags: {topic: records, era: 2000s}
+    answer: true
+
+  - type: true-false
+    slug: nba-ben-wallace-never-double-figures-scoring
+    description: >-
+      Ben Wallace never averaged double-figure points per game in any of his
+      Detroit Pistons championship-era seasons.
+    level: 6
+    tags: {topic: players, era: 2000s}
+    answer: true
+
+  - type: true-false
+    slug: nba-dirk-nowitzki-title-2000s
+    description: Dirk Nowitzki won an NBA championship during the 2000s decade.
+    level: 4
+    tags: {topic: finals, era: 2000s}
+    answer: false
+
+  - type: true-false
+    slug: nba-arenas-60-points-2000s
+    description: Gilbert Arenas once scored 60 points in a single game during the 2000s.
+    level: 7
+    tags: {topic: records, era: 2000s}
+    answer: true
+
+  - type: true-false
+    slug: nba-2007-finals-went-seven-games
+    description: The 2007 NBA Finals between the Spurs and Cavaliers went to seven games.
+    level: 5
+    tags: {topic: finals, era: 2000s}
+    answer: false

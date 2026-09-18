@@ -228,6 +228,14 @@ free. `tests.test_evaluation.RegistryCoverageTests` walks all of them together,
 so a type that can be *asked* and not *scored* fails the suite rather than a
 live match stuck on question three.
 
+Three more registries, keyed the same way, live outside this table because they
+belong to other concerns — and each has its own walk, so none of them can be the
+one that was forgotten: `api.reveal.ANSWER_KEY_BUILDERS` (what was right, once
+the question is over), `apps.matches.bots.answering.BOT_ANSWER_BUILDERS` (how a
+CPU opponent answers one), and `QUESTION_BOARDS` in the frontend's
+`features/play/QuestionBoard.tsx` (how it is played), where the gap is a
+compile error rather than a test.
+
 Three consequences worth keeping:
 
 - **A question carries a `slug`, which `initial-plan.md` does not mention.** It is
@@ -303,7 +311,8 @@ franchises, a cell is filled by anybody who played for both, and the file
 authors **no cells at all** — the loader derives every intersection the two
 rosters actually shared, and `apps.questions.rosters` answers them at scoring
 time from `artifacts/nba_player_teams.csv` (baked by
-`scripts/bake_nba_player_teams.py`). Writing them out instead would be tens of
+`scripts/bake_nba_player_teams.py` — the sibling of the career-stats bakes under
+`scripts/career_stats/`, which share its request cache). Writing them out instead would be tens of
 thousands of rows per question, copied again by the next question that asked
 about the same franchise, and stale the day somebody is traded; re-baking the
 CSV now updates every one of these questions at once, and none of them needs
@@ -366,6 +375,56 @@ in `apps.questions.constants.GRADUAL_HINTS_FALLBACK_CLOCK_SECONDS` (the loader
 needs it, and importing the match engine into the question schemas would invert
 every other dependency here) — `apps.matches.tests.test_constants` asserts the
 two agree.
+
+#### name-as-many — the answer is a list, and a rarer name is worth more
+
+    "Name as many players as you can with 1,000+ career three-pointers."   30s
+
+The type whose board has no options, no cells and no answer rows at all
+(`NameAsManyQuestion`). What a question stores is a **line through a column of
+a baked artifact** — a `stat`, a `comparison` and a `threshold` — and who
+qualifies is read at scoring time from `artifacts/nba_player_career_stats.csv`
+by `apps.questions.career_stats`. It is exactly the bargain `kind: teams`
+strikes for a grid, and for the same three reasons: the key is a fact rather
+than a judgement, it runs to hundreds of names, and re-baking the CSV after a
+season updates every question of this type at once with nothing reloaded.
+
+**`probability_score` is *paid* here, and hidden everywhere else.** A name is
+worth the player's 2..10 fame grade — the one joined from
+`nba_player_teams.csv`, never a second copy — and `target_score` is the pile
+that counts as full credit, so credit is `collected / target`, capped at 1.0.
+Every other type refuses to pay for obscurity on the grounds that two players
+who both filled a board in correctly must score the same; this board has no
+bottom (every qualifying player in NBA history is on it), so "how deep did you
+go" *is* the question, and a flat rate per name would make the whole mode "type
+the five most famous shooters and stop". A wrong guess earns nothing and costs
+nothing, for the same reason: a mode that deducted would be one where the right
+play is to stop typing.
+
+**The clock is a budget, not a deadline**, which is the one place this type
+reaches into `apps.matches`: `constants.SPEED_SCORED_TYPES` is every type *but*
+this one, so `score_answer` does not multiply it by speed. A curve paying 100
+for a complete answer at one second and 50 for the same answer at twenty-nine
+would be paying players to stop typing. The race is still a race — both sides
+spend the same thirty seconds (`FALLBACK_QUESTION_TIME_LIMITS_MS`), and the
+winner is whoever went deeper in them.
+
+**The whole list is submitted once.** There is no per-name verdict on the wire
+and there must not be one: a board that asked the server about each name as it
+was typed would be using it as a lookup, and the question would answer itself by
+the third guess. The board accumulates locally and sends one payload
+(`NameAsManySubmission`, which refuses a repeated name the way a matrix refuses
+two answers for one intersection), and `NameAsManyBoard` sends what it has a
+second before the server's deadline so that a player still typing at the whistle
+is not scored zero for it.
+
+**Expanding it is a script, not a migration.** The artifact is one row per
+player and one column per stat, each column owned by one script under
+`scripts/career_stats/`; `career_stats` reads whatever columns the file carries,
+and `schemas.NameAsManySpec` refuses — at load time — a stat the artifact does
+not have, a line nobody has ever cleared, and a `target_score` above the points
+actually on the board. So "name as many players as you can who missed 2,000 free
+throws" is a bake script and a YAML entry, with no Python in between.
 
 #### `api/serializers.py` is the anti-cheat surface
 
@@ -648,6 +707,41 @@ that took the longest to find while building this. `_WatchdogMixin._spawn` is
 the one place every loose task (the watchdog, the abandon timer) is created,
 specifically so it is held in `self._background_tasks` and this cannot
 recur.
+
+**"This player" is not specific enough to decide anything by — every
+connection-scoped fact is keyed to *which socket*.** One player routinely has
+two sockets at once: the live one, and the one it replaced, whose `disconnect`
+the server only runs when TCP finally gives up — minutes after a phone changed
+networks, or a beat after a page refresh. Both carry the same player id, so any
+bookkeeping keyed on the id alone let the *stale* socket overwrite the *live*
+one's state. Two stores, one mechanism:
+
+- **`pool`'s join token.** `join_pool(..., join_token=)` stamps the waiting slot
+  with the socket that claimed it, a same-player re-join *takes the claim over*
+  (new token, original `queued_at` — a reconnect must not reset how long they
+  have waited), and `leave_pool`/`claim_for_bot` compare-and-delete against it
+  (`pool._claims`). Without it, a refresh mid-queue had the old socket's
+  `leave_pool` delete the new socket's claim: a player left watching
+  "Searching…" on a live socket that was in no pool at all, unreachable by a
+  human pairing and by the bot fallback alike, with no error to show for it.
+  A caller with no socket behind it may omit the token and still match on the
+  id, which is what keeps the bot path and a slot written by an older build
+  working.
+- **`MatchupConsumer`'s connection epoch.** `connect` writes its
+  `connection_id` to `consumers._connection_owner_key` *before* clearing the
+  reconnect flag (the other order leaves a window), and `disconnect` returns
+  early — announcing nothing, arming nothing — when it is no longer the owner
+  (`_is_current_connection`). Without it, the stale disconnect re-armed the
+  grace timer against the connection that had just replaced it and
+  `abandon_matchup` handed the match to the opponent of a player who was
+  sitting there playing it, besides pinning "opponent disconnected" on the
+  other screen for the rest of the match. An *absent* key reads as "yes, you
+  are current": a cache that blinked should fall back to the behaviour that
+  predates the check, because players really do leave sometimes.
+
+`apps.matches.tests.test_realtime.SupersededSocketTests` drives all of it at
+the ordering that matters — replacement socket first, stale `disconnect` after
+— including the case that must still work, a player who really leaves.
 
 **A closing question can be closed by more than one caller at once** — the
 second player's own `submit_answer` call, or either side's watchdog — and only

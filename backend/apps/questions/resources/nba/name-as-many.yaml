@@ -1,0 +1,80 @@
+# NBA — name-as-many questions: list as many players as you can before the
+# clock runs out.
+#
+# THIS TYPE
+#   The question is a *line through a column* of a baked artifact
+#   (backend/apps/questions/artifacts/nba_player_career_stats.csv), and this
+#   file authors no answers at all: who qualifies is every player on the right
+#   side of the line, read at scoring time. Re-bake the artifact after a season
+#   and every question here is up to date without being reloaded.
+#
+#     stat          a column of the artifact — `fg3m` today. Bake another with
+#                   a script in scripts/career_stats/ and it is authorable the
+#                   same afternoon; a stat the file does not carry is a load
+#                   error, not a question nobody can answer.
+#     comparison    at-least (the default) or at-most.
+#     threshold     where the line sits.
+#     target_score  the popularity points that count as a FULL answer.
+#
+# HOW SCORING WORKS, AND WHY target_score IS THE ONLY DIFFICULTY KNOB
+#   A name pays the player's fame grade, 2 (everybody says it) to 10 (a deep
+#   cut) — the same 2..10 scale the roster artifact carries, and the one place
+#   in this platform where that grade is *paid* rather than hidden. So Stephen
+#   Curry is worth 2 and Joe Harris is worth 8, and the question is how deep you
+#   can go rather than whether you can start.
+#
+#   target_score is therefore not "how many names": it is how many points. Six
+#   obvious names is 12; six names a fan would reach for is nearer 30. Pick it
+#   by looking at what is actually on the board — the loader refuses a target
+#   above the points that exist, which is the only mistake it can catch for you.
+#
+# WRITE THE LINE INTO THE DESCRIPTION
+#   The board sends no stat, no threshold and no list. The prompt is the entire
+#   question, so it has to say the stat, the line and the clock in words: "Name
+#   as many players as you can with 1,000 or more career three-pointers." A
+#   question whose description is vaguer than its threshold is one where the
+#   player is guessing what was asked.
+#
+# THE CLOCK
+#   time_limit_seconds is authored here rather than left to the type's 30s
+#   fallback whenever the prompt names a number, because the words a player
+#   reads and the clock they are given must agree.
+#
+# See single-answer.yaml for the fields every question carries.
+#
+# Loaded by: uv run python manage.py sync_questions
+
+category: nba
+
+questions:
+  - type: name-as-many
+    slug: nba-1000-career-threes
+    description: >-
+      Name as many players as you can who have made 1,000 or more
+      three-pointers in their career.
+    level: 4
+    tags: {topic: records, skill: shooting}
+    time_limit_seconds: 30
+    stat: fg3m
+    comparison: at-least
+    threshold: 1000
+    # 185 players clear this line and 958 points sit on the board, so 24 is
+    # roughly eight names — reachable with the shooters everybody knows, and
+    # reachable *faster* by somebody who remembers Jamal Crawford.
+    target_score: 24
+
+  - type: name-as-many
+    slug: nba-2000-career-threes
+    description: >-
+      Name as many players as you can who have made 2,000 or more
+      three-pointers in their career.
+    level: 7
+    tags: {topic: records, skill: shooting}
+    time_limit_seconds: 30
+    stat: fg3m
+    comparison: at-least
+    threshold: 2000
+    # A far shorter list — 19 players, 65 points — so the target is lower and
+    # the question is harder: there are no easy names left to pad it with once
+    # the obvious half-dozen are down.
+    target_score: 14

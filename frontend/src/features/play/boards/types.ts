@@ -43,6 +43,19 @@ export interface BoardProps<Q extends PlayQuestion = PlayQuestion> {
    * had been handed every answer it ever saw would be a client worth scraping.
    */
   verdict: 'correct' | 'wrong' | null
+  /**
+   * When the server's clock runs out on this question, as a `Date.now()`
+   * timestamp — or null when no question is open.
+   *
+   * A *stable* instant rather than a ticking countdown, deliberately: a board
+   * that re-rendered every frame would drag every other board along with it,
+   * and nothing here needs the remaining milliseconds — `locked` already says
+   * when input stops. What it is for is the one board that must act before the
+   * whistle rather than at it (`NameAsManyBoard` sends its list a beat early,
+   * because a list never submitted is worth nothing at all). Every other board
+   * ignores it.
+   */
+  deadlineAt: number | null
   /** The board no longer takes input — answered, closed, or the clock is out. */
   locked: boolean
   /** Submit. The caller decides whether it goes anywhere. */

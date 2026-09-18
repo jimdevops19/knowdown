@@ -360,6 +360,122 @@ class MatchupPlayTests(TransactionTestCase):
         super().tearDown()
 
 
+class SupersededSocketTests(TransactionTestCase):
+    """The reconnect race: one player, two sockets, and the dying one's
+    bookkeeping arriving last.
+
+    Every case here is the same shape — a socket the player has already
+    replaced finishes closing *after* its replacement is live — and the same
+    question: does the stale socket get to speak for the player? It must not.
+    The orderings are not exotic: a phone changing networks leaves the old
+    socket half-open until TCP gives up, minutes after the player is back, and
+    a page refresh is the same race with a shorter fuse.
+    """
+
+    async def _paired_players(self):
+        category = await database_sync_to_async(stock_category)()
+        one = await database_sync_to_async(make_player)(email="stale1@example.com")
+        two = await database_sync_to_async(make_player)(email="stale2@example.com")
+
+        pool_one = await _connect_matchmaking(one, category.slug)
+        await pool_one.receive_json_from(timeout=5)
+        pool_two = await _connect_matchmaking(two, category.slug)
+        found = await pool_one.receive_json_from(timeout=5)
+        await pool_two.receive_json_from(timeout=5)
+        await pool_one.receive_output()
+        await pool_two.receive_output()
+        return found["matchup_id"], one, two
+
+    async def test_a_stale_disconnect_does_not_abandon_a_player_who_has_reconnected(self):
+        matchup_id, one, two = await self._paired_players()
+
+        old = await _connect_matchup(one, matchup_id)
+        sock_two = await _connect_matchup(two, matchup_id)
+        await old.receive_json_from(timeout=5)
+        await sock_two.receive_json_from(timeout=5)
+
+        # The reconnect lands first — the player is playing again — and only
+        # then does the old socket finish dying.
+        new = await _connect_matchup(one, matchup_id)
+        await new.receive_json_from(timeout=5)
+
+        with mock.patch("apps.matches.consumers.RECONNECT_GRACE_SECONDS", 0.2):
+            await old.disconnect()
+            # Comfortably past the grace period the stale socket would have
+            # armed. Waiting on ``sock_two`` for a frame instead would be the
+            # trap this module's docstring warns about: a timeout there cancels
+            # the consumer rather than reporting "nothing arrived".
+            await asyncio.sleep(1)
+
+        matchup = await database_sync_to_async(Matchup.objects.get)(pk=matchup_id)
+        assert matchup.status == Matchup.Status.ACTIVE, (
+            "a socket the player already replaced ended their match for them"
+        )
+
+        await new.disconnect()
+        await sock_two.disconnect()
+
+    async def test_the_live_socket_still_ends_the_match_when_the_player_really_leaves(self):
+        """The other half of the guarantee above: refusing the *stale* socket's
+        disconnect must not make the *current* one's disconnect a no-op."""
+        matchup_id, one, two = await self._paired_players()
+
+        old = await _connect_matchup(one, matchup_id)
+        sock_two = await _connect_matchup(two, matchup_id)
+        await old.receive_json_from(timeout=5)
+        await sock_two.receive_json_from(timeout=5)
+        new = await _connect_matchup(one, matchup_id)
+        await new.receive_json_from(timeout=5)
+
+        with mock.patch("apps.matches.consumers.RECONNECT_GRACE_SECONDS", 0.2):
+            await old.disconnect()
+            await new.disconnect()
+            left = await sock_two.receive_json_from(timeout=5)
+            assert left["type"] == events.OPPONENT_DISCONNECTED
+            completed = await sock_two.receive_json_from(timeout=10)
+
+        assert completed["type"] == events.MATCH_COMPLETED
+        assert completed["outcome"] == Matchup.Outcome.ABANDONED
+        await sock_two.disconnect()
+
+    async def test_a_stale_disconnect_does_not_pull_a_requeued_player_out_of_the_pool(self):
+        """The pool's half of the same race — and the quieter failure of the
+        two: no error reaches the player, their socket stays open, and they
+        simply wait in a queue they are no longer in."""
+        category = await database_sync_to_async(stock_category)()
+        one = await database_sync_to_async(make_player)(email="requeue@example.com")
+
+        old = await _connect_matchmaking(one, category.slug)
+        assert (await old.receive_json_from(timeout=5))["type"] == events.SEARCHING
+
+        new = await _connect_matchmaking(one, category.slug)
+        assert (await new.receive_json_from(timeout=5))["type"] == events.SEARCHING
+
+        await old.disconnect()
+
+        from apps.matches import pool
+
+        assert await database_sync_to_async(pool.pool_size)(category_slug=category.slug) == 1, (
+            "the replaced socket's leave_pool withdrew the live socket's claim"
+        )
+
+        # And the claim that survived is a *real* one: the next player to
+        # arrive is paired with them rather than finding an empty pool.
+        two = await database_sync_to_async(make_player)(email="requeue2@example.com")
+        other = await _connect_matchmaking(two, category.slug)
+        found = await new.receive_json_from(timeout=5)
+        assert found["type"] == events.MATCH_FOUND
+        await other.receive_json_from(timeout=5)
+        await new.receive_output()
+        await other.receive_output()
+        await new.disconnect()
+        await other.disconnect()
+
+    def tearDown(self):
+        cache.clear()
+        super().tearDown()
+
+
 class MatchmakingPoolTests(TransactionTestCase):
     """The atomic-pairing guarantee, without a socket — the primitive
     ``apps.matches.pool`` exists to name (``plan.md`` step 14)."""
@@ -396,6 +512,56 @@ class MatchmakingPoolTests(TransactionTestCase):
         assert opponents_named <= became_the_waiter
         assert len(opponents_named) == len(paired)
         assert opponents_named == became_the_waiter  # 20 players, 0 left over
+        assert pool.pool_size(category_slug=category_slug) == 0
+        cache.clear()
+
+    def test_only_the_socket_that_holds_the_slot_may_give_it_back(self):
+        """``leave_pool``'s compare-and-delete, at the unit it is decided in.
+
+        The socket-level version of this lives in ``SupersededSocketTests``;
+        this one pins the primitive, since every caller's correctness rests on
+        it and a future caller that forgets to pass a token should fail here
+        rather than in a player's Searching screen."""
+        from apps.matches import pool
+
+        category_slug = "token-test"
+        cache.clear()
+
+        assert pool.join_pool(category_slug=category_slug, player_id="p", join_token="old") is None
+        # The reconnect: same player, new socket, taking the claim over.
+        assert pool.join_pool(category_slug=category_slug, player_id="p", join_token="new") is None
+
+        pool.leave_pool(category_slug=category_slug, player_id="p", join_token="old")
+        assert pool.pool_size(category_slug=category_slug) == 1
+
+        # The bot fallback belongs to the replaced socket too, and must not be
+        # able to spend a slot that is no longer its socket's.
+        assert not pool.claim_for_bot(
+            category_slug=category_slug, player_id="p", join_token="old"
+        )
+        assert pool.pool_size(category_slug=category_slug) == 1
+
+        assert pool.leave_pool(category_slug=category_slug, player_id="p", join_token="new")
+        assert pool.pool_size(category_slug=category_slug) == 0
+        cache.clear()
+
+    def test_a_tokenless_caller_still_matches_on_the_player_id_alone(self):
+        """The compatibility the token check deliberately keeps: a caller with
+        no socket behind it (``apps.matches.bots``), and a slot written by a
+        process that predates tokens — a rolling deploy has both shapes in one
+        cache."""
+        from apps.matches import pool
+
+        category_slug = "legacy-test"
+        cache.clear()
+
+        assert pool.join_pool(category_slug=category_slug, player_id="p") is None
+        assert pool.leave_pool(category_slug=category_slug, player_id="p")
+        assert pool.pool_size(category_slug=category_slug) == 0
+
+        # A legacy two-element slot, exactly as an older build wrote it.
+        cache.set(pool._waiting_key(category_slug=category_slug), ("p", 1.0), timeout=60)
+        assert pool.leave_pool(category_slug=category_slug, player_id="p", join_token="anything")
         assert pool.pool_size(category_slug=category_slug) == 0
         cache.clear()
 

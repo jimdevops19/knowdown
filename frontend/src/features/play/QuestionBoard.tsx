@@ -9,6 +9,7 @@ import { FreeTextBoard } from './boards/FreeTextBoard'
 import { OrderingBoard } from './boards/OrderingBoard'
 import { MatrixBoard } from './boards/MatrixBoard'
 import { GradualHintsBoard } from './boards/GradualHintsBoard'
+import { NameAsManyBoard } from './boards/NameAsManyBoard'
 import type { BoardProps } from './boards/types'
 
 /*
@@ -40,6 +41,7 @@ const QUESTION_BOARDS: Record<QuestionType, ComponentType<BoardProps<never>>> = 
   ordering: OrderingBoard,
   matrix: MatrixBoard,
   'gradual-hints': GradualHintsBoard,
+  'name-as-many': NameAsManyBoard,
 } as Record<QuestionType, ComponentType<BoardProps<never>>>
 
 export function QuestionBoard(props: BoardProps<PlayQuestion> & { revealOptions: boolean }) {

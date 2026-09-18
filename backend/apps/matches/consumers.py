@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
@@ -69,6 +69,14 @@ CLOSE_RATE_LIMITED = 4429
 #: reconnect flag's TTL has to outlast the watchdog's own sleep, which starts
 #: measuring strictly later.
 _RECONNECT_FLAG_TTL_MARGIN_SECONDS = 5
+
+#: How long the "which socket currently speaks for this player in this matchup"
+#: key (``_connection_owner_key``) survives. Only has to outlast one matchup —
+#: seven questions at forty seconds is minutes, not hours — and its whole job
+#: is to self-clean rather than to expire on any meaningful boundary. Long
+#: enough that it cannot lapse mid-match, since a lapse would put a stale
+#: socket back in charge of the decision it exists to take away from it.
+_CONNECTION_OWNER_TTL_SECONDS = 3600
 
 
 async def _apublish(fn, /, **kwargs) -> None:
@@ -203,6 +211,12 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
         self._category = None
         self._matched = False
         self._registered = False
+        #: Identifies *this socket's* claim on the category's waiting slot, for
+        #: as long as it holds one. Every ``apps.matches.pool`` call this
+        #: consumer makes carries it, so that a socket the player has already
+        #: replaced — a refresh, a reconnect after a tunnel — cannot withdraw
+        #: the claim the replacement now holds. See ``pool._claims``.
+        self.join_token: str = uuid4().hex
 
     async def connect(self) -> None:
         user = self.scope.get("user")
@@ -239,7 +253,9 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
 
         try:
             pairing = await database_sync_to_async(join_pool)(
-                category_slug=category_slug, player_id=self.player_id
+                category_slug=category_slug,
+                player_id=self.player_id,
+                join_token=self.join_token,
             )
         except PoolTimeout:
             logger.warning("Matchmaking pool busy — join refused", category=category_slug)
@@ -314,7 +330,9 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
             return
 
         claimed = await database_sync_to_async(claim_for_bot)(
-            category_slug=self.category_slug, player_id=self.player_id
+            category_slug=self.category_slug,
+            player_id=self.player_id,
+            join_token=self.join_token,
         )
         if not claimed:
             return  # a human claimed this slot, or the player already left
@@ -327,7 +345,9 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
                 "Bot fallback fired with no bots seeded", category=self.category_slug
             )
             await database_sync_to_async(join_pool)(
-                category_slug=self.category_slug, player_id=self.player_id
+                category_slug=self.category_slug,
+                player_id=self.player_id,
+                join_token=self.join_token,
             )
             return
 
@@ -390,10 +410,19 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
             return
         await self.channel_layer.group_discard(groups.player_group(self.player_id), self.channel_name)
         if not self._matched:
-            await database_sync_to_async(leave_pool)(
-                category_slug=self.category_slug, player_id=self.player_id
+            # Presence is cleared only if this socket really was the one still
+            # queued. A player who reconnected while this socket was dying is
+            # searching right now on their *new* socket, and signing them off
+            # here would report them offline while they wait — the pool slot
+            # and the presence entry have to agree about which socket speaks
+            # for the player, so both hang off the same answer.
+            left = await database_sync_to_async(leave_pool)(
+                category_slug=self.category_slug,
+                player_id=self.player_id,
+                join_token=self.join_token,
             )
-            await database_sync_to_async(presence.clear_presence)(player_id=self.player_id)
+            if left:
+                await database_sync_to_async(presence.clear_presence)(player_id=self.player_id)
 
     # --- Channel-layer handler ------------------------------------------------
     async def match_found(self, message: dict) -> None:
@@ -413,6 +442,11 @@ class MatchupConsumer(_WatchdogMixin, _HintRevealMixin, AsyncJsonWebsocketConsum
         self.player_id: str | None = None
         self.player = None
         self._registered = False
+        #: Which connection this is, among however many this player has opened
+        #: for this matchup over its life. Written to ``_connection_owner_key``
+        #: on connect and compared against it on disconnect — see
+        #: ``disconnect`` for the race that makes the comparison necessary.
+        self.connection_id: str = uuid4().hex
 
     async def connect(self) -> None:
         user = self.scope.get("user")
@@ -474,6 +508,18 @@ class MatchupConsumer(_WatchdogMixin, _HintRevealMixin, AsyncJsonWebsocketConsum
         await self.accept()
         await database_sync_to_async(presence.set_state)(
             player_id=self.player_id, state=presence.State.PLAYING
+        )
+
+        # Claim ownership *before* clearing the reconnect flag, never after.
+        # The two orders are not equivalent: a stale socket's ``disconnect``
+        # landing in between would, on the other order, still see itself as the
+        # owner and re-arm the abandon timer against the very connection that
+        # just replaced it. Claiming first closes that window — from this line
+        # on, every older socket reads itself as superseded.
+        cache.set(
+            _connection_owner_key(self.matchup_id, self.player_id),
+            self.connection_id,
+            timeout=_CONNECTION_OWNER_TTL_SECONDS,
         )
 
         was_disconnected = bool(cache.get(_reconnect_flag_key(self.matchup_id, self.player_id)))
@@ -575,7 +621,33 @@ class MatchupConsumer(_WatchdogMixin, _HintRevealMixin, AsyncJsonWebsocketConsum
             await database_sync_to_async(abuse.unregister_socket)(player_id=self.player_id)
         if self.matchup_id is None:
             return
+        # Always discarded, whatever else this socket turns out to be: the
+        # group membership being dropped is *this* channel name, nobody else's.
         await self.channel_layer.group_discard(groups.matchup_group(self.matchup_id), self.channel_name)
+
+        if not _is_current_connection(
+            matchup_id=self.matchup_id,
+            player_id=self.player_id,
+            connection_id=self.connection_id,
+        ):
+            # A newer socket of this player's has already taken over the match.
+            # This one is the *previous* connection finally being reaped —
+            # typically a half-open socket the server only notices minutes
+            # after the player switched networks, or the old page's socket
+            # closing behind a refresh. Everything below announces "this player
+            # has left" and starts the clock that ends the match for them, and
+            # every word of it would be false: the player is connected and
+            # playing right now, on the socket that superseded this one.
+            #
+            # Before this check, that stale disconnect re-armed the grace timer
+            # against a live connection — and twenty seconds later
+            # ``_abandon`` handed the match to the opponent of a player who had
+            # never actually gone anywhere. It also left the opponent's screen
+            # showing "opponent disconnected" for the rest of the match, since
+            # the reconnect that would have cleared it had already happened.
+            logger.info("A superseded matchup socket closed", caller="user")
+            return
+
         await database_sync_to_async(presence.clear_presence)(player_id=self.player_id)
 
         still_active = await database_sync_to_async(_matchup_is_active)(matchup_id=self.matchup_id)
@@ -603,9 +675,19 @@ class MatchupConsumer(_WatchdogMixin, _HintRevealMixin, AsyncJsonWebsocketConsum
 
     async def _abandon_after_grace(self) -> None:
         matchup_id, player_id = self.matchup_id, self.player_id
+        connection_id = self.connection_id
         await asyncio.sleep(RECONNECT_GRACE_SECONDS)
         if not cache.get(_reconnect_flag_key(matchup_id, player_id)):
             return  # reconnected in time — the flag was cleared on connect
+        if not _is_current_connection(
+            matchup_id=matchup_id, player_id=player_id, connection_id=connection_id
+        ):
+            # Reconnected, and then dropped again inside the same grace window
+            # — the flag above is the *new* socket's, not ours, and its own
+            # timer is measuring the window that flag deserves. Ours would end
+            # the match early, on a clock that started before the reconnect
+            # that reset it.
+            return
         cache.delete(_reconnect_flag_key(matchup_id, player_id))
         summary = await database_sync_to_async(_abandon)(matchup_id=matchup_id, player_id=player_id)
         if summary is not None:
@@ -779,6 +861,33 @@ def _epoch_ms(dt) -> int:
 
 def _reconnect_flag_key(matchup_id: str, player_id: str) -> str:
     return f"matches:disconnect:{matchup_id}:{player_id}"
+
+
+def _connection_owner_key(matchup_id: str, player_id: str) -> str:
+    """Which of this player's sockets currently speaks for them in this matchup.
+
+    The sibling of ``apps.matches.pool``'s join token, for the store next door:
+    both exist because "this player" is not specific enough to decide anything
+    by when the player has two sockets — one live, one dying — and the dying
+    one's bookkeeping arrives last.
+    """
+    return f"matches:conn:{matchup_id}:{player_id}"
+
+
+def _is_current_connection(*, matchup_id: str, player_id: str, connection_id: str) -> bool:
+    """Whether ``connection_id`` is still the socket that speaks for this
+    player in this matchup.
+
+    An *absent* key reads as yes. It means either a socket that connected
+    before this key existed (a rolling deploy, for as long as one such match is
+    still being played) or a cache that dropped it, and in both cases the
+    honest answer is the behaviour that predates this check — a disconnect that
+    does its full bookkeeping. Erring the other way would silently stop
+    abandoning matches whenever the cache blinked, which is the more expensive
+    mistake: a player really does leave sometimes.
+    """
+    owner = cache.get(_connection_owner_key(matchup_id, player_id))
+    return owner is None or owner == connection_id
 
 
 def _close_question_if_ready(*, matchup_id: str, order: int) -> None:

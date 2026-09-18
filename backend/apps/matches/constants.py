@@ -24,6 +24,7 @@ __all__ = [
     "POOL_WAITING_TTL_SECONDS",
     "PRESENCE_TTL_SECONDS",
     "QUESTION_READ_DELAY_MS",
+    "SPEED_SCORED_TYPES",
     "QUESTION_READ_DELAY_SECONDS",
     "RECONNECT_GRACE_SECONDS",
     "score_answer",
@@ -75,9 +76,17 @@ FALLBACK_QUESTION_TIME_LIMIT_MS = FALLBACK_QUESTION_TIME_LIMIT_SECONDS * 1000
 #: a schedule that will not fit, and where the comment explains why a copy is
 #: better than an import that would invert this platform's dependencies.
 #: ``tests.test_constants`` asserts the two agree.
+#: A ``name-as-many`` question is the third case, and the one where the clock
+#: *is* the question: "name as many as you can in thirty seconds" is authored
+#: with the number in the prompt, so this fallback and the words a player reads
+#: have to agree. Thirty seconds is long enough to be worth typing into and
+#: short enough to stay a race — and unlike the other two, a question of this
+#: type that wants a different clock should say so in its own wording and its
+#: own ``time_limit_seconds`` together.
 FALLBACK_QUESTION_TIME_LIMITS_MS: dict[QuestionType, int] = {
     QuestionType.MATRIX: 20_000,
     QuestionType.GRADUAL_HINTS: 40_000,
+    QuestionType.NAME_AS_MANY: 30_000,
 }
 
 #: How long a question is on screen before its clock starts running — time to
@@ -121,6 +130,25 @@ def time_limit_ms_for(*, question_type: QuestionType, override_seconds: int | No
 #: What a fully correct, instant answer is worth.
 MAX_QUESTION_POINTS = 100
 
+#: The types where answering *sooner* is worth more — every type but one.
+#:
+#: Stated as the set that **is** speed-scored rather than the exception list,
+#: because the day a second such type arrives the question to ask is "is this
+#: one a race?", and a list of exceptions asks the opposite one.
+#:
+#: ``name-as-many`` is out because its clock is not a deadline to beat but a
+#: *budget to spend*: the question is "how many can you name in thirty
+#: seconds", and a curve paying 100 for a complete answer at one second and 50
+#: for the same answer at twenty-nine would be paying players to stop typing —
+#: which is the only strategy this mode must not reward. The race is still a
+#: race: both players are spending the same thirty seconds, and the winner is
+#: the one who went deeper in them.
+SPEED_SCORED_TYPES: frozenset[str] = frozenset(
+    question_type
+    for question_type in QuestionType.values
+    if question_type != QuestionType.NAME_AS_MANY
+)
+
 #: The floor of the speed multiplier. Even an answer submitted with one
 #: millisecond left on the clock is still worth this fraction of
 #: ``MAX_QUESTION_POINTS`` — a hard question worked out right up to the wire
@@ -148,7 +176,11 @@ RECONNECT_GRACE_SECONDS = 20
 
 
 def score_answer(
-    *, credit: float, response_time_ms: int, time_limit_ms: int = FALLBACK_QUESTION_TIME_LIMIT_MS
+    *,
+    credit: float,
+    response_time_ms: int,
+    time_limit_ms: int = FALLBACK_QUESTION_TIME_LIMIT_MS,
+    question_type: QuestionType | str | None = None,
 ) -> int:
     """Points for one answer: correctness first, speed second.
 
@@ -163,9 +195,16 @@ def score_answer(
     is clamped to ``[0, time_limit_ms]`` by the caller (``services.submit_answer``);
     this function does not re-derive it from a clock, so it can be called from a
     test with any number and stay honest about what it is measuring.
+
+    ``question_type`` decides whether speed applies at all — see
+    :data:`SPEED_SCORED_TYPES`. It is optional, and an unstated type is scored
+    on speed, because that is what every type but one does and a caller that
+    does not know the type is a caller answering an ordinary question.
     """
     if credit <= 0:
         return 0
+    if question_type is not None and question_type not in SPEED_SCORED_TYPES:
+        return round(MAX_QUESTION_POINTS * credit)
     remaining_fraction = max(0.0, (time_limit_ms - response_time_ms) / time_limit_ms)
     speed_factor = MIN_SPEED_FACTOR + (1 - MIN_SPEED_FACTOR) * remaining_fraction
     return round(MAX_QUESTION_POINTS * credit * speed_factor)

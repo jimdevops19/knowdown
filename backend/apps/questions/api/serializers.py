@@ -36,7 +36,7 @@ import random
 
 from rest_framework import serializers
 
-from apps.questions.models import QUESTION_MODELS, QuestionType
+from apps.questions.models import MAX_SUBMITTED_NAMES, QUESTION_MODELS, QuestionType
 
 __all__ = [
     "FORBIDDEN_FIELD_NAMES",
@@ -46,6 +46,7 @@ __all__ = [
     "ImageAnswerPlaySerializer",
     "MatrixPlaySerializer",
     "MultipleAnswerPlaySerializer",
+    "NameAsManyPlaySerializer",
     "OrderingPlaySerializer",
     "SingleAnswerPlaySerializer",
     "TrueFalsePlaySerializer",
@@ -372,6 +373,49 @@ class GradualHintsPlaySerializer(_QuestionPlaySerializer):
         return _AnswerFieldSerializer(question.answer_fields.all(), many=True).data
 
 
+class NameAsManyPlaySerializer(_QuestionPlaySerializer):
+    """A box to type names into, and the pile that counts as a full answer.
+
+    There is nothing else to send. The board is *every* qualifying player in NBA
+    history — hundreds of names sitting in a baked CSV
+    (``apps.questions.career_stats``) — and a payload that named any of them
+    would be the answer key. The question text is the whole prompt, which is why
+    this type is authored with the line spelled out in it.
+
+    ``target_score`` is the denominator of this question's credit, and it is
+    safe for the same reason a matrix's ``row_count`` is: it says how much of an
+    answer is a full answer, and nothing about what is in one. A client draws a
+    progress bar out of it and a player knows when to stop; without it the only
+    honest thing a board could show is a list of names and no sense of how they
+    are doing, which is the one piece of feedback this mode can give without
+    becoming an oracle.
+
+    **Nothing here reports whether a name was right.** The names are graded
+    once, when the whole list is submitted (``services.evaluation``), precisely
+    so that a client cannot use the server as a lookup: a per-name verdict while
+    the clock runs would answer the question for whoever typed fastest.
+
+    ``stat`` and ``threshold`` are deliberately absent too. They are in the
+    description in the words the author chose, and putting them on the wire as
+    fields would invite a client to draw its own filter over a dataset it does
+    not have.
+    """
+
+    #: How many popularity points count as a complete answer.
+    target_score = serializers.IntegerField(read_only=True)
+    #: Which artifact this question's answers come from
+    #: (``models.NameAsManyDataset``) — a *display* fact of the sort
+    #: ``MatrixPlaySerializer.kind`` is: it says a client may offer NBA player
+    #: autocomplete here, and says nothing about who qualifies.
+    dataset = serializers.CharField(read_only=True)
+    #: The cap the payload schema enforces, so the board can stop accepting
+    #: names before the server refuses the list.
+    max_names = serializers.SerializerMethodField()
+
+    def get_max_names(self, _question) -> int:
+        return MAX_SUBMITTED_NAMES
+
+
 #: One serializer per question type, keyed the way ``models.QUESTION_MODELS``,
 #: ``schemas.answers.ANSWER_SUBMISSIONS`` and
 #: ``services.evaluation.ANSWER_EVALUATORS`` are. The fourth sibling registry:
@@ -386,6 +430,7 @@ QUESTION_SERIALIZERS: dict[str, type[_QuestionPlaySerializer]] = {
     QuestionType.ORDERING: OrderingPlaySerializer,
     QuestionType.MATRIX: MatrixPlaySerializer,
     QuestionType.GRADUAL_HINTS: GradualHintsPlaySerializer,
+    QuestionType.NAME_AS_MANY: NameAsManyPlaySerializer,
 }
 
 

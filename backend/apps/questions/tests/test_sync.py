@@ -39,6 +39,11 @@ from apps.questions.models import (
     SingleAnswerQuestion,
     TrueFalseQuestion,
 )
+from apps.questions.models import (
+    NameAsManyDataset,
+    NameAsManyQuestion,
+    StatComparison,
+)
 from apps.questions.services import sync
 
 #: A real PNG from the shipped catalog, so the image tests exercise a file
@@ -204,6 +209,18 @@ class LoadEveryTypeTests(ResourceTreeTestCase):
                     ],
                 },
                 {
+                    # Authored against the real career-stats artifact, because
+                    # that is what the loader validates this type against —
+                    # there is no answer key in the file to fake.
+                    "type": "name-as-many",
+                    "slug": "as-many",
+                    "description": "Name as many as you can.",
+                    "level": 5,
+                    "stat": "fg3m",
+                    "threshold": 1000,
+                    "target_score": 20,
+                },
+                {
                     "type": "gradual-hints",
                     "slug": "hinted",
                     "description": "Guess the game.",
@@ -219,7 +236,7 @@ class LoadEveryTypeTests(ResourceTreeTestCase):
         self.report = self.load()
 
     def test_every_type_landed_in_its_own_table(self) -> None:
-        self.assertEqual(len(self.report.created), 8)
+        self.assertEqual(len(self.report.created), len(QUESTION_MODELS))
         for model in QUESTION_MODELS.values():
             self.assertEqual(model.objects.count(), 1, model.__name__)
 
@@ -672,6 +689,84 @@ class TeamMatrixRefusalTests(ResourceTreeTestCase):
 
     def test_a_kind_nobody_has_heard_of(self) -> None:
         self.write_file("q.yaml", [self._grid(kind="players")])
+        self.assertRefused("q.yaml")
+
+
+class NameAsManyTests(ResourceTreeTestCase):
+    """The type with no answer key in the file, and what the loader checks
+    instead.
+
+    Everything here is a question about the *artifact*
+    (``apps.questions.career_stats``), which is exactly why it is checked at
+    load time: none of it is visible to an author reading their own YAML, and
+    all of it reaches a player as "nothing I type is right" with a clock
+    running.
+    """
+
+    def _question(self, **overrides) -> dict:
+        return {
+            "type": "name-as-many",
+            "slug": "as-many-threes",
+            "description": "Name as many players with 1,000+ career threes.",
+            "level": 5,
+            "stat": "fg3m",
+            "threshold": 1000,
+            "target_score": 20,
+            **overrides,
+        }
+
+    def assertRefused(self, *needles: str):
+        with self.assertRaises(ValidationFailed) as caught:
+            self.load()
+        text = " ".join([caught.exception.message, *(caught.exception.details or [])])
+        for needle in needles:
+            self.assertIn(needle, text)
+        return text
+
+    def test_the_line_is_stored_and_nothing_else_is(self) -> None:
+        """The whole question is five columns and no child rows."""
+        self.write_file("q.yaml", [self._question()])
+        self.load()
+
+        question = NameAsManyQuestion.objects.get(slug="as-many-threes")
+        self.assertEqual(question.stat, "fg3m")
+        self.assertEqual(question.comparison, StatComparison.AT_LEAST)
+        self.assertEqual(question.threshold, 1000)
+        self.assertEqual(question.target_score, 20)
+        self.assertEqual(question.dataset, NameAsManyDataset.NBA_CAREER_STATS)
+
+    def test_reloading_corrects_the_line_rather_than_duplicating_it(self) -> None:
+        self.write_file("q.yaml", [self._question()])
+        self.load()
+        self.write_file("q.yaml", [self._question(threshold=1500, target_score=12)])
+        self.load()
+
+        question = NameAsManyQuestion.objects.get(slug="as-many-threes")
+        self.assertEqual(NameAsManyQuestion.objects.count(), 1)
+        self.assertEqual(question.threshold, 1500)
+        self.assertEqual(question.target_score, 12)
+
+    def test_a_stat_the_artifact_does_not_carry(self) -> None:
+        """A question written ahead of the bake script that would answer it."""
+        self.write_file("q.yaml", [self._question(stat="dunks")])
+        self.assertRefused("dunks", "not a stat")
+
+    def test_a_line_nobody_has_ever_cleared(self) -> None:
+        self.write_file("q.yaml", [self._question(threshold=100000)])
+        self.assertRefused("no right answer")
+
+    def test_a_target_nobody_could_reach(self) -> None:
+        """Answerable but never *completely* answerable, which is the subtle
+        one: the question would work, and nobody would ever be marked right."""
+        self.write_file("q.yaml", [self._question(target_score=60000)])
+        self.assertRefused("more than", "points on the board")
+
+    def test_a_target_too_small_to_be_a_question(self) -> None:
+        self.write_file("q.yaml", [self._question(target_score=1)])
+        self.assertRefused("q.yaml")
+
+    def test_a_comparison_nobody_has_heard_of(self) -> None:
+        self.write_file("q.yaml", [self._question(comparison="roughly")])
         self.assertRefused("q.yaml")
 
 

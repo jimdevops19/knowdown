@@ -83,19 +83,62 @@ def _lock_key(*, category_slug: str) -> str:
     return f"matchmaking:lock:{category_slug}"
 
 
-def _waiting_player_id(waiting: tuple[str, float] | None) -> str | None:
-    """The cache value is ``(player_id, queued_at)`` — this reads just the id,
-    which is most of what the lock-holding callers below want."""
+def _waiting_player_id(waiting: tuple | None) -> str | None:
+    """The waiting slot's player id, or ``None`` when the slot is empty."""
     return None if waiting is None else waiting[0]
 
 
-def join_pool(*, category_slug: str, player_id: UUID | str) -> Pairing | None:
+def _waiting_join_token(waiting: tuple | None) -> str | None:
+    """The waiting slot's join token, or ``None`` when the slot is empty or was
+    written by a process that predates tokens.
+
+    Tolerant of the legacy two-element value on purpose: a rolling deploy has
+    both shapes in the same cache for as long as one waiting slot survives, and
+    a player queued by the old build must not crash the new one. A legacy slot
+    simply has no token, which ``_claims`` below reads as "cannot be told apart
+    from any other socket of the same player" — the old behaviour, exactly.
+    """
+    return waiting[2] if waiting is not None and len(waiting) > 2 else None
+
+
+def _claims(waiting: tuple | None, *, player_id: str, join_token: str | None) -> bool:
+    """Whether the caller identified by ``(player_id, join_token)`` owns the
+    waiting slot — the compare half of every compare-and-delete below.
+
+    The player id alone is not enough. One player can have two sockets racing:
+    a reconnect that has already re-queued them, and the dying socket it
+    replaced, whose ``disconnect`` lands afterwards. Both carry the same player
+    id, so an id-only check let the *stale* socket withdraw the *live* one's
+    claim — leaving a player watching "Searching…" on a socket that is in no
+    pool at all, unreachable by a human pairing and by the bot fallback alike.
+    The token is which socket, and only the socket that currently holds the
+    slot may give it up.
+
+    A caller that passes no token (``None``) still matches on the id alone:
+    that is the ``apps.matches.bots`` path and the legacy slot above, neither
+    of which has a socket to identify.
+    """
+    if _waiting_player_id(waiting) != player_id:
+        return False
+    if join_token is None:
+        return True
+    return _waiting_join_token(waiting) in (None, join_token)
+
+
+def join_pool(
+    *, category_slug: str, player_id: UUID | str, join_token: str | None = None
+) -> Pairing | None:
     """Add one player to a category's pool, pairing immediately if someone was
     already waiting there.
 
     Returns the opponent as a ``Pairing`` the instant a pairing exists —
     exactly one of the two callers racing to join gets one back, per the
     module docstring — or ``None`` if this player is now the one waiting.
+
+    ``join_token`` identifies *which socket* of this player is making the
+    claim, and is what ``leave_pool`` must present to give it back. A caller
+    with no socket behind it (the bot fallback re-queueing a player) may omit
+    it; see ``_claims``.
     """
     player_id = str(player_id)
     with _mutex(category_slug=category_slug):
@@ -104,34 +147,59 @@ def join_pool(*, category_slug: str, player_id: UUID | str) -> Pairing | None:
         waiting_id = _waiting_player_id(waiting)
         if waiting_id is None:
             cache.set(
-                waiting_key, (player_id, time.time()), timeout=POOL_WAITING_TTL_SECONDS
+                waiting_key,
+                (player_id, time.time(), join_token),
+                timeout=POOL_WAITING_TTL_SECONDS,
             )
             return None
         if waiting_id == player_id:
             # Same player retrying a join (e.g. a reconnect before any
             # opponent showed up) — refresh the TTL, but keep the original
             # queued_at: a retry must not reset how long they have waited.
-            cache.set(waiting_key, waiting, timeout=POOL_WAITING_TTL_SECONDS)
+            #
+            # The *token*, though, is replaced rather than kept: this socket is
+            # the player's claim now, and the one it replaced must no longer be
+            # able to withdraw it. That single word is what makes a reconnect
+            # (or a page refresh) safe against the dying socket's ``leave_pool``
+            # arriving afterwards.
+            cache.set(
+                waiting_key,
+                (waiting_id, waiting[1], join_token),
+                timeout=POOL_WAITING_TTL_SECONDS,
+            )
             return None
         cache.delete(waiting_key)
         return Pairing(opponent_id=waiting_id, opponent_queued_at=waiting[1])
 
 
-def leave_pool(*, category_slug: str, player_id: UUID | str) -> None:
-    """Withdraw one player, if and only if they are the one currently waiting.
+def leave_pool(
+    *, category_slug: str, player_id: UUID | str, join_token: str | None = None
+) -> bool:
+    """Withdraw one player, if and only if the slot is still *this caller's*.
 
-    A no-op for a player who was never queued, or who has since been paired
-    off by someone else — clearing the slot unconditionally could delete the
-    *next* waiter's claim instead of this caller's own.
+    Returns whether anything was actually withdrawn, so the caller can tell
+    "I left the queue" from "I was already out of it" — ``consumers`` uses that
+    to decide whether clearing the player's presence is its business or a
+    newer socket's.
+
+    A no-op for a player who was never queued, who has since been paired off by
+    someone else, or whose claim has already been taken over by a newer socket
+    of their own (``join_token``): clearing the slot on the player id alone
+    could delete the *next* waiter's claim, or the live socket's, instead of
+    this caller's own.
     """
     player_id = str(player_id)
     with _mutex(category_slug=category_slug):
         waiting_key = _waiting_key(category_slug=category_slug)
-        if _waiting_player_id(cache.get(waiting_key)) == player_id:
-            cache.delete(waiting_key)
+        if not _claims(cache.get(waiting_key), player_id=player_id, join_token=join_token):
+            return False
+        cache.delete(waiting_key)
+        return True
 
 
-def claim_for_bot(*, category_slug: str, player_id: UUID | str) -> bool:
+def claim_for_bot(
+    *, category_slug: str, player_id: UUID | str, join_token: str | None = None
+) -> bool:
     """Atomically withdraw ``player_id`` so ``apps.matches.bots`` may pair
     them against a CPU opponent instead of a human.
 
@@ -142,11 +210,16 @@ def claim_for_bot(*, category_slug: str, player_id: UUID | str) -> bool:
     no-op, not an error — for a player who is no longer the one waiting: a
     human already claimed them (the ordinary, better outcome) or they left the
     pool on their own.
+
+    ``join_token`` is checked the same way ``leave_pool`` checks it, and for
+    the same reason: the timer that calls this belongs to one socket, and a
+    socket the player has already replaced must not be able to spend their
+    queue slot on a bot.
     """
     player_id = str(player_id)
     with _mutex(category_slug=category_slug):
         waiting_key = _waiting_key(category_slug=category_slug)
-        if _waiting_player_id(cache.get(waiting_key)) != player_id:
+        if not _claims(cache.get(waiting_key), player_id=player_id, join_token=join_token):
             return False
         cache.delete(waiting_key)
         return True

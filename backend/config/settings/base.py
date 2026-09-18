@@ -110,6 +110,10 @@ LOCAL_APPS: list[str] = [
     "apps.categories",
     "apps.questions",
     "apps.matches",
+    # Tracks how many times each player has been dealt each question, so a
+    # matchup's board can be biased away from repeats — see
+    # `apps.matches.services.select_match_questions`.
+    "apps.exposure",
     "apps.rankings",
     "apps.achievements",
     "apps.ops",

@@ -24,8 +24,9 @@ import { TesterUnavailable } from '../features/tester/TesterUnavailable'
  *
  * A maintainer arrives here having just edited a YAML file, and is looking for
  * one question out of the catalog. Search covers the three things they might
- * remember about it — its slug, its wording, or its sport — and the two selects
- * cover the two ways they might narrow it instead ("the grids", "the F1 ones").
+ * remember about it — its slug, its wording, or its sport — and the selects
+ * cover the ways they might narrow it instead ("the grids", "the F1 ones",
+ * "the hard ones").
  * Everything is a query parameter on one endpoint, so the filters compose and
  * none of the narrowing happens in this browser.
  *
@@ -59,6 +60,7 @@ export function TesterPage() {
     search: '',
     category: '',
     type: '',
+    level: '',
     includeInactive: true,
     page: 1,
   })
@@ -72,10 +74,21 @@ export function TesterPage() {
   // the catalog is asked for.
   const settledSearch = useDebouncedValue(query.search)
 
+  const config = access.config
+
+  // The band the dropdown names ("medium") is not itself a filter the
+  // backend understands — the catalog filters on `level_min`/`level_max`, so
+  // the band is resolved to the range `config` says it covers before it goes
+  // on the request. Nothing to resolve while `config` hasn't loaded yet: the
+  // select renders empty until then, so `query.level` cannot be set.
+  const selectedLevel = config?.levels.find((entry) => entry.value === query.level)
+
   const filters = {
     search: settledSearch,
     category: query.category,
     type: query.type,
+    level_min: selectedLevel?.level_min,
+    level_max: selectedLevel?.level_max,
     include_inactive: query.includeInactive,
     page: query.page,
   }
@@ -92,7 +105,6 @@ export function TesterPage() {
   if (access.isLoading) return <Loading label="Checking access…" />
   if (!access.available) return <TesterUnavailable />
 
-  const config = access.config
   const rows = questions.data?.results ?? []
   const pagination = questions.data?.pagination
   // The backend's own names for the eight answer shapes, rather than a second
@@ -145,6 +157,18 @@ export function TesterPage() {
             options={[
               { value: '', label: 'Every answer shape' },
               ...(config?.types ?? []).map((entry) => ({
+                value: entry.value,
+                label: `${entry.label} (${entry.question_count})`,
+              })),
+            ]}
+          />
+          <Select
+            label="Difficulty"
+            value={query.level}
+            onChange={(level) => narrow({ level })}
+            options={[
+              { value: '', label: 'Every difficulty' },
+              ...(config?.levels ?? []).map((entry) => ({
                 value: entry.value,
                 label: `${entry.label} (${entry.question_count})`,
               })),

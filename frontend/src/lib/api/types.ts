@@ -242,6 +242,7 @@ export type QuestionType =
   | 'ordering'
   | 'matrix'
   | 'gradual-hints'
+  | 'name-as-many'
 
 /** The fields every question shows, whatever its answer shape.
  *
@@ -357,6 +358,42 @@ export interface GradualHintsQuestion extends BaseQuestion {
   answer_fields: AnswerField[]
 }
 
+/**
+ * "Name as many players as you can with 1,000+ career three-pointers."
+ *
+ * The board with **no options at all**, and deliberately so: the answer key is
+ * every qualifying player in NBA history, read at scoring time out of a baked
+ * CSV on the backend (`apps.questions.career_stats`). Sending any part of it
+ * would be sending the answer, so the prompt is the whole question — which is
+ * why this type is authored with the stat and the line spelled out in words.
+ *
+ * What is here is enough to draw progress and nothing else:
+ *
+ *  - `target_score` is the denominator of the question's credit. A name is
+ *    worth the player's fame grade, 2 (everybody says it) to 10 (a deep cut),
+ *    and this is the pile that counts as a complete answer. It says how much of
+ *    an answer is a full one and nothing about what is in one — the same thing
+ *    a matrix's `row_count` says.
+ *  - `max_names` is the cap the payload schema enforces, so the board can stop
+ *    taking names before the server would refuse the list.
+ *
+ * **The list is submitted once, at the end.** There is no per-name verdict and
+ * there must never be one: a board that asked the server about each name as it
+ * was typed would be using it as a lookup, and the question would answer itself
+ * by the third guess. The board accumulates locally and sends everything in one
+ * `AnswerSubmission`.
+ */
+export interface NameAsManyQuestion extends BaseQuestion {
+  type: 'name-as-many'
+  /** Popularity points that count as a full answer. */
+  target_score: number
+  /** Which baked dataset the answers come from — a display fact (it says a
+   *  client may offer NBA-player autocomplete), not a clue. */
+  dataset: string
+  /** The most names one submission may carry. */
+  max_names: number
+}
+
 export interface MatrixQuestion extends BaseQuestion {
   type: 'matrix'
   row_count: number
@@ -376,6 +413,7 @@ export type PlayQuestion =
   | OrderingQuestion
   | MatrixQuestion
   | GradualHintsQuestion
+  | NameAsManyQuestion
 
 /* --- An answer, as a player submits it -------------------------------------
  *
@@ -455,6 +493,15 @@ export interface GradualHintsSubmission {
   answer_fields: AnswerFieldSubmission[]
 }
 
+export interface NameAsManySubmission {
+  type: 'name-as-many'
+  /** Every name the player listed, verbatim and in the order they typed them.
+   *  At least one, at most the question's `max_names`, and **no duplicates** —
+   *  the board de-duplicates as names are added, so a repeat is a client bug
+   *  and the backend refuses it as malformed rather than scoring it twice. */
+  names: string[]
+}
+
 export type AnswerSubmission =
   | SingleAnswerSubmission
   | ImageAnswerSubmission
@@ -464,6 +511,7 @@ export type AnswerSubmission =
   | OrderingSubmission
   | MatrixSubmission
   | GradualHintsSubmission
+  | NameAsManySubmission
 
 /* --- The answer, once the question is over ----------------------------------
  *
@@ -546,6 +594,26 @@ export interface GradualHintsAnswerKey {
   answer_fields: GradualHintsFieldAnswerKey[]
 }
 
+/** One name the player listed, and what it paid. Zero for a name that did not
+ *  qualify — which is the only way to read this question back, since a single
+ *  credit figure cannot say which of twelve names was the one that missed. */
+export interface NamedEntry {
+  name: string
+  points: number
+}
+
+/** The qualifying players this player did *not* name, capped like every other
+ *  pool: `accepted` is the handful published, most obvious first, and `total`
+ *  is how many they missed altogether. The rest never crossed the wire — the
+ *  whole answer key here is hundreds of names. */
+export interface NameAsManyAnswerKey extends AnswerPool {
+  type: 'name-as-many'
+  target_score: number
+  /** Points collected, the numerator of the credit that was scored. */
+  earned: number
+  named: NamedEntry[]
+}
+
 /** What was right, discriminated on `type` — the same `type` the question
  *  beside it carries, so a key and a board that disagree is a visible bug
  *  rather than a silently mis-rendered one. */
@@ -556,6 +624,7 @@ export type AnswerKey =
   | OrderingAnswerKey
   | MatrixAnswerKey
   | GradualHintsAnswerKey
+  | NameAsManyAnswerKey
 
 /* --- The maintainers' question tester ---------------------------------------
  *

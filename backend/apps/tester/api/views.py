@@ -306,6 +306,7 @@ class AnswerAttemptView(_QuestionView):
             credit=result.score,
             response_time_ms=elapsed_ms,
             time_limit_ms=time_limit_ms,
+            question_type=question.question_type,
         )
 
         # One line per rehearsed answer. `question` and `question_type` are on

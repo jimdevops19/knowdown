@@ -44,6 +44,13 @@ from .multiple_choice import (
     SingleAnswerOption,
     SingleAnswerQuestion,
 )
+from .name_as_many import (
+    MAX_SUBMITTED_NAMES,
+    MIN_TARGET_SCORE,
+    NameAsManyDataset,
+    NameAsManyQuestion,
+    StatComparison,
+)
 from .ordering import OrderingOption, OrderingQuestion
 
 #: Every concrete question model, by the type key it is authored under.
@@ -56,6 +63,7 @@ QUESTION_MODELS: dict[str, type[BaseQuestion]] = {
     QuestionType.ORDERING: OrderingQuestion,
     QuestionType.MATRIX: ColumnsRowsQuestion,
     QuestionType.GRADUAL_HINTS: GradualHintsQuestion,
+    QuestionType.NAME_AS_MANY: NameAsManyQuestion,
 }
 
 __all__ = [
@@ -65,6 +73,8 @@ __all__ = [
     "MAX_HINTS",
     "MAX_HINT_INTERVAL_SECONDS",
     "MAX_LEVEL",
+    "MAX_SUBMITTED_NAMES",
+    "MIN_TARGET_SCORE",
     "MAX_PROBABILITY_SCORE",
     "MIN_PROBABILITY_SCORE",
     "QUESTION_MODELS",
@@ -86,11 +96,14 @@ __all__ = [
     "MultipleAnswerOption",
     "MultipleAnswerQuestion",
     "MultipleChoiceQuestion",
+    "NameAsManyDataset",
+    "NameAsManyQuestion",
     "OrderingOption",
     "OrderingQuestion",
     "QuestionType",
     "SingleAnswerImageQuestion",
     "SingleAnswerOption",
     "SingleAnswerQuestion",
+    "StatComparison",
     "TrueFalseQuestion",
 ]

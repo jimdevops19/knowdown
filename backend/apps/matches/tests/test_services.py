@@ -10,7 +10,12 @@ from django.utils import timezone
 
 from apps.core_common.exceptions import Conflict, ValidationFailed
 from apps.matches import selectors, services
-from apps.matches.constants import FALLBACK_QUESTION_TIME_LIMIT_MS, score_answer, time_limit_ms_for
+from apps.matches.constants import (
+    FALLBACK_QUESTION_TIME_LIMIT_MS,
+    SPEED_SCORED_TYPES,
+    score_answer,
+    time_limit_ms_for,
+)
 from apps.matches.models import Matchup
 from apps.matches.tests.factories import make_matchup, stock_category
 from apps.players.tests.factories import make_player
@@ -97,6 +102,47 @@ class ScoringTests(TestCase):
         full = score_answer(credit=1.0, response_time_ms=0)
         half = score_answer(credit=0.5, response_time_ms=0)
         self.assertEqual(half, full // 2)
+
+    def test_every_type_but_one_is_paid_for_speed(self):
+        """The registry, not a list of exceptions — see ``SPEED_SCORED_TYPES``."""
+        self.assertEqual(
+            set(QuestionType.values) - SPEED_SCORED_TYPES,
+            {QuestionType.NAME_AS_MANY},
+        )
+
+    def test_a_name_as_many_answer_is_worth_the_same_early_or_late(self):
+        """Its clock is a budget to spend, not a deadline to beat.
+
+        A question that asks for as many names as you can manage in thirty
+        seconds must not pay double for stopping at one second — that would be
+        paying players for the one strategy the mode exists to discourage.
+        """
+        early = score_answer(
+            credit=1.0,
+            response_time_ms=0,
+            time_limit_ms=30_000,
+            question_type=QuestionType.NAME_AS_MANY,
+        )
+        late = score_answer(
+            credit=1.0,
+            response_time_ms=29_999,
+            time_limit_ms=30_000,
+            question_type=QuestionType.NAME_AS_MANY,
+        )
+        self.assertEqual(early, late)
+        self.assertEqual(early, 100)
+
+    def test_an_ordinary_type_still_pays_for_speed_when_named(self):
+        self.assertGreater(
+            score_answer(
+                credit=1.0, response_time_ms=0, question_type=QuestionType.FREE_TEXT
+            ),
+            score_answer(
+                credit=1.0,
+                response_time_ms=FALLBACK_QUESTION_TIME_LIMIT_MS,
+                question_type=QuestionType.FREE_TEXT,
+            ),
+        )
 
 
 class ServerAuthoritativeTimingTests(TestCase):

@@ -3,9 +3,11 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { RevealCell } from './RevealCell'
 import { describeAnswerKey } from './reveals'
 import { describeSubmission } from './submissions'
+import type { ReactNode } from 'react'
 import type {
   AnswerKey,
   MatrixQuestion,
+  NameAsManyQuestion,
   MultipleAnswerQuestion,
   PlayQuestion,
   PlayerAnswerRecord,
@@ -66,6 +68,14 @@ const matrix: MatrixQuestion = {
   rows: [{ id: 10, title: 'Chicago Bulls' }],
   columns: [{ id: 20, title: 'Washington Wizards' }],
   cells: [{ row_id: 10, column_id: 20 }],
+}
+
+const nameAsMany: NameAsManyQuestion = {
+  ...base,
+  type: 'name-as-many',
+  target_score: 10,
+  dataset: 'nba-career-stats',
+  max_names: 200,
 }
 
 function reveal(question: PlayQuestion, answerKey: AnswerKey, mine: PlayerAnswerRecord | null = null) {
@@ -154,6 +164,56 @@ describe('the truncated tail', () => {
     render(<>{result.body}</>)
 
     expect(screen.getByText('your answer')).toBeInTheDocument()
+  })
+})
+
+describe('a list of names reads back as what each one paid', () => {
+  const key: AnswerKey = {
+    type: 'name-as-many',
+    target_score: 10,
+    earned: 5,
+    named: [
+      { name: 'Stephen Curry', points: 2 },
+      { name: 'Nobody Atall', points: 0 },
+      { name: 'Kyle Korver', points: 3 },
+    ],
+    accepted: ['Ray Allen', 'Reggie Miller'],
+    total: 180,
+  }
+
+  it('says what was collected on the button, since the number is the story', () => {
+    expect(reveal(nameAsMany, key)).toMatchObject({
+      kind: 'modal',
+      label: '5 of 10 pts',
+    })
+  })
+
+  it('prices every name they gave, including the one that counted for nothing', () => {
+    render(<>{(reveal(nameAsMany, key) as { body: ReactNode }).body}</>)
+
+    expect(screen.getByText('+2')).toBeInTheDocument()
+    expect(screen.getByText('+3')).toBeInTheDocument()
+    // A miss is shown as a miss rather than dropped: a single credit figure
+    // cannot say which of three names was the one that did not count.
+    expect(screen.getByText('Nobody Atall')).toBeInTheDocument()
+    expect(screen.getByText('0')).toBeInTheDocument()
+  })
+
+  it('reports the names it was never sent as a count', () => {
+    render(<>{(reveal(nameAsMany, key) as { body: ReactNode }).body}</>)
+
+    expect(screen.getByText(/178 more/)).toBeInTheDocument()
+  })
+
+  it('lists the names they gave under their own row, unpriced', () => {
+    // The submission renderer says what was *sent*; pricing is the answer
+    // key's job, one column over.
+    expect(
+      describeSubmission({
+        question: nameAsMany,
+        submitted: { type: 'name-as-many', names: ['Stephen Curry', 'Kyle Korver'] },
+      }),
+    ).toMatchObject({ kind: 'modal', label: '2 named' })
   })
 })
 

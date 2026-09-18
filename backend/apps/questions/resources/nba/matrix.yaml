@@ -124,3 +124,378 @@ questions:
     time_limit_seconds: 45
     rows: [Sacramento Kings, Utah Jazz]
     columns: [Portland Trail Blazers, San Antonio Spurs]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-2000s-heat-lakers
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 7
+    tags: {topic: rosters, era: 2000s}
+    time_limit_seconds: 45
+    rows: [Los Angeles Lakers, Miami Heat]
+    columns: [Cleveland Cavaliers, Dallas Mavericks]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-celtics-spurs
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 8
+    tags: {topic: rosters, era: 2000s}
+    time_limit_seconds: 45
+    rows: [Boston Celtics, San Antonio Spurs]
+    columns: [Phoenix Suns, Houston Rockets]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-pistons-bulls
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 7
+    tags: {topic: rosters, era: 2000s}
+    time_limit_seconds: 45
+    rows: [Detroit Pistons, Chicago Bulls]
+    columns: [New York Knicks, Indiana Pacers]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-raptors-magic
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 8
+    tags: {topic: rosters, era: 2000s}
+    time_limit_seconds: 45
+    rows: [Toronto Raptors, Orlando Magic]
+    columns: [Los Angeles Lakers, Brooklyn Nets]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-sixers-nuggets
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 8
+    tags: {topic: rosters, era: 2000s}
+    time_limit_seconds: 45
+    rows: [Philadelphia 76ers, Denver Nuggets]
+    columns: [Golden State Warriors, Washington Wizards]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-kings-blazers
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 9
+    tags: {topic: rosters, era: 2000s}
+    time_limit_seconds: 45
+    rows: [Sacramento Kings, Portland Trail Blazers]
+    columns: [Utah Jazz, Minnesota Timberwolves]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-grizzlies-pelicans
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 9
+    tags: {topic: rosters, era: 2000s}
+    time_limit_seconds: 45
+    rows: [Memphis Grizzlies, New Orleans Pelicans]
+    columns: [Charlotte Hornets, Oklahoma City Thunder]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-bucks-hawks
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 8
+    tags: {topic: rosters, era: 2000s}
+    time_limit_seconds: 45
+    rows: [Milwaukee Bucks, Atlanta Hawks]
+    columns: [Cleveland Cavaliers, Indiana Pacers]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-spurs-mavs
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 8
+    tags: {topic: rosters, era: 2000s}
+    time_limit_seconds: 45
+    rows: [San Antonio Spurs, Dallas Mavericks]
+    columns: [Miami Heat, Boston Celtics]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-clippers-knicks
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 8
+    tags: {topic: rosters, era: 2000s}
+    time_limit_seconds: 45
+    rows: [LA Clippers, New York Knicks]
+    columns: [Chicago Bulls, Houston Rockets]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-suns-nets
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 8
+    tags: {topic: rosters, era: 2000s}
+    time_limit_seconds: 45
+    rows: [Phoenix Suns, Brooklyn Nets]
+    columns: [Dallas Mavericks, Golden State Warriors]
+
+  - type: matrix
+    slug: nba-matrix-franchise-decade-titles-pistons-celtics
+    description: >-
+      For each franchise and decade, name a season in which they won the
+      championship.
+    level: 7
+    tags: {topic: finals, era: 2000s}
+    time_limit_seconds: 35
+    rows: [Detroit Pistons, Boston Celtics]
+    columns: ["1980s", "2000s"]
+    cells:
+      - row: Detroit Pistons
+        column: "1980s"
+        answers:
+          - {answer: "1989", probability_score: 5}
+          - {answer: "1990", probability_score: 5}
+      - row: Detroit Pistons
+        column: "2000s"
+        answers:
+          - {answer: "2004", probability_score: 3}
+      - row: Boston Celtics
+        column: "1980s"
+        answers:
+          - {answer: "1981", probability_score: 5}
+          - {answer: "1984", probability_score: 5}
+          - {answer: "1986", probability_score: 5}
+      - row: Boston Celtics
+        column: "2000s"
+        answers:
+          - {answer: "2008", probability_score: 3}
+
+  - type: matrix
+    slug: nba-matrix-franchise-decade-titles-spurs-lakers-heat
+    description: >-
+      For each franchise and decade, name a season in which they won the
+      championship.
+    level: 7
+    tags: {topic: finals, era: 2000s}
+    time_limit_seconds: 35
+    rows: [San Antonio Spurs, Los Angeles Lakers, Miami Heat]
+    columns: ["1990s", "2000s"]
+    cells:
+      - row: San Antonio Spurs
+        column: "1990s"
+        answers:
+          - {answer: "1999", probability_score: 4}
+      - row: San Antonio Spurs
+        column: "2000s"
+        answers:
+          - {answer: "2003", probability_score: 4}
+          - {answer: "2005", probability_score: 4}
+          - {answer: "2007", probability_score: 4}
+      - row: Los Angeles Lakers
+        column: "2000s"
+        answers:
+          - {answer: "2000", probability_score: 3}
+          - {answer: "2001", probability_score: 3}
+          - {answer: "2002", probability_score: 3}
+          - {answer: "2009", probability_score: 3}
+      - row: Miami Heat
+        column: "2000s"
+        answers:
+          - {answer: "2006", probability_score: 3}
+
+  - type: matrix
+    slug: nba-matrix-franchise-decade-titles-bulls-rockets
+    description: >-
+      For each franchise and decade, name a season in which they won the
+      championship.
+    level: 5
+    tags: {topic: finals, era: 2000s}
+    time_limit_seconds: 35
+    rows: [Chicago Bulls, Houston Rockets]
+    columns: ["1980s", "1990s"]
+    cells:
+      - row: Chicago Bulls
+        column: "1990s"
+        answers:
+          - {answer: "1991", probability_score: 3}
+          - {answer: "1992", probability_score: 3}
+          - {answer: "1993", probability_score: 3}
+          - {answer: "1996", probability_score: 3}
+          - {answer: "1997", probability_score: 3}
+          - {answer: "1998", probability_score: 3}
+      - row: Houston Rockets
+        column: "1990s"
+        answers:
+          - {answer: "1994", probability_score: 4}
+          - {answer: "1995", probability_score: 4}
+
+  - type: matrix
+    slug: nba-matrix-franchise-decade-titles-celtics-lakers
+    description: >-
+      For each franchise and decade, name a season in which they won the
+      championship.
+    level: 8
+    tags: {topic: finals, era: all-time}
+    time_limit_seconds: 40
+    rows: [Boston Celtics, Los Angeles Lakers]
+    columns: ["1960s", "2000s"]
+    cells:
+      - row: Boston Celtics
+        column: "1960s"
+        answers:
+          - {answer: "1960", probability_score: 5}
+          - {answer: "1961", probability_score: 5}
+          - {answer: "1962", probability_score: 5}
+          - {answer: "1963", probability_score: 5}
+          - {answer: "1964", probability_score: 5}
+          - {answer: "1965", probability_score: 5}
+          - {answer: "1966", probability_score: 5}
+          - {answer: "1968", probability_score: 5}
+          - {answer: "1969", probability_score: 5}
+      - row: Los Angeles Lakers
+        column: "2000s"
+        answers:
+          - {answer: "2000", probability_score: 3}
+          - {answer: "2001", probability_score: 3}
+          - {answer: "2002", probability_score: 3}
+          - {answer: "2009", probability_score: 3}
+
+  - type: matrix
+    slug: nba-matrix-franchise-decade-titles-bulls-spurs
+    description: >-
+      For each franchise and decade, name a season in which they won the
+      championship.
+    level: 6
+    tags: {topic: finals, era: 2000s}
+    time_limit_seconds: 35
+    rows: [Chicago Bulls, San Antonio Spurs]
+    columns: ["1990s", "2000s"]
+    cells:
+      - row: Chicago Bulls
+        column: "1990s"
+        answers:
+          - {answer: "1991", probability_score: 3}
+          - {answer: "1992", probability_score: 3}
+          - {answer: "1993", probability_score: 3}
+          - {answer: "1996", probability_score: 3}
+          - {answer: "1997", probability_score: 3}
+          - {answer: "1998", probability_score: 3}
+      - row: San Antonio Spurs
+        column: "1990s"
+        answers:
+          - {answer: "1999", probability_score: 4}
+      - row: San Antonio Spurs
+        column: "2000s"
+        answers:
+          - {answer: "2003", probability_score: 4}
+          - {answer: "2005", probability_score: 4}
+          - {answer: "2007", probability_score: 4}
+
+  - type: matrix
+    slug: nba-matrix-franchise-decade-titles-lakers-rockets
+    description: >-
+      For each franchise and decade, name a season in which they won the
+      championship.
+    level: 7
+    tags: {topic: finals, era: all-time}
+    time_limit_seconds: 35
+    rows: [Los Angeles Lakers, Houston Rockets]
+    columns: ["1980s", "1990s"]
+    cells:
+      - row: Los Angeles Lakers
+        column: "1980s"
+        answers:
+          - {answer: "1980", probability_score: 4}
+          - {answer: "1982", probability_score: 4}
+          - {answer: "1985", probability_score: 4}
+          - {answer: "1987", probability_score: 4}
+          - {answer: "1988", probability_score: 4}
+      - row: Houston Rockets
+        column: "1990s"
+        answers:
+          - {answer: "1994", probability_score: 4}
+          - {answer: "1995", probability_score: 4}
+
+  - type: matrix
+    slug: nba-matrix-franchise-decade-titles-heat-mavericks
+    description: >-
+      For each franchise and decade, name a season in which they won the
+      championship.
+    level: 6
+    tags: {topic: finals, era: 2000s}
+    time_limit_seconds: 35
+    rows: [Miami Heat, Dallas Mavericks]
+    columns: ["2000s", "2010s"]
+    cells:
+      - row: Miami Heat
+        column: "2000s"
+        answers:
+          - {answer: "2006", probability_score: 3}
+      - row: Miami Heat
+        column: "2010s"
+        answers:
+          - {answer: "2012", probability_score: 4}
+          - {answer: "2013", probability_score: 4}
+      - row: Dallas Mavericks
+        column: "2010s"
+        answers:
+          - {answer: "2011", probability_score: 4}
+
+  - type: matrix
+    slug: nba-matrix-franchise-decade-titles-celtics-pistons-bulls
+    description: >-
+      For each franchise and decade, name a season in which they won the
+      championship.
+    level: 6
+    tags: {topic: finals, era: 2000s}
+    time_limit_seconds: 35
+    rows: [Boston Celtics, Detroit Pistons, Chicago Bulls]
+    columns: ["1990s", "2000s"]
+    cells:
+      - row: Boston Celtics
+        column: "2000s"
+        answers:
+          - {answer: "2008", probability_score: 3}
+      - row: Detroit Pistons
+        column: "2000s"
+        answers:
+          - {answer: "2004", probability_score: 3}
+      - row: Chicago Bulls
+        column: "1990s"
+        answers:
+          - {answer: "1991", probability_score: 3}
+          - {answer: "1992", probability_score: 3}
+          - {answer: "1993", probability_score: 3}
+          - {answer: "1996", probability_score: 3}
+          - {answer: "1997", probability_score: 3}
+          - {answer: "1998", probability_score: 3}
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-wizards-thunder
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 8
+    tags: {topic: rosters, era: 2000s}
+    time_limit_seconds: 45
+    rows: [Washington Wizards, Oklahoma City Thunder]
+    columns: [Denver Nuggets, Sacramento Kings]

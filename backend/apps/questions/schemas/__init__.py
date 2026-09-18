@@ -20,6 +20,7 @@ from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from apps.questions.career_stats import load_career_stats
 from apps.questions.constants import (
     GRADUAL_HINTS_FALLBACK_CLOCK_SECONDS,
     HINT_ANSWER_WINDOW_SECONDS,
@@ -34,8 +35,11 @@ from apps.questions.models import (
     MAX_LEVEL,
     MAX_PROBABILITY_SCORE,
     MIN_PROBABILITY_SCORE,
+    MIN_TARGET_SCORE,
     MatrixKind,
+    NameAsManyDataset,
     QuestionType,
+    StatComparison,
 )
 from apps.questions.matching import normalise_answer
 from apps.questions.rosters import load_rosters
@@ -515,6 +519,93 @@ class MatrixSpec(_QuestionSpec):
         return self
 
 
+class NameAsManySpec(_QuestionSpec):
+    """``type: name-as-many`` — a line through a column of a baked artifact.
+
+    The whole question is five fields, and **no answer key at all**::
+
+        - type: name-as-many
+          slug: nba-1000-career-threes
+          description: Name as many players as you can with 1,000+ career threes.
+          level: 5
+          time_limit_seconds: 30
+          stat: fg3m
+          comparison: at-least
+          threshold: 1000
+          target_score: 24
+
+    Who qualifies is a fact in ``artifacts/nba_player_career_stats.csv``, read
+    at scoring time (``apps.questions.career_stats``) — so re-baking the
+    artifact after last night's games updates every question of this type at
+    once, and none of them is reloaded for it. The bargain ``kind: teams``
+    strikes for a grid, struck again for a list.
+
+    ``target_score`` is the only difficulty knob once the line is drawn: a name
+    pays the player's 2..10 fame grade, and this is the pile that counts as a
+    complete answer. Twelve is four or five obvious names; forty is a
+    specialist's question. Both of the things that can go wrong with it are
+    load errors — see below.
+    """
+
+    type: Literal[QuestionType.NAME_AS_MANY]
+    #: Which artifact the qualifying players come from. One dataset today, and
+    #: authored rather than assumed for the reason ``kind`` is on a matrix: a
+    #: question written now must keep meaning what it meant when the second
+    #: dataset arrives.
+    dataset: NameAsManyDataset = NameAsManyDataset.NBA_CAREER_STATS
+    #: A stat column of the artifact. Checked against the file below, because a
+    #: mistyped column is otherwise a question where nothing anybody types is
+    #: right and the clock is the first thing to notice.
+    stat: str = Field(min_length=1, max_length=60)
+    comparison: StatComparison = StatComparison.AT_LEAST
+    threshold: float
+    target_score: int = Field(ge=MIN_TARGET_SCORE)
+
+    @model_validator(mode="after")
+    def _the_line_is_one_somebody_can_clear(self) -> NameAsManySpec:
+        """Three refusals, all of them mistakes the file can still fix.
+
+        A **stat the artifact does not carry** is a typo or a question written
+        ahead of the bake script that would answer it; either way it is a
+        question with no right answers, and the fix is one word here or one run
+        of a script in ``scripts/career_stats/``.
+
+        A **line nobody clears** is the same mistake with the threshold rather
+        than the column — 100,000 career threes is a perfectly well-formed
+        question that no player has ever answered.
+
+        A **target above the points on the board** is the subtler one: the
+        question is answerable but not *completely* answerable, so nobody can
+        ever be marked correct on it however deep they go. Checked here because
+        it is arithmetic over the artifact, which the author cannot do by eye.
+        """
+        stats = load_career_stats()
+        if not stats.has_stat(self.stat):
+            raise ValueError(
+                f"name-as-many question {self.slug!r}: {self.stat!r} is not a stat in the "
+                f"career stats artifact. It carries: {', '.join(stats.stats) or '(none)'} "
+                f"— bake another with a script in scripts/career_stats/."
+            )
+
+        qualifiers = stats.qualifiers(
+            stat=self.stat, comparison=self.comparison, threshold=self.threshold
+        )
+        if not qualifiers.players:
+            raise ValueError(
+                f"name-as-many question {self.slug!r}: no player has {self.stat} "
+                f"{self.comparison.value} {self.threshold:g}, so the question has no "
+                f"right answer"
+            )
+        if self.target_score > qualifiers.total_score:
+            raise ValueError(
+                f"name-as-many question {self.slug!r}: target_score "
+                f"{self.target_score} is more than the {qualifiers.total_score} points "
+                f"on the board ({len(qualifiers.players)} qualifying players), so nobody "
+                f"could ever complete it"
+            )
+        return self
+
+
 #: The discriminated union the loader parses each entry as. ``type`` picks the
 #: model, so a wrong key lands as "unknown type" naming the entry rather than as
 #: a wall of every variant's errors.
@@ -528,6 +619,7 @@ QuestionSpec = Annotated[
         OrderingSpec,
         MatrixSpec,
         GradualHintsSpec,
+        NameAsManySpec,
     ],
     Field(discriminator="type"),
 ]
@@ -555,6 +647,7 @@ __all__ = [
     "MatrixCellSpec",
     "MatrixSpec",
     "MultipleAnswerSpec",
+    "NameAsManySpec",
     "OrderingSpec",
     "QuestionFileSpec",
     "QuestionSpec",
