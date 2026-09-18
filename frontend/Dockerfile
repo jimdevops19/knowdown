@@ -11,7 +11,12 @@
 # Unlike rpool's frontend image, there is no config/environments/<APP_ENV>.yml
 # layer to bake in here — knowdown's frontend takes its build-time
 # configuration straight from VITE_-prefixed env vars (see .env.example), none
-# of which are required for a working build.
+# of which are required for a working build. VITE_GOOGLE_CLIENT_ID is the one
+# exception worth a build-arg: it has to differ between staging and production
+# (separate Google OAuth clients, see rpool_ops/fluxcd/apps/*/kustomization.yaml),
+# and whatever's sitting in frontend/.env locally is neither — pass it
+# explicitly rather than relying on that file's contents at build time.
+#   docker build --build-arg VITE_GOOGLE_CLIENT_ID=<client-id> -t <registry>/knowdown-frontend:dev .
 
 ########################  build  ########################
 FROM node:22-slim AS build
@@ -22,6 +27,11 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+# Vite only exposes import.meta.env.VITE_* from real process env vars if
+# they're actually set when `vite build` runs — ARG alone doesn't reach the
+# RUN's environment, hence the explicit ENV below.
+ARG VITE_GOOGLE_CLIENT_ID
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 # tsc -b && vite build -> /app/dist
 RUN npm run build
 

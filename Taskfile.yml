@@ -25,6 +25,11 @@ vars:
   # namespace.
   K8S_CONTEXT: k3d-rpool-staging
   K8S_NAMESPACE: knowdown-staging
+  # Must match GOOGLE_OAUTH_CLIENT_ID in rpool_ops/fluxcd/apps/knowdown-staging
+  # (the backend's half of the same OAuth client) — baked into the frontend
+  # build, not read from frontend/.env, since that file holds your local dev
+  # client id instead (see frontend/Dockerfile).
+  STAGING_GOOGLE_CLIENT_ID: 397522149463-pr9qtiml80db7pgsl104vv6ihhs39n1n.apps.googleusercontent.com
 
 tasks:
   default:
@@ -76,10 +81,10 @@ tasks:
       - docker build -f backend/Dockerfile -t {{.STAGING_REGISTRY}}/knowdown-backend:{{.TAG}} .
 
   build:frontend:
-    desc: Build the frontend image
+    desc: Build the frontend image (bakes in the staging Google OAuth client id)
     dir: frontend
     cmds:
-      - docker build -t {{.STAGING_REGISTRY}}/knowdown-frontend:{{.TAG}} .
+      - docker build --build-arg VITE_GOOGLE_CLIENT_ID={{.STAGING_GOOGLE_CLIENT_ID}} -t {{.STAGING_REGISTRY}}/knowdown-frontend:{{.TAG}} .
 
   # ------------------------------------------------------- publish (local k3d)
 
