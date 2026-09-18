@@ -42,6 +42,7 @@ __all__ = [
     "FORBIDDEN_FIELD_NAMES",
     "QUESTION_SERIALIZERS",
     "FreeTextPlaySerializer",
+    "GradualHintsPlaySerializer",
     "ImageAnswerPlaySerializer",
     "MatrixPlaySerializer",
     "MultipleAnswerPlaySerializer",
@@ -67,6 +68,15 @@ FORBIDDEN_FIELD_NAMES = frozenset(
         "cells_answer",
         "correct",
         "correct_position",
+        # Not an answer either — a *clue on a timer*. A gradual-hints question
+        # pays its hints out one at a time over the socket
+        # (``apps.matches.consumers``) precisely so that waiting is what buys
+        # them; a board carrying all five at question-open would hand the whole
+        # reveal to anybody with a network tab, and the player who waited would
+        # be the only one playing the game as written. Forbidden by name so that
+        # putting one on a board is a failure to *import*.
+        "hint",
+        "hints",
         "is_correct",
         # Not an answer, a *clue* to one: a matrix cell graded 9 says its
         # answers are obscure, which narrows a guess before it is made.
@@ -301,6 +311,67 @@ class MatrixPlaySerializer(_QuestionPlaySerializer):
         return _CellSerializer(question.cells.all(), many=True).data
 
 
+class _AnswerFieldSerializer(_PlaySerializer):
+    """One box a gradual-hints question asks the player to fill.
+
+    The id is what a submission names (``schemas.answers
+    .GradualHintsFieldSubmission``); the label is what goes above the box. What
+    is *not* here is anything that fills it — ``accepted_answers`` is forbidden
+    by name, the same way a free-text question's is.
+    """
+
+    id = serializers.IntegerField(read_only=True)
+    label = serializers.CharField(read_only=True)
+    #: ``text`` or ``number`` — how wide to draw the box and which keyboard a
+    #: phone should open (``models.AnswerFieldKind``). Safe to send while the
+    #: clock runs for the same reason the label is: it says what *sort* of thing
+    #: to type, and nothing about what the answer is or how long it is. A width
+    #: derived from the answer key would be the version of this that narrows a
+    #: guess, which is why the kind is authored rather than inferred.
+    kind = serializers.CharField(read_only=True)
+
+
+class GradualHintsPlaySerializer(_QuestionPlaySerializer):
+    """The boxes to fill, and the *shape* of a reveal whose text is elsewhere.
+
+    This is the one board that is deliberately incomplete. The clues are the
+    question, and they are paid out over the socket one frame at a time as the
+    server's clock reaches them (``apps.matches.consumers``, from the schedule
+    ``selectors.reveal_schedule`` computes) — so what goes out here is only
+    enough to *draw the waiting*: how many hints are coming, and how far apart.
+    A client can put up five empty slots and a "next clue in 3…" without having
+    been told a single one of them.
+
+    Sending the text and asking the client to hold it back would be the other
+    way to build this, and it is the version where the whole type is defeated by
+    opening the network tab — by a player who then answers on hint one with
+    everything hint five says. Hence `hints` in
+    :data:`FORBIDDEN_FIELD_NAMES`: not because a hint is an answer, but because
+    it is the part of this question that has to arrive late.
+
+    The fields keep their authored order rather than being shuffled. They are
+    not options to be picked but boxes to be filled, and a question that asks
+    for a year, a round and a game number reads in that order for the same
+    reason a matrix's headings do.
+    """
+
+    #: How many clues are coming, so the client can draw the empty slots — the
+    #: shape of the reveal, not any part of its content.
+    hint_count = serializers.SerializerMethodField()
+    #: The gap between them, in the units a client's timer uses.
+    hint_interval_ms = serializers.SerializerMethodField()
+    answer_fields = serializers.SerializerMethodField()
+
+    def get_hint_count(self, question) -> int:
+        return question.hints.count()
+
+    def get_hint_interval_ms(self, question) -> int:
+        return question.hint_interval_seconds * 1000
+
+    def get_answer_fields(self, question) -> list[dict]:
+        return _AnswerFieldSerializer(question.answer_fields.all(), many=True).data
+
+
 #: One serializer per question type, keyed the way ``models.QUESTION_MODELS``,
 #: ``schemas.answers.ANSWER_SUBMISSIONS`` and
 #: ``services.evaluation.ANSWER_EVALUATORS`` are. The fourth sibling registry:
@@ -314,6 +385,7 @@ QUESTION_SERIALIZERS: dict[str, type[_QuestionPlaySerializer]] = {
     QuestionType.FREE_TEXT: FreeTextPlaySerializer,
     QuestionType.ORDERING: OrderingPlaySerializer,
     QuestionType.MATRIX: MatrixPlaySerializer,
+    QuestionType.GRADUAL_HINTS: GradualHintsPlaySerializer,
 }
 
 

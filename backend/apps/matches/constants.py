@@ -64,8 +64,20 @@ FALLBACK_QUESTION_TIME_LIMIT_MS = FALLBACK_QUESTION_TIME_LIMIT_SECONDS * 1000
 #: are independent of question types on purpose (``backend/CLAUDE.md``), so
 #: this has to live wherever "how long is fair" is decided, not wherever
 #: "what is this about" is decided.
+#:
+#: A gradual-hints question is the other case, and a stricter one: it is not
+#: merely *harder* to answer in ten seconds, it is not finished being asked.
+#: Its clues are paid out on a timer (``apps.questions.selectors
+#: .reveal_schedule``) and a clock that closed the question before the last one
+#: landed would be a question whose author wrote a clue nobody ever reads. The
+#: number is mirrored in ``apps.questions.constants
+#: .GRADUAL_HINTS_FALLBACK_CLOCK_SECONDS`` — where the loader needs it to refuse
+#: a schedule that will not fit, and where the comment explains why a copy is
+#: better than an import that would invert this platform's dependencies.
+#: ``tests.test_constants`` asserts the two agree.
 FALLBACK_QUESTION_TIME_LIMITS_MS: dict[QuestionType, int] = {
     QuestionType.MATRIX: 20_000,
+    QuestionType.GRADUAL_HINTS: 40_000,
 }
 
 #: How long a question is on screen before its clock starts running — time to

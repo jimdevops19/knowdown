@@ -152,6 +152,15 @@ export interface MatchupPlayer {
   left_at: string | null
 }
 
+/** One row of `GET /matches/{id}/participants/` — name and picture only, safe
+ *  to read while the match is still live. No score: `MatchupParticipant`
+ *  deliberately mirrors none of `MatchupPlayer`'s in-progress fields, because
+ *  those update the moment an answer *lands* rather than when the question
+ *  closes and would leak whether the opponent just got it right. */
+export interface MatchupParticipant {
+  player: Player
+}
+
 /** One row of `GET /matches/` — enough to render history without resolving
  *  every question in every past match. */
 export interface MatchupSummary {
@@ -227,6 +236,7 @@ export type QuestionType =
   | 'free-text'
   | 'ordering'
   | 'matrix'
+  | 'gradual-hints'
 
 /** The fields every question shows, whatever its answer shape.
  *
@@ -299,6 +309,49 @@ export interface OrderingQuestion extends BaseQuestion {
   instruction: string
   options: TextOption[]
 }
+/** What goes in a box, and therefore how big to draw it. */
+export type AnswerFieldKind = 'text' | 'number'
+
+/** One box a gradual-hints question asks the player to fill, and the id a
+ *  submission names it by. */
+export interface AnswerField {
+  id: number
+  label: string
+  /** Text or number — authored per field on the backend
+   *  (`models.AnswerFieldKind`). What it changes is the *box*: a number gets a
+   *  short one and a numeric keypad, text gets a wide one. It says what sort of
+   *  thing to type and nothing about the answer — in particular not how long it
+   *  is, which is why the kind is authored rather than measured off the answer
+   *  key. */
+  kind: AnswerFieldKind
+}
+
+/**
+ * The one board that is deliberately incomplete when it arrives.
+ *
+ * A gradual-hints question's clues are the question, and they are paid out one
+ * at a time over the socket as the server's clock reaches them
+ * (`hint.revealed`). What is here is only the *shape* of that reveal — how many
+ * clues are coming and how far apart — which is enough to draw the waiting
+ * without having been told what is being waited for.
+ *
+ * That split is not decoration. Waiting is what buys a clue: a player who
+ * answers on the first is answering a harder question than one who waits for
+ * the fifth, and is paid for it in speed. A board carrying all five would hand
+ * the whole reveal to anyone with a network tab, so the backend forbids the
+ * field by name and it cannot appear here either.
+ */
+export interface GradualHintsQuestion extends BaseQuestion {
+  type: 'gradual-hints'
+  /** How many clues this question will reveal, first to last. */
+  hint_count: number
+  /** The gap between them. The first lands when the countdown starts. */
+  hint_interval_ms: number
+  /** The boxes to fill, in the authored order — they are boxes, not options, so
+   *  they are never shuffled. */
+  answer_fields: AnswerField[]
+}
+
 export interface MatrixQuestion extends BaseQuestion {
   type: 'matrix'
   row_count: number
@@ -317,6 +370,7 @@ export type PlayQuestion =
   | FreeTextQuestion
   | OrderingQuestion
   | MatrixQuestion
+  | GradualHintsQuestion
 
 /* --- An answer, as a player submits it -------------------------------------
  *
@@ -381,6 +435,21 @@ export interface MatrixSubmission {
   cells: MatrixCellSubmission[]
 }
 
+export interface AnswerFieldSubmission {
+  /** By id, never by label — a client that matched labels back would make an
+   *  answer depend on the exact spelling of a heading. */
+  field_id: number
+  text: string
+}
+export interface GradualHintsSubmission {
+  type: 'gradual-hints'
+  /** The boxes filled in — not necessarily all of them. Scored per field, so a
+   *  partial answer is partly right rather than malformed; the denominator is
+   *  every field the question asks for, so leaving one blank costs its share.
+   *  Two answers for one field *is* malformed. */
+  answer_fields: AnswerFieldSubmission[]
+}
+
 export type AnswerSubmission =
   | SingleAnswerSubmission
   | ImageAnswerSubmission
@@ -389,3 +458,4 @@ export type AnswerSubmission =
   | FreeTextSubmission
   | OrderingSubmission
   | MatrixSubmission
+  | GradualHintsSubmission

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Flag, WifiOff } from 'lucide-react'
 import { useAuth } from '../features/auth/useAuth'
 import { useMatchup, UNAVAILABLE_REASONS } from '../lib/realtime'
 import { useQuestionClock } from '../hooks/useQuestionClock'
+import { getMatchParticipants } from '../lib/api/endpoints'
 import { queryKeys } from '../lib/query/queryClient'
 import { Countdown } from '../features/play/Countdown'
 import { LiveScoreboard } from '../features/play/LiveScoreboard'
@@ -27,13 +28,13 @@ import { ConfirmDialog } from '../components/ConfirmDialog'
  * screen in the app scrolls normally; this one is the exception, and it is the
  * reason `--page-fit` exists.
  *
- * ── What is not on this screen, and why ─────────────────────────────────────
- * The opponent's name. The socket carries player ids and no names, and the one
- * endpoint that would resolve them — `GET /matches/{id}/` — returns the whole
- * box score, meaning every question of the match, including the ones not yet
- * asked. Fetching it mid-game would hand this client the rest of the board.
- * So the roster is fetched *after* the match ends (see `MatchSummary`), and
- * during play the opponent is "Rival" with a colour derived from their id.
+ * ── The opponent's name ──────────────────────────────────────────────────────
+ * The socket carries player ids and no names. `GET /matches/{id}/participants/`
+ * resolves them — name and picture only, nothing about the score — so it is
+ * safe to call the moment this page mounts, unlike `GET /matches/{id}/` (the
+ * box score), which stays refused until the match ends because it also carries
+ * every question and the opponent's live submissions. Until that fetch
+ * resolves, the opponent is still "Rival" with a colour derived from their id.
  *
  * ── The clock decides nothing ───────────────────────────────────────────────
  * `useQuestionClock` draws the server's clock for this question — however long
@@ -49,6 +50,16 @@ export function MatchPage() {
   const queryClient = useQueryClient()
 
   const match = useMatchup(id || null, playerId)
+  const participants = useQuery({
+    queryKey: queryKeys.matches.participants(id),
+    queryFn: () => getMatchParticipants(id),
+    enabled: Boolean(id),
+    // The two sides of a matchup never change once it exists, so there is
+    // nothing here a background refetch would ever find different.
+    staleTime: Infinity,
+  })
+  const opponent =
+    participants.data?.find((row) => row.player.id !== playerId)?.player ?? null
   const [confirmingForfeit, setConfirmingForfeit] = useState(false)
   const onQuestion = match.phase === 'question'
   const clock = useQuestionClock(
@@ -151,6 +162,8 @@ export function MatchPage() {
           myPlayerId={playerId}
           myName={user?.player_name ?? 'You'}
           myAvatarUrl={user?.player_avatar_url ?? null}
+          opponentName={opponent?.display_name ?? 'Rival'}
+          opponentAvatarUrl={opponent?.avatar_url ?? null}
         />
       </div>
 
@@ -192,6 +205,7 @@ export function MatchPage() {
         {match.current ? (
           <QuestionBoard
             question={match.current.question}
+            hints={match.hints}
             submission={match.mySubmission}
             verdict={verdictFor(match, playerId)}
             locked={locked}
@@ -213,7 +227,11 @@ export function MatchPage() {
 
       {match.phase === 'result' && match.results && (
         <div className="shrink-0">
-          <QuestionVerdict results={match.results} myPlayerId={playerId} />
+          <QuestionVerdict
+            results={match.results}
+            myPlayerId={playerId}
+            opponentName={opponent?.display_name ?? 'Rival'}
+          />
         </div>
       )}
 

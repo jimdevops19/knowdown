@@ -46,6 +46,7 @@ from apps.players.services import ensure_player_for_user
 from apps.questions.api.serializers import serialize_for_play
 from apps.questions.selectors import QuestionRef
 from apps.questions.selectors import get_question as get_concrete_question
+from apps.questions.selectors import reveal_schedule
 from shared.logging import get_logger
 
 logger = get_logger(__name__)
@@ -123,6 +124,66 @@ class _WatchdogMixin:
             (QUESTION_READ_DELAY_MS + time_limit_ms) / 1000 + 0.5
         )  # a small margin over the server clock
         await database_sync_to_async(_close_question_if_ready)(matchup_id=matchup_id, order=order)
+
+
+class _HintRevealMixin:
+    """Paying a question's clues out to *this* socket as they come due.
+
+    The sibling of ``_WatchdogMixin`` above, and built on the same principle:
+    the server's clock decides, and each socket acts on it independently. What
+    is different is who hears the result — a watchdog closing a question
+    broadcasts to the matchup group, because closing it is one event that
+    happens once; a hint is sent with ``send_json`` to this socket alone.
+
+    That is not a shortcut, it is the point. The schedule is a pure function of
+    the question and ``MatchupQuestion.started_at``
+    (``apps.questions.selectors.reveal_schedule``), so two sockets computing it
+    from the same two facts arrive at the same instants without talking to each
+    other — the same argument ``questions.api.serializers.shuffle_seed`` makes
+    for the board order. Broadcasting instead would mean both players' tasks
+    publishing every hint, and a client de-duplicating frames it should never
+    have received twice.
+
+    It also makes a reconnect free: a socket joining halfway through runs this
+    from the top, sends the clues that are already due in one burst, and waits
+    out the rest. There is no per-matchup reveal state anywhere, so there is
+    none to rebuild.
+    """
+
+    async def _reveal_hints(self, *, matchup_id: UUID | str, order: int) -> None:
+        """Send this question's clues, each at the moment the server says.
+
+        Ends silently for the types that have nothing to reveal, which is all of
+        them but ``gradual-hints`` — the caller does not check, because checking
+        would mean the transport knowing what a question type is.
+
+        The text is fetched **once, here**, and never travels over the channel
+        layer: a clue on a wire before it is due is the one thing this whole
+        arrangement exists to prevent, and a broadcast carrying it would be one
+        forwarded ``**message`` away from a leak.
+        """
+        schedule = await database_sync_to_async(_hint_schedule)(
+            matchup_id=matchup_id, order=order
+        )
+        for index, text, reveal_at_ms in schedule:
+            delay = (reveal_at_ms - time.time() * 1000) / 1000
+            if delay > 0:
+                await asyncio.sleep(delay)
+            # Deliberately not re-checked against "is the question still open".
+            # A question both players answered early closes before its last
+            # clue, and the client drops a hint for a question it is no longer
+            # being asked (`useMatchup`) — but by then the result, which
+            # carries far more than a hint does, has already been broadcast. A
+            # database round trip per clue to prevent a client discarding a
+            # frame would be the expensive way to change nothing.
+            await self.send_json(
+                {
+                    "type": events.HINT_REVEALED,
+                    "order": order,
+                    "index": index,
+                    "text": text,
+                }
+            )
 
 
 class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
@@ -340,7 +401,7 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
         await self.close(code=CLOSE_MATCHED)
 
 
-class MatchupConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
+class MatchupConsumer(_WatchdogMixin, _HintRevealMixin, AsyncJsonWebsocketConsumer):
     """One live matchup. Bidirectional: a player answers by sending
     ``events.ANSWER_SUBMIT`` here, the only write this socket accepts — every
     other fact about the game flows the other way, from a service call to
@@ -447,6 +508,9 @@ class MatchupConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
                     matchup_id=self.matchup_id, order=state["order"], time_limit_ms=state["time_limit_ms"]
                 )
             )
+            # A reconnect mid-question resumes the reveal as well as the clock:
+            # the clues already due arrive immediately, the rest on schedule.
+            self._spawn(self._reveal_hints(matchup_id=self.matchup_id, order=state["order"]))
 
     async def receive_json(self, content: dict, **kwargs) -> None:
         message_type = content.get("type")
@@ -566,6 +630,7 @@ class MatchupConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
                 matchup_id=self.matchup_id, order=message["order"], time_limit_ms=message["time_limit_ms"]
             )
         )
+        self._spawn(self._reveal_hints(matchup_id=self.matchup_id, order=message["order"]))
 
     async def player_answered(self, message: dict) -> None:
         await self.send_json(
@@ -645,6 +710,35 @@ def _current_state(*, matchup) -> dict | None:
         ),
         "started_at_ms": _epoch_ms(question.started_at),
     }
+
+
+def _hint_schedule(*, matchup_id: str, order: int) -> list[tuple[int, str, int]]:
+    """When each of a question's clues comes due, in epoch milliseconds.
+
+    ``(index, text, reveal_at_ms)`` per step, empty for a question with nothing
+    to reveal. The offsets come from the questions domain
+    (``apps.questions.selectors.reveal_schedule``) and are anchored here to
+    ``MatchupQuestion.started_at`` — the same stamp the countdown and the
+    watchdog's deadline are measured from, so a clue can never be scheduled
+    against a different zero-point than the clock the player is watching.
+
+    Returns nothing rather than raising for a question that has gone away (a
+    matchup abandoned between the frame and the task starting): there is no
+    clue to send for a match that is over.
+    """
+    try:
+        matchup = match_selectors.get_matchup(matchup_id=matchup_id)
+        question = match_selectors.get_matchup_question(matchup=matchup, order=order)
+    except DomainError:
+        return []
+    concrete = get_concrete_question(
+        ref=QuestionRef(question.question_type, question.question_id)
+    )
+    started_at_ms = _epoch_ms(question.started_at)
+    return [
+        (step.index, step.text, started_at_ms + step.offset_ms)
+        for step in reveal_schedule(question=concrete)
+    ]
 
 
 def _matchup_is_active(*, matchup_id: str) -> bool:

@@ -6,7 +6,7 @@ callable from a test with no socket in sight (see ``backend/CLAUDE.md``).
 
 ``MatchupQuestion`` stores ``(question_type, question_id)`` — the
 ``QuestionRef`` pair ``apps.questions.selectors`` already returns — rather than
-a foreign key into one of the seven question tables. That is what keeps this
+a foreign key into one of the eight question tables. That is what keeps this
 app independent of every answer shape, and it is why a question is
 deactivated rather than deleted: a matchup that already played it points at
 that row forever, including one nobody may be served again.

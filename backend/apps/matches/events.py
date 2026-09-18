@@ -41,6 +41,24 @@ MATCH_FOUND = "match.found"
 #: ``correct_position`` or any of ``FORBIDDEN_FIELD_NAMES``.
 QUESTION_STARTED = "question.started"
 
+#: One clue of a ``gradual-hints`` question came due. Carries the hint's text
+#: and its 1-based index, and is the **only** way that text ever reaches a
+#: client: the board it arrives beside says how many hints are coming and how
+#: far apart, and nothing about what any of them says (``apps.questions.api
+#: .serializers.GradualHintsPlaySerializer``). Waiting is what buys a clue, so
+#: a client that had been handed all five up front would be playing a different
+#: game from the one the question was written as.
+#:
+#: Unlike every other message here it is sent **per socket, not to the group**.
+#: The schedule is a pure function of the question and the server's own
+#: ``MatchupQuestion.started_at`` (``apps.questions.selectors.reveal_schedule``),
+#: so each connected socket computes the same instants from the same two facts
+#: and needs no broadcast to stay in step — and a player who reconnects
+#: mid-question is caught up on the clues already due by the same code path,
+#: rather than by a replay mechanism of its own. See
+#: ``consumers.MatchupConsumer._reveal_hints``.
+HINT_REVEALED = "hint.revealed"
+
 #: One player answered. Carries *who*, not *what they said or whether they
 #: were right* — the opponent's own clock is still running, and telling them
 #: someone else already locked in the correct choice would be exactly the leak

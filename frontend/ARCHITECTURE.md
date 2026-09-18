@@ -226,6 +226,8 @@ phantom in the queue.
 
 ```
 → question.started { order, question }    the whole board. no answer in it.
+→ hint.revealed    { order, index, text }  one clue of a gradual-hints
+                                           question, when it comes due
 → player.answered  { order, player_id }   WHO, never what or whether
 → question.result  { order, results[] }   the one message carrying a verdict
 → match.completed  { outcome, winner_player_id, scores }
@@ -238,6 +240,17 @@ phantom in the queue.
 `question.started` — being subscribed and having a board are the same event
 here, which is also what makes a reconnect a resume: the server re-sends the
 question in progress.
+
+**`hint.revealed` is the exception to "the whole board".** A `gradual-hints`
+question is still being asked while the clock runs: its board carries how many
+clues are coming and how far apart, and none of their text, which arrives one
+frame at a time as the server's clock reaches each one. Waiting is what buys a
+clue — a player who answers on the first is answering a harder question than
+one who waits for the fifth, and is paid for it in speed — so a board carrying
+all five would be a different game, and the backend forbids the field by name.
+It is sent per socket rather than broadcast, from a schedule both sockets
+compute from the same server stamp; `useMatchup` keeps the arrived clues in
+`hints`, indexed so a reconnect's replay cannot double them.
 
 **`match.completed` is authoritative.** It replaces whatever the client
 accumulated, which is what rescues a client that missed half the match to a bad

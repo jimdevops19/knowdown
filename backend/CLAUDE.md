@@ -126,6 +126,11 @@ than a one-time seed. Four rules hold it together:
   four mistakes.
 - **The sweep is scoped to what was loaded.** `--category nba` deactivates only
   missing NBA questions; it cannot quietly retire another sport.
+- **A category folder loads what its `_active.yaml` lists.** `resources:` names
+  the files to read, so a batch of questions is parked by commenting one line
+  out — parked questions are deactivated by the sweep, and come back active when
+  the line does. A folder with no `_active.yaml` loads every `*.yaml` in it, and
+  a file the manifest names but the folder does not hold fails the load.
 - **Images are copied by content digest.** A re-sync of an unchanged catalog
   moves no bytes, so running this on every deploy is cheap.
 
@@ -228,7 +233,7 @@ Three consequences worth keeping:
   and a slug meaning two things is a question nobody can name in a bug report.
 - **`selectors.QuestionRef`** — a `(question_type, question_id)` pair — is what
   stands in for "a question" wherever the type is not known ahead of time. It is
-  why the match tables will need no foreign key into seven question tables.
+  why the match tables will need no foreign key into eight question tables.
 - **Selection and evaluation live in `questions`, not in `matches`.** The match
   engine must stay independent of the concrete question type, so "give me five
   NBA questions" (`selectors.select_questions`) and "is this answer correct?"
@@ -262,7 +267,8 @@ they disagree on exactly one type. Partial credit, settled once: all-or-nothing
 for single, image, true/false, free-text and ordering; **exact set** for
 multiple-answer (per-option credit would make the shotgun a strategy);
 **per authored cell** for matrix (a grid is genuinely several sparse,
-independent claims). Points are speed and stakes as well as truth, and those are
+independent claims) and **per authored field** for gradual-hints, which is the
+same argument about boxes instead of squares. Points are speed and stakes as well as truth, and those are
 `apps.matches`' to combine — a scoring curve in `questions` would mean two places
 deciding what a question is worth.
 
@@ -311,6 +317,51 @@ for it; players are matched by **id**, never by name, because two players have
 shared a name and a name-keyed index would score "played for both" for a pair of
 namesakes who each played for one.
 
+#### gradual-hints — the question is still being asked while you answer it
+
+The one type whose board is **deliberately incomplete when it arrives**. A
+question carries up to five clues authored hardest-first, an interval, and a
+handful of labelled boxes (`GradualHintsQuestion`, `GradualHint`,
+`GradualHintsField`, `GradualHintsFieldAnswer` — the last is `FreeTextAnswer`
+once per box). The clues are paid out one at a time as the server's clock
+reaches them: hint *n* lands at `(n-1) * hint_interval_seconds` past
+`MatchupQuestion.started_at`, the same stamp both countdowns run on.
+
+**The hint text never rides the board.** `GradualHintsPlaySerializer` sends
+`hint_count` and `hint_interval_ms` — the *shape* of the reveal, enough to draw
+five empty slots — and no text at all; `hint`/`hints` are in
+`FORBIDDEN_FIELD_NAMES`, so putting one on a board fails at import. A hint is
+not an answer, and it is guarded like one because waiting is what buys it: a
+client handed all five at question-open would be playing a different game from
+the one the question was written as. The text reaches a client only as
+`events.HINT_REVEALED` (see "Realtime").
+
+**A box says what sort of thing goes in it.** `GradualHintsField.kind`
+(`models.AnswerFieldKind`, `text` or `number`) is authored per field and sizes
+the box and picks the phone keyboard — a year typed into a full-width field is
+a second of "is that all they wanted?" per box. It is *authored* rather than
+inferred from the accepted answers on purpose: inferring it would make the
+board's shape a consequence of the answer key, and a width computed from the
+answers is one step from a width that is *about* them. The loader refuses a
+`number` field keyed to anything but digits, since the kind is a promise to the
+player and nothing at play time would notice it being broken.
+
+**The schedule is computed, never stored.** `selectors.reveal_schedule(question=…)`
+is the seam — it answers `RevealStep(index, text, offset_ms)` for this type and
+an empty tuple for every other, so the transport can schedule a reveal without
+learning what a question type is. Nothing per-matchup is written down, which is
+what makes a reconnect free: the socket recomputes the same instants and sends
+the clues already due.
+
+**The clock has to outlast the schedule**, or a question closes on a player
+still waiting for a clue. Checked at load (`schemas.GradualHintsSpec`) against
+whichever clock the question will get — its own `time_limit_seconds`, or the
+type's fallback, 40s. That fallback is `apps.matches`' number and is *mirrored*
+in `apps.questions.constants.GRADUAL_HINTS_FALLBACK_CLOCK_SECONDS` (the loader
+needs it, and importing the match engine into the question schemas would invert
+every other dependency here) — `apps.matches.tests.test_constants` asserts the
+two agree.
+
 #### `api/serializers.py` is the anti-cheat surface
 
 The question row holds the answer; the payload sent while the clock runs must
@@ -320,7 +371,7 @@ every serializer is a plain `Serializer` with an explicit field list (a
 checks its subclasses' field names **and sources** against
 `FORBIDDEN_FIELD_NAMES` at class creation, so a leak fails at **import**; and
 `tests/test_serializers.py` walks both the declared fields and the *rendered*
-payloads of all seven types, including for the answer values themselves. The
+payloads of all eight types, including for the answer values themselves. The
 question `slug` is omitted for the same reason — `kobe-81-point-game` is an
 ordinary slug and a complete answer.
 
@@ -416,7 +467,7 @@ and a lost race a `Conflict` rather than a 500.
 `Matchup` → `MatchupQuestion` → `PlayerAnswer` is what happened; `MatchupQuestion`
 stores `(question_type, question_id)` — the `QuestionRef` pair
 `apps.questions.selectors` already returns — rather than a foreign key into one
-of the seven question tables, for the same reason `questions` keeps evaluation
+of the eight question tables, for the same reason `questions` keeps evaluation
 away from `matches`: this app must stay independent of every answer shape, and
 that pair is what a since-deactivated question still resolves through
 (`selectors.get_question`) when a finished matchup is replayed over REST.
@@ -572,6 +623,19 @@ socket in sight:
   (`constants.RECONNECT_GRACE_SECONDS`) are what let a mid-match refresh
   resume — `services.abandon_matchup` fires only once that window elapses
   with nobody back.
+
+**A `gradual-hints` question's clues are sent per socket, not broadcast**
+(`_HintRevealMixin._reveal_hints`, spawned wherever the watchdog is). Every
+other message here goes to the matchup group, because it is one event that
+happens once; a hint is a schedule, and a schedule is a pure function of the
+question and `started_at` (`questions.selectors.reveal_schedule`) — so two
+sockets reach the same instants without coordinating, exactly as they do for
+the board shuffle, and broadcasting would instead mean both players' tasks
+publishing every clue for the client to de-duplicate. It also makes a
+reconnect free: a socket joining halfway through runs the same code from the
+top, sends what is already due in one burst, and waits out the rest. **The
+text is read from the database inside the task and never crosses the channel
+layer**, so no broadcast can carry a clue before it is due.
 
 **A task spawned with `asyncio.ensure_future` and not held onto gets silently
 garbage-collected mid-flight** — documented `asyncio` behaviour, and the bug

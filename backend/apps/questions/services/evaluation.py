@@ -3,8 +3,8 @@
 **The rule this module exists to keep:** evaluation belongs to the questions
 domain. ``apps.matches`` must never learn what a correct answer looks like — it
 asks this function and gets back a verdict and a number, and stays independent
-of the seven answer shapes exactly the way ``selectors.select_questions`` keeps
-it independent of the seven tables. The match engine decides what a verdict is
+of the eight answer shapes exactly the way ``selectors.select_questions`` keeps
+it independent of the eight tables. The match engine decides what a verdict is
 *worth* (speed, points, who won the question); it does not decide what is true.
 
 Three things are settled here, once:
@@ -18,8 +18,9 @@ probes for. Running out of time is *not* this case: that is the question timing
 out, and no payload arrives at all.
 
 **Correctness and credit are two answers.** :class:`AnswerResult` carries both
-because they disagree on exactly one type: a matrix grid with seven of nine cells
-right is not a correct answer, and it is not worth nothing either.
+because they disagree on the types scored per part: a matrix grid with seven of
+nine cells right — or a gradual-hints question with two of its three fields —
+is not a correct answer, and it is not worth nothing either.
 
 **Partial credit, decided here so step 10 can score against it:**
 
@@ -33,6 +34,10 @@ right is not a correct answer, and it is not worth nothing either.
   claims, sparse and independent (see ``models.MatrixCell``), and it is the one
   shape where all-or-nothing turns a nine-cell answer into a coin flip on the
   hardest cell.
+- gradual hints — **per field**, ``correct / authored``, for the same reason as
+  a grid. "Guess the game" asks for a year, a round and a game number, and
+  somebody with the first two knew most of it; all-or-nothing would score that
+  identically to having no idea.
 """
 
 from __future__ import annotations
@@ -49,6 +54,7 @@ from apps.questions.models import (
     BaseQuestion,
     ColumnsRowsQuestion,
     FreeTextQuestion,
+    GradualHintsQuestion,
     MatrixKind,
     MultipleAnswerQuestion,
     OrderingQuestion,
@@ -59,6 +65,7 @@ from apps.questions.rosters import load_rosters
 from apps.questions.schemas.answers import (
     AnswerSubmission,
     FreeTextSubmission,
+    GradualHintsSubmission,
     ImageAnswerSubmission,
     MatrixSubmission,
     MultipleAnswerSubmission,
@@ -312,6 +319,59 @@ def _evaluate_team_matrix(
     return AnswerResult.of(matched / len(asked))
 
 
+def _evaluate_gradual_hints(
+    *, question: GradualHintsQuestion, submitted: GradualHintsSubmission
+) -> AnswerResult:
+    """gradual-hints: credit per authored field.
+
+    The denominator is the fields the question *asks for*, not the fields the
+    player filled in — otherwise answering one box of three correctly and
+    leaving the rest empty would be a perfect answer, and the winning strategy
+    would be to type as little as possible.
+
+    Each field is a free-text answer in miniature and is compared exactly as
+    one: any authored spelling takes it, folded (``apps.questions.matching``),
+    because a player racing a clock types ``7`` rather than ``Game 7``. A field
+    naming no box of this question is malformed rather than wrong, the same as a
+    matrix cell nobody was asked about — the client should never have drawn an
+    input for it.
+
+    The hints themselves are not read here at all. How many of them a player
+    waited for changes *when* they answered, which the match engine already
+    prices in through response time (``apps.matches.constants.score_answer``);
+    paying twice for it — once in speed, once in credit — would be this domain
+    deciding what a question is worth.
+    """
+    accepted: dict[int, set[str]] = {
+        field_id: set()
+        for field_id in question.answer_fields.values_list("id", flat=True)
+    }
+    for field_id, value in question.answer_fields.values_list(
+        "id", "accepted_answers__value"
+    ):
+        # A field with no accepted answers cannot be filled in correctly by
+        # anybody, so it would silently cap the question's credit. The loader
+        # cannot author one (``GradualHintsFieldSpec.accepted_answers`` is
+        # non-empty) and the admin can; counting it keeps the denominator honest
+        # either way — exactly what ``_evaluate_matrix`` does for an empty cell.
+        if value is not None:
+            accepted[field_id].add(_normalise(value))
+
+    if not accepted:
+        raise _refuse(question, "it asks for no fields at all")
+
+    matched = 0
+    for field in submitted.answer_fields:
+        if field.field_id not in accepted:
+            raise _refuse(
+                question, f"field {field.field_id} is not one of its answer fields"
+            )
+        if _normalise(field.text) in accepted[field.field_id]:
+            matched += 1
+
+    return AnswerResult.of(matched / len(accepted))
+
+
 #: One evaluator per question type, keyed the way
 #: ``models.QUESTION_MODELS`` and ``schemas.answers.ANSWER_SUBMISSIONS`` are —
 #: the three registries are siblings, and adding a question type means adding a
@@ -326,6 +386,7 @@ ANSWER_EVALUATORS: dict[str, Callable[..., AnswerResult]] = {
     QuestionType.FREE_TEXT: _evaluate_free_text,
     QuestionType.ORDERING: _evaluate_ordering,
     QuestionType.MATRIX: _evaluate_matrix,
+    QuestionType.GRADUAL_HINTS: _evaluate_gradual_hints,
 }
 
 

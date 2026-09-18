@@ -15,12 +15,22 @@ something a per-row constraint cannot see.
 
 from __future__ import annotations
 
+import re
 from typing import Annotated, Literal, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from apps.questions.constants import (
+    GRADUAL_HINTS_FALLBACK_CLOCK_SECONDS,
+    HINT_ANSWER_WINDOW_SECONDS,
+)
 from apps.questions.models import (
+    DEFAULT_HINT_INTERVAL_SECONDS,
+    AnswerFieldKind,
     DEFAULT_PROBABILITY_SCORE,
+    MAX_ANSWER_FIELDS,
+    MAX_HINT_INTERVAL_SECONDS,
+    MAX_HINTS,
     MAX_LEVEL,
     MAX_PROBABILITY_SCORE,
     MIN_PROBABILITY_SCORE,
@@ -92,6 +102,24 @@ def _exactly_one_correct(options: list, kind: str, slug: str) -> None:
         raise ValueError(
             f"{kind} {slug!r} must mark exactly one option correct, found {len(correct)}"
         )
+
+
+def _no_blank_or_duplicate_answers(values: list[str], *, field_name: str) -> list[str]:
+    """The rule ``accepted_answers`` obeys, wherever it is authored.
+
+    Two types write that key — ``free-text``, where it is the whole answer, and
+    ``gradual-hints``, where each field has its own — and both are compared
+    case-insensitively at evaluation time, so both have to refuse the same two
+    mistakes: a blank entry, and two spellings that differ only in case (which
+    is one accepted answer written twice).
+    """
+    cleaned = [value.strip() for value in values]
+    if any(not value for value in cleaned):
+        raise ValueError(f"{field_name} may not contain a blank entry")
+    folded = [value.casefold() for value in cleaned]
+    if len(set(folded)) != len(folded):
+        raise ValueError(f"{field_name} repeats an answer")
+    return cleaned
 
 
 class SingleAnswerSpec(_QuestionSpec):
@@ -169,15 +197,7 @@ class FreeTextSpec(_QuestionSpec):
     @field_validator("accepted_answers")
     @classmethod
     def _no_blank_or_duplicate(cls, values: list[str]) -> list[str]:
-        cleaned = [value.strip() for value in values]
-        if any(not value for value in cleaned):
-            raise ValueError("accepted_answers may not contain a blank entry")
-        # Compared case-insensitively at evaluation time, so two spellings that
-        # differ only in case are one accepted answer written twice.
-        folded = [value.casefold() for value in cleaned]
-        if len(set(folded)) != len(folded):
-            raise ValueError("accepted_answers repeats an answer")
-        return cleaned
+        return _no_blank_or_duplicate_answers(values, field_name="accepted_answers")
 
 
 class OrderingSpec(_QuestionSpec):
@@ -198,6 +218,125 @@ class OrderingSpec(_QuestionSpec):
         if len({value.strip().casefold() for value in values}) != len(values):
             raise ValueError("ordering items must be distinct")
         return [value.strip() for value in values]
+
+
+#: What a ``kind: number`` field's accepted answers may look like: digits, with
+#: an optional sign and decimal part. Deliberately narrow — a thousands
+#: separator or a range ("60-70") is a *text* answer that happens to be about
+#: numbers, and the point of the check is to catch the field that says "number"
+#: over a box wanting "Game 7".
+_NUMERIC_ANSWER = re.compile(r"^[+-]?\d+(\.\d+)?$")
+
+
+class GradualHintsFieldSpec(_Strict):
+    """One box the player types into, and everything that fills it."""
+
+    label: str = Field(min_length=1, max_length=60)
+    #: Text or number. Sizes the box and picks the phone keyboard
+    #: (``models.AnswerFieldKind``); it does not change what counts as right.
+    #: Defaulted rather than required because a box is a text box unless the
+    #: author has a reason, and the reason is worth one word in the file.
+    kind: AnswerFieldKind = AnswerFieldKind.TEXT
+    accepted_answers: list[str] = Field(min_length=1)
+
+    @field_validator("accepted_answers")
+    @classmethod
+    def _no_blank_or_duplicate(cls, values: list[str]) -> list[str]:
+        return _no_blank_or_duplicate_answers(values, field_name="accepted_answers")
+
+    @model_validator(mode="after")
+    def _a_number_field_accepts_numbers(self) -> GradualHintsFieldSpec:
+        """A box drawn six characters wide must not want ``Game 7`` typed into it.
+
+        The kind is a promise to the player — this one is short, here is a
+        number pad — and the only way to break it is to mark a field ``number``
+        and then key it to words. Checked here because it is a *file* mistake:
+        nothing at play time would notice, and the player would meet a box their
+        answer does not fit.
+        """
+        wrong = [value for value in self.accepted_answers if not _NUMERIC_ANSWER.match(value)]
+        if self.kind == AnswerFieldKind.NUMBER and wrong:
+            raise ValueError(
+                f"answer field {self.label!r} is kind: number but accepts "
+                f"{wrong[0]!r} — drop the kind, or key it to a number"
+            )
+        return self
+
+
+class GradualHintsSpec(_QuestionSpec):
+    """``type: gradual-hints`` — a question, clues on a timer, and boxes to fill.
+
+    ``hints`` is authored **hardest first**: the list order is the reveal order,
+    so hint one goes out the moment the clock starts and each of the others one
+    ``hint_interval_seconds`` after the last. Positions are not authored, for
+    the reason no position in this app is — the list order is the schedule, so a
+    file cannot have a gap in it.
+
+    ``answer_fields`` is what the player fills in, and each field is graded on
+    its own (``services.evaluation``). Every field carries every spelling that
+    fills it, the same way a free-text question does: somebody racing a clock
+    types ``7``, not ``Game 7``.
+    """
+
+    type: Literal[QuestionType.GRADUAL_HINTS]
+    hints: list[str] = Field(min_length=1, max_length=MAX_HINTS)
+    #: How long one hint is up before the next joins it. Per question, because
+    #: it is a property of the clues: five one-line stat clues want a tighter
+    #: spacing than three clues each of which is a sentence to read.
+    hint_interval_seconds: int = Field(
+        default=DEFAULT_HINT_INTERVAL_SECONDS, ge=1, le=MAX_HINT_INTERVAL_SECONDS
+    )
+    answer_fields: list[GradualHintsFieldSpec] = Field(
+        min_length=1, max_length=MAX_ANSWER_FIELDS
+    )
+
+    @field_validator("hints")
+    @classmethod
+    def _no_blank_or_duplicate_hints(cls, values: list[str]) -> list[str]:
+        cleaned = [value.strip() for value in values]
+        if any(not value for value in cleaned):
+            raise ValueError("hints may not contain a blank entry")
+        # The same clue twice is a reveal that stalls: the player waits out an
+        # interval for something they have already read.
+        folded = [value.casefold() for value in cleaned]
+        if len(set(folded)) != len(folded):
+            raise ValueError("hints repeats a hint")
+        return cleaned
+
+    @model_validator(mode="after")
+    def _field_labels_distinct(self) -> GradualHintsSpec:
+        """Two boxes with one label is a board the player cannot read, and an
+        answer nobody can check by eye against the file."""
+        labels = [field.label.strip().casefold() for field in self.answer_fields]
+        if len(set(labels)) != len(labels):
+            raise ValueError(
+                f"gradual-hints question {self.slug!r} repeats an answer field label"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _the_clock_outlasts_the_schedule(self) -> GradualHintsSpec:
+        """The last hint must land with time left to use it.
+
+        The schedule and the clock are authored in two different places — the
+        hints here, the clock in ``time_limit_seconds`` or (far more often) in
+        the match engine's per-type fallback — and nothing at play time would
+        notice them disagreeing: the question would simply close on a player
+        who was still waiting for a clue that was never going to arrive. So it
+        is checked here, against whichever of the two clocks this question will
+        actually get, and the fix is one line in the file either way: fewer
+        hints, a tighter interval, or a ``time_limit_seconds`` that covers it.
+        """
+        last_hint_at = (len(self.hints) - 1) * self.hint_interval_seconds
+        clock = self.time_limit_seconds or GRADUAL_HINTS_FALLBACK_CLOCK_SECONDS
+        if clock - last_hint_at < HINT_ANSWER_WINDOW_SECONDS:
+            raise ValueError(
+                f"gradual-hints question {self.slug!r}: the last of its "
+                f"{len(self.hints)} hints lands at {last_hint_at}s of a {clock}s "
+                f"question, leaving under {HINT_ANSWER_WINDOW_SECONDS}s to answer "
+                f"— shorten the schedule or raise time_limit_seconds"
+            )
+        return self
 
 
 class MatrixAnswerSpec(_Strict):
@@ -388,6 +527,7 @@ QuestionSpec = Annotated[
         FreeTextSpec,
         OrderingSpec,
         MatrixSpec,
+        GradualHintsSpec,
     ],
     Field(discriminator="type"),
 ]
@@ -408,6 +548,8 @@ class QuestionFileSpec(_Strict):
 __all__ = [
     "CategorySpec",
     "FreeTextSpec",
+    "GradualHintsFieldSpec",
+    "GradualHintsSpec",
     "ImageAnswerSpec",
     "MatrixAnswerSpec",
     "MatrixCellSpec",

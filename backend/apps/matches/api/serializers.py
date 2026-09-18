@@ -64,6 +64,23 @@ class MatchupQuestionSerializer(serializers.Serializer):
         }
 
 
+class MatchupParticipantSerializer(serializers.Serializer):
+    """One side of a matchup, name and picture only — safe to read while the
+    match is still live.
+
+    Deliberately not ``MatchupPlayerSerializer`` below: ``score`` and
+    ``correct_answers`` update the moment an answer *lands*
+    (``services.submit_answer``), not when the question closes, so handing
+    them out mid-match is the same opponent's-answer leak
+    ``selectors.list_matchups_for_player`` and ``events.PLAYER_ANSWERED``
+    both refuse — see ``backend/CLAUDE.md``'s "matches" section. Identity
+    carries none of that risk: who you're playing was never the secret, only
+    how they're doing.
+    """
+
+    player = PlayerSerializer()
+
+
 class MatchupPlayerSerializer(serializers.Serializer):
     """One side of the result — the score line a scoreboard shows."""
 

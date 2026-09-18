@@ -1,10 +1,11 @@
 import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Check, Clock, X } from 'lucide-react'
+import { Check, Clock, Play, X } from 'lucide-react'
 import { getMatch } from '../lib/api/endpoints'
 import { queryKeys } from '../lib/query/queryClient'
 import { useAuth } from '../features/auth/useAuth'
 import { Avatar } from '../components/Avatar'
+import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { LevelChip } from '../components/LevelChip'
 import { SectionHeading } from '../components/SectionHeading'
@@ -63,6 +64,43 @@ export function MatchDetailPage() {
           </p>
         )}
       </section>
+
+      {/* Reserves the room `BackToPlayingBar` takes out of the flow by going
+          fixed, so the last question row never ends up parked behind it. */}
+      <div aria-hidden className="h-20" />
+      <BackToPlayingBar categorySlug={match.data.category} />
+    </div>
+  )
+}
+
+/*
+ * Pinned to the foot of the *viewport*, not just this page's content column —
+ * a box score can run many screens of question-by-question rows, and "play
+ * again" shouldn't cost a scroll back to the top to reach.
+ *
+ * Fixed rather than sticky: sticky stays inside its own ancestor's width, and
+ * that ancestor is `<main>`'s `max-w-5xl` column, which on a wide desk
+ * viewport leaves the bar looking stranded in the middle of the window
+ * instead of spanning it. Fixed with `inset-x-0` spans the full window; the
+ * inner row keeps the page's own `max-w-5xl` gutter so the button still lines
+ * up under the content above it rather than drifting to the true edges.
+ *
+ * `bottom` tracks `--nav-bar-inset` (see index.css) so it stacks above the
+ * fixed phone tab bar instead of landing behind it; on desk that variable is
+ * 0 and the bar sits flush to the window edge.
+ */
+function BackToPlayingBar({ categorySlug }: { categorySlug: string }) {
+  return (
+    <div
+      className="fixed inset-x-0 z-20 border-t border-chalk/10 bg-void px-safe"
+      style={{ bottom: 'var(--nav-bar-inset)' }}
+    >
+      <div className="mx-auto w-full max-w-5xl py-3">
+        <Button as={Link} to={`/play/${categorySlug}`} size="full" variant="primary">
+          <Play size={18} aria-hidden />
+          Back to playing
+        </Button>
+      </div>
     </div>
   )
 }

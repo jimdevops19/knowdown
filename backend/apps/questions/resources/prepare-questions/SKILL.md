@@ -1,6 +1,6 @@
 ---
 name: prepare-questions
-description: Author or edit Knowdown trivia questions by hand-editing the YAML files under apps/questions/resources/. Use whenever the task is "write N questions about X", "add a question to category Y", "fix/rephrase question <slug>", or "add a new category" — anything whose deliverable is question content, not code. Loads the pydantic schema rules for each of the seven question types so the YAML it writes loads cleanly on the first try.
+description: Author or edit Knowdown trivia questions by hand-editing the YAML files under apps/questions/resources/. Use whenever the task is "write N questions about X", "add a question to category Y", "fix/rephrase question <slug>", or "add a new category" — anything whose deliverable is question content, not code. Loads the pydantic schema rules for each of the eight question types so the YAML it writes loads cleanly on the first try.
 ---
 
 # Preparing questions
@@ -26,6 +26,7 @@ end of the `questions:` list unless asked to edit or reorder specific ones.
 apps/questions/resources/
   categories.yaml          # the list of categories (slug, name, description, is_active)
   <category-slug>/
+    _active.yaml           # which of the files below this category loads
     single-answer.yaml
     image-answer.yaml
     multiple-answer.yaml
@@ -41,6 +42,19 @@ category today. Adding a new category is: an entry in `categories.yaml` plus a
 new folder named after its `slug`, containing whichever of the seven type
 files you're populating (a type file with no questions yet simply doesn't
 exist until there's something to put in it — don't create empty ones).
+
+`_active.yaml` lists the files that category loads:
+
+```yaml
+resources:
+  - single-answer.yaml
+  - true-false.yaml
+```
+
+**A new type file must be added to it, or nothing in it is loaded.** Commenting
+a line out is how a batch of questions is parked without deleting it — those
+questions are deactivated on the next sync and reactivated when the line comes
+back. Naming a file that isn't in the folder fails the load.
 
 **Categories:**
 
@@ -79,7 +93,7 @@ claims that are obviously true or false to anyone who follows the sport, and
 spend the higher levels on claims that sound wrong and are right (or vice
 versa).
 
-## The seven types
+## The eight types
 
 Every type file's own header comment has the full rationale; this is the
 load-time contract.
@@ -245,13 +259,74 @@ grading to whoever knows the sport. **Nothing scores with it yet** — a cell is
 right or it is not, and credit is the fraction of the grid filled correctly —
 so it is never a reason to leave an answer out.
 
+**`gradual-hints`** — the clues arrive while the clock runs, and the player
+fills in a handful of labelled boxes.
+```yaml
+- type: gradual-hints
+  slug: nba-guess-the-game-2016-finals-game-seven
+  description: Guess the game.
+  level: 6
+  tags: {topic: finals, era: 2010s}
+  hint_interval_seconds: 5          # optional, default 5, 1..15
+  hints:
+    - The final score was 93-89.
+    - Draymond Green hit six three-pointers.
+    - '"OH, BLOCKED BY JAMES!" — LeBron James with the rejection.'
+    - The series ended 4-3 to the Cleveland Cavaliers.
+    - Kyrie Irving hit one of the clutchest threes ever in the final minute.
+  answer_fields:
+    - label: Year
+      kind: number                  # optional, default text
+      accepted_answers: [2016, "'16"]
+    - label: Round
+      accepted_answers: [Finals, NBA Finals]
+    - label: Game number
+      accepted_answers: [7, Game 7]
+```
+1–5 hints, 1–5 `answer_fields`. The first clue lands when the countdown
+starts and each of the others one `hint_interval_seconds` later, on the
+server's own clock, so both players watch the same reveal at the same
+instant. **`description` is not the question** here in the way it is
+elsewhere — it is the framing ("Guess the game"), and the hints are what is
+actually being asked.
+
+**Write the clues as a descent, hardest first.** The list order is the reveal
+order. Clue one should be gettable only by somebody who was there — a final
+score, a stat line, a possession nobody else remembers; the last should be
+nearly the giveaway. A first clue that already names the series makes the
+other four decorative, and a last clue that is still cryptic is a ten-second
+question wearing a forty-second clock. Repeating a clue fails the load.
+
+**Fields are scored one by one**, like a matrix grid's cells: year and round
+right with the game number wrong is two thirds of the credit. So pick fields
+that are *independently* knowable — "year" and "round" are two facts; "year"
+and "the last two digits of the year" are one fact asked twice. Field labels
+must be distinct, and each field's `accepted_answers` follows the `free-text`
+rules exactly: short forms a player would actually type (`7`, not just `Game
+7`), matched case-insensitively, so the same spelling twice in different
+cases is a load error.
+
+**Say which boxes are numbers.** `kind: number` draws a short box and opens a
+number pad on a phone; `text` (the default) draws a wide one. It is a promise
+about what to type, so a `number` field keyed to anything but digits fails the
+load — "Game number" above stays text precisely because `Game 7` fills it too.
+Nothing about the answer reaches the board either way: the width comes from the
+kind, never from how long the accepted answers happen to be.
+
+**The clock has to outlast the schedule.** A gradual-hints question gets 40
+seconds unless it authors `time_limit_seconds`, and the load fails if the
+last clue would land with under 10 seconds left to type. Five clues at the
+default five seconds puts the last at 20s, which fits with room to spare —
+slow the reveal down and you must raise `time_limit_seconds` to match.
+
 ## Workflow
 
 1. Identify the category and type from the request; open the matching file
    (`apps/questions/resources/<category>/<type>.yaml`). If it doesn't exist
    yet, create it following the header-comment convention of its siblings —
    copy the tone of an existing type file in the same category, not a
-   generic template.
+   generic template — and add its name to that category's `_active.yaml`,
+   or the loader will not read it.
 2. Check every new `slug` isn't already used anywhere under
    `apps/questions/resources/` (grep across the whole tree, not just the file
    you're editing — the uniqueness constraint is global).

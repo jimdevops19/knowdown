@@ -28,7 +28,12 @@ import random
 import uuid
 from typing import Callable
 
-from apps.questions.models import BaseQuestion, ColumnsRowsQuestion, QuestionType
+from apps.questions.models import (
+    BaseQuestion,
+    ColumnsRowsQuestion,
+    GradualHintsQuestion,
+    QuestionType,
+)
 
 __all__ = ["build_bot_answer"]
 
@@ -109,6 +114,32 @@ def _matrix(*, question: ColumnsRowsQuestion, correct: bool) -> dict:
     return {"type": QuestionType.MATRIX, "cells": submitted}
 
 
+def _gradual_hints(*, question: GradualHintsQuestion, correct: bool) -> dict:
+    """Every box filled in — right, or uniformly wrong.
+
+    Fills all of them either way rather than a random subset, because a bot
+    leaving boxes blank would be scoring itself a fraction on top of the
+    accuracy its ``BotProfile`` already decides (the question is credited per
+    field — ``apps.questions.services.evaluation``), and two dice for one
+    outcome is a bot whose configured accuracy means nothing.
+
+    A bot does not wait for the clues. It is answering from the question's own
+    rows, which is the same shortcut every builder here takes — see this
+    module's docstring — and *when* it answers is the controller's decision, not
+    something the reveal schedule is allowed to hurry.
+    """
+    submitted = []
+    for field in question.answer_fields.prefetch_related("accepted_answers"):
+        accepted = field.accepted_answers.first()
+        text = (
+            accepted.value
+            if correct and accepted is not None
+            else f"wrong-{uuid.uuid4().hex[:6]}"
+        )
+        submitted.append({"field_id": field.id, "text": text})
+    return {"type": QuestionType.GRADUAL_HINTS, "answer_fields": submitted}
+
+
 #: One builder per ``QuestionType`` — the sibling of ``ANSWER_EVALUATORS``
 #: (``apps.questions.services.evaluation``) for the write side a bot needs.
 BOT_ANSWER_BUILDERS: dict[str, Callable[..., dict]] = {
@@ -119,6 +150,7 @@ BOT_ANSWER_BUILDERS: dict[str, Callable[..., dict]] = {
     QuestionType.FREE_TEXT: _free_text,
     QuestionType.ORDERING: _ordering,
     QuestionType.MATRIX: _matrix,
+    QuestionType.GRADUAL_HINTS: _gradual_hints,
 }
 
 

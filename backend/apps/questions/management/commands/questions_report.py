@@ -27,7 +27,7 @@ from apps.questions.models import QUESTION_MODELS
 from apps.questions.selectors import CategoryDepth, catalog_depth
 
 #: Short headings for the per-type table — ``single-answer`` and friends are the
-#: authored keys and are too wide to tile seven across a terminal.
+#: authored keys and are too wide to tile eight across a terminal.
 TYPE_HEADINGS = {
     "single-answer": "single",
     "image-answer": "image",
@@ -36,6 +36,7 @@ TYPE_HEADINGS = {
     "free-text": "text",
     "ordering": "order",
     "matrix": "matrix",
+    "gradual-hints": "hints",
 }
 
 
@@ -157,8 +158,8 @@ class Command(BaseCommand):
     def _type_table(self, depths: list[CategoryDepth]) -> None:
         """Depth per question type.
 
-        Separate from the band table rather than a wider version of it: seven
-        types across three bands is 21 numbers per category, which is a matrix
+        Separate from the band table rather than a wider version of it: eight
+        types across three bands is 24 numbers per category, which is a matrix
         nobody reads. This answers a different question — "does the catalog
         exercise every answer shape, or is it four hundred single-answers?" —
         and a type sitting at zero is a client feature nobody is testing.

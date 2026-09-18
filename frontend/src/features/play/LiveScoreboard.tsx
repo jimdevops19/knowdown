@@ -5,22 +5,13 @@ import type { MatchupState } from '../../lib/realtime'
 /*
  * The two sides of a live match, above the board.
  *
- * ── Why the opponent has no name ─────────────────────────────────────────────
- * The socket never sends one. `player.answered` carries a player id,
- * `match.completed` carries scores keyed by player id, and there is no
- * id-to-name lookup in the public API — profiles are fetched by display name.
- * The one endpoint that *would* answer it, `GET /matches/{id}/`, returns the
- * full box score including every question of the match, which mid-game is the
- * rest of the board; asking for it during a live match would hand this client
- * the questions it has not been shown yet. (See `MatchPage` — that request is
- * deliberately deferred until the match is over.)
- *
- * So during play the opponent is "Rival", coloured by a hue derived from their
- * id (`Avatar`'s `seed`), which is stable for the whole match. It reads as a
- * specific someone rather than a blank, and the name arrives on the summary
- * screen a few seconds later. That is the honest trade, and it is worth
- * preferring over the alternative: there is nothing to show at all if the only
- * way to get a name is to also get the answers.
+ * ── The opponent's name ───────────────────────────────────────────────────────
+ * Fetched by the caller from `GET /matches/{id}/participants/` — name and
+ * picture only, nothing the socket wouldn't already be fine with saying. Until
+ * that request resolves (a beat, at the start of a match), `opponentName`
+ * arrives here as the literal fallback "Rival", coloured by a hue derived from
+ * their id (`Avatar`'s `seed`) so there's a specific someone to look at rather
+ * than a blank even in that window.
  *
  * The scoreboard shows *points*, not questions won — points are what the ladder
  * moves on, and they carry speed as well as correctness, so a player who is
@@ -31,11 +22,15 @@ export function LiveScoreboard({
   myPlayerId,
   myName,
   myAvatarUrl,
+  opponentName,
+  opponentAvatarUrl,
 }: {
   state: MatchupState
   myPlayerId: string | null
   myName: string
   myAvatarUrl: string | null
+  opponentName: string
+  opponentAvatarUrl: string | null
 }) {
   const opponentId = findOpponentId(state, myPlayerId)
   const myScore = myPlayerId ? state.scores[myPlayerId] : undefined
@@ -61,12 +56,11 @@ export function LiveScoreboard({
       </div>
 
       <Side
-        name="Rival"
-        // Seeded on the opponent's id so their colour is stable across the whole
-        // match even though their name isn't known. Falls back to the literal
-        // string only in the window before they have answered anything.
+        name={opponentName}
+        // Seeded on the opponent's id so their colour is stable across the
+        // whole match even in the brief window before the name resolves.
         seed={opponentId ?? 'rival'}
-        avatarUrl={null}
+        avatarUrl={opponentAvatarUrl}
         score={theirScore}
         known={state.scoresComplete}
         accent="rival"

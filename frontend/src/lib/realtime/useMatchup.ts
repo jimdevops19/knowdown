@@ -8,6 +8,7 @@ import {
   CLOSE_UNAUTHENTICATED,
   ERROR,
   FORFEIT,
+  HINT_REVEALED,
   MATCH_COMPLETED,
   OPPONENT_DISCONNECTED,
   OPPONENT_RECONNECTED,
@@ -81,6 +82,20 @@ export interface MatchupState {
   /** What this player submitted for `current.order`, if anything yet. Set the
    *  moment it goes out, so a tile can show as taken while the server thinks. */
   mySubmission: AnswerSubmission | null
+  /**
+   * The clues revealed so far for `current`, in reveal order.
+   *
+   * Only a `gradual-hints` question ever has any; every other type says
+   * everything it has to say on the board, so this stays empty and the boards
+   * that ignore it are not missing anything.
+   *
+   * Accumulated from `hint.revealed` frames rather than read off the question,
+   * because the text is not on the question: the server pays it out as its own
+   * clock reaches each clue, which is what makes waiting for one cost something.
+   * Reset with the question — a clue from question two under question three's
+   * text would be a hint to the wrong question.
+   */
+  hints: string[]
   /** True once the opponent has locked in for `current.order`. Says nothing
    *  about *what* they said or whether it was right — that would be the answer,
    *  and this player's clock is still running. */
@@ -114,6 +129,7 @@ export interface MatchupState {
 const INITIAL: MatchupState = {
   phase: 'connecting',
   current: null,
+  hints: [],
   mySubmission: null,
   opponentAnswered: false,
   results: null,
@@ -188,12 +204,33 @@ function reduce(state: MatchupState, action: Action): MatchupState {
               seenAt: message.started_at_ms,
               timeLimitMs: message.time_limit_ms,
             },
+            // Dropped on a new question and kept on a resumed one, for the
+            // reason the submission is: a reconnect re-sends the board for the
+            // question in progress, and the clues already due arrive again
+            // right behind it (`consumers._reveal_hints`) — so clearing here
+            // would double every one of them on the way back.
+            hints: resuming ? state.hints : [],
             mySubmission: resuming ? state.mySubmission : null,
             opponentAnswered: resuming ? state.opponentAnswered : false,
             results: resuming ? state.results : null,
             scoresComplete: state.scoresComplete && (resuming || message.order === expected),
             error: null,
           }
+        }
+
+        case HINT_REVEALED: {
+          // Ignored unless it belongs to the question actually on screen and
+          // still open: a pair who both answered early close the question while
+          // the reveal runs on, and a clue arriving over the verdict would be
+          // answering a question nobody is being asked any more.
+          if (message.order !== state.current?.order) return state
+          if (state.phase !== 'question') return state
+          // Indexed rather than appended blind. The server sends each clue once
+          // per socket, but a reconnect replays the ones already due, and a
+          // duplicate here would push the same clue twice into a list whose
+          // whole job is to say how far the reveal has got.
+          if (message.index <= state.hints.length) return state
+          return { ...state, hints: [...state.hints, message.text] }
         }
 
         case PLAYER_ANSWERED: {

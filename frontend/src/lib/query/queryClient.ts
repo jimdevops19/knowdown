@@ -54,6 +54,7 @@ export const queryKeys = {
   matches: {
     mine: (page: number) => ['matches', 'mine', page] as const,
     detail: (id: string) => ['matches', 'detail', id] as const,
+    participants: (id: string) => ['matches', 'participants', id] as const,
   },
   auth: {
     config: ['auth', 'config'] as const,

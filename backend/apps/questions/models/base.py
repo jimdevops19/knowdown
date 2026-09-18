@@ -37,6 +37,7 @@ class QuestionType(models.TextChoices):
     FREE_TEXT = "free-text", "Free text"
     ORDERING = "ordering", "Ordering"
     MATRIX = "matrix", "Columns and rows"
+    GRADUAL_HINTS = "gradual-hints", "Gradual hints"
 
 
 class BaseQuestion(BaseModel):

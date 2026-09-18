@@ -6,7 +6,7 @@ payload — and ``evaluation`` says whether a submitted answer is right.
 
 Evaluation lives here rather than in ``apps.matches`` for the same reason
 selection lives in ``apps.questions.selectors``: the match engine must stay
-independent of the seven answer shapes, so "is this answer correct?" is a
+independent of the eight answer shapes, so "is this answer correct?" is a
 question this domain answers and the match domain merely asks. It is the seam
 that keeps the match engine from ever learning what a correct answer looks like.
 """

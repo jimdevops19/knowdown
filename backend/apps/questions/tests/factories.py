@@ -9,7 +9,7 @@ Every builder takes the same knobs (``slug``, ``level``, ``category``) and
 returns a saved question with its children, numbered the way the loader numbers
 them: options in list order, ordering positions 1..n. That similarity is what
 lets the evaluator and serializer suites be table-driven over
-``QUESTION_MODELS`` instead of naming seven shapes twice each.
+``QUESTION_MODELS`` instead of naming eight shapes twice each.
 """
 
 from __future__ import annotations
@@ -19,10 +19,15 @@ from typing import Union
 
 from apps.categories.models import Category
 from apps.questions.models import (
+    AnswerFieldKind,
     DEFAULT_PROBABILITY_SCORE,
     ColumnsRowsQuestion,
     FreeTextAnswer,
     FreeTextQuestion,
+    GradualHint,
+    GradualHintsField,
+    GradualHintsFieldAnswer,
+    GradualHintsQuestion,
     ImageAnswerOption,
     MatrixCell,
     MatrixCellAnswer,
@@ -167,6 +172,47 @@ def make_ordering(
     return question
 
 
+def make_gradual_hints(
+    *,
+    slug: str = "hinted",
+    level: int = 6,
+    category: Category | None = None,
+    hints: tuple[str, ...] = (
+        "The final score was 93-89",
+        "Draymond Green hit six threes",
+        "OH, BLOCKED BY JAMES!",
+    ),
+    hint_interval_seconds: int = 5,
+    answer_fields: tuple[tuple[str, tuple[str, ...], str], ...] = (
+        ("Year", ("2016",), AnswerFieldKind.NUMBER),
+        ("Round", ("Finals", "NBA Finals"), AnswerFieldKind.TEXT),
+        ("Game number", ("7", "Game 7"), AnswerFieldKind.TEXT),
+    ),
+) -> GradualHintsQuestion:
+    """Three clues and three boxes — deliberately more than one of each.
+
+    Several fields is what makes the per-field denominator testable at all (one
+    box would make every answer all-or-nothing by arithmetic rather than by
+    rule), and one of the three accepts two spellings, so "any accepted answer
+    fills the field" is exercised by every suite that builds one without asking
+    for it. Both field kinds are here for the same reason — a board that sized
+    every box the same would pass a fixture that only ever built one kind. ``hints`` is authored hardest-first, as a resource file is: the list
+    order is the reveal order.
+    """
+    question = GradualHintsQuestion.objects.create(
+        **_base(slug, level, category), hint_interval_seconds=hint_interval_seconds
+    )
+    for order, text in enumerate(hints, start=1):
+        GradualHint.objects.create(question=question, order=order, text=text)
+    for order, (label, accepted, kind) in enumerate(answer_fields, start=1):
+        field = GradualHintsField.objects.create(
+            question=question, order=order, label=label, kind=kind
+        )
+        for value in accepted:
+            GradualHintsFieldAnswer.objects.create(field=field, value=value)
+    return question
+
+
 #: What a factory caller may write for one cell's answers: a single value,
 #: or several — each of them either a string or ``(value, probability_score)``.
 CellAnswers = Union[str, tuple[str, int], Sequence[Union[str, tuple[str, int]]]]
@@ -297,4 +343,5 @@ QUESTION_FACTORIES = {
     QuestionType.FREE_TEXT: make_free_text,
     QuestionType.ORDERING: make_ordering,
     QuestionType.MATRIX: make_matrix,
+    QuestionType.GRADUAL_HINTS: make_gradual_hints,
 }

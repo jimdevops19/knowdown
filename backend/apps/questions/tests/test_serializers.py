@@ -45,6 +45,7 @@ from apps.questions.models import (
 from .factories import (
     QUESTION_FACTORIES,
     make_free_text,
+    make_gradual_hints,
     make_matrix,
     make_team_matrix,
     make_ordering,
@@ -122,7 +123,7 @@ class DeclaredFieldTests(TestCase):
 
 
 class RenderedPayloadTests(TestCase):
-    """Layer 2: what actually goes over the wire, for all seven shapes."""
+    """Layer 2: what actually goes over the wire, for all eight shapes."""
 
     def payload_for(self, question_type: str) -> dict:
         question = QUESTION_FACTORIES[question_type](slug=f"{question_type}-shown")
@@ -219,6 +220,74 @@ class RenderedPayloadTests(TestCase):
             {(cell["row_id"], cell["column_id"]) for cell in payload["cells"]},
             set(question.cells.values_list("row_id", "column_id")),
         )
+
+    def test_a_gradual_hints_payload_carries_no_hint(self) -> None:
+        """The clues are the question, and they are the one thing here that has
+        to arrive *late*.
+
+        A board carrying all five at question-open would leave the whole type
+        defeated by opening a network tab: a player answers on the first clue
+        with everything the fifth one says, and the player who actually waited
+        is the only one playing the game as written. The text reaches a client
+        exactly one way — ``events.HINT_REVEALED``, when the server's clock says
+        so (``apps.matches.consumers``).
+        """
+        question = make_gradual_hints()
+        payload = serialize_for_play(question=question, matchup_id=MATCHUP)
+        keys, values = flatten(payload)
+
+        hints = list(question.hints.values_list("text", flat=True))
+        self.assertTrue(hints)
+        for hint in hints:
+            self.assertNotIn(hint, values)
+        # Not merely absent by value — absent by *name*, so a later refactor
+        # cannot reintroduce the key with the text arriving through it.
+        self.assertNotIn("hints", keys)
+        self.assertNotIn("hint", keys)
+
+    def test_a_gradual_hints_payload_carries_the_shape_of_the_reveal(self) -> None:
+        """What a client may know without being told a clue: how many are
+        coming and how far apart. That is enough to draw five empty slots and a
+        "next clue in 3…", which is what makes the waiting legible rather than
+        making the board look broken between reveals."""
+        question = make_gradual_hints(hint_interval_seconds=7)
+        payload = serialize_for_play(question=question, matchup_id=MATCHUP)
+
+        self.assertEqual(payload["hint_count"], question.hints.count())
+        self.assertEqual(payload["hint_interval_ms"], 7000)
+
+    def test_a_gradual_hints_payload_carries_no_accepted_answer(self) -> None:
+        """Each field is a free-text question in miniature, and leaks the same
+        way if its accepted spellings ride along."""
+        question = make_gradual_hints()
+        _, values = flatten(serialize_for_play(question=question, matchup_id=MATCHUP))
+        for accepted in ("2016", "NBA Finals", "Game 7"):
+            self.assertNotIn(accepted, values)
+
+    def test_a_gradual_hints_payload_carries_the_boxes_a_submission_names(self) -> None:
+        """Ids and labels, in the authored order: the fields are boxes to fill,
+        not options to pick, so shuffling "year, round, game" would ask a harder
+        question than the one that was written."""
+        question = make_gradual_hints()
+        payload = serialize_for_play(question=question, matchup_id=MATCHUP)
+
+        self.assertEqual(
+            [(field["id"], field["label"]) for field in payload["answer_fields"]],
+            list(question.answer_fields.values_list("id", "label")),
+        )
+
+    def test_a_gradual_hints_payload_says_which_boxes_want_a_number(self) -> None:
+        """The board sizes a box and picks a keyboard from this, and there is
+        nothing else it could size them from — a width taken off the accepted
+        answers would tell the player how many characters to find."""
+        question = make_gradual_hints()
+        payload = serialize_for_play(question=question, matchup_id=MATCHUP)
+
+        self.assertEqual(
+            [field["kind"] for field in payload["answer_fields"]],
+            list(question.answer_fields.values_list("kind", flat=True)),
+        )
+        self.assertIn("number", {field["kind"] for field in payload["answer_fields"]})
 
     def test_a_matrix_payload_says_which_intersections_to_fill(self) -> None:
         """The grid is sparse, so without this a client draws an input in every

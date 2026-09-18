@@ -25,10 +25,12 @@ from django.test import TestCase, override_settings
 from apps.categories.models import Category
 from apps.core_common.exceptions import ValidationFailed
 from apps.questions.models import (
+    DEFAULT_HINT_INTERVAL_SECONDS,
     DEFAULT_PROBABILITY_SCORE,
     QUESTION_MODELS,
     ColumnsRowsQuestion,
     FreeTextQuestion,
+    GradualHintsQuestion,
     MatrixCellAnswer,
     MatrixKind,
     OrderingQuestion,
@@ -56,6 +58,24 @@ def single_answer(slug: str = "who-scored", **overrides) -> dict:
             {"text": "Boston Celtics", "is_correct": True},
             {"text": "Los Angeles Lakers"},
         ],
+    }
+    return entry | overrides
+
+
+def gradual_hints(slug: str = "guess-the-game", **overrides) -> dict:
+    """A minimal gradual-hints entry: two clues, one box, the default spacing.
+
+    Deliberately *smaller* than anything worth shipping — a refusal test wants
+    the one thing it is about and nothing else on the line beside it, so the
+    override is always the subject of the test.
+    """
+    entry = {
+        "type": "gradual-hints",
+        "slug": slug,
+        "description": "Guess the game.",
+        "level": 5,
+        "hints": ["The score was 93-89.", "It went seven games."],
+        "answer_fields": [{"label": "Year", "accepted_answers": ["2016"]}],
     }
     return entry | overrides
 
@@ -183,12 +203,23 @@ class LoadEveryTypeTests(ResourceTreeTestCase):
                         {"row": "Lakers", "column": "2000s", "answers": ["2001"]},
                     ],
                 },
+                {
+                    "type": "gradual-hints",
+                    "slug": "hinted",
+                    "description": "Guess the game.",
+                    "level": 6,
+                    "hints": ["The score was 93-89.", "It went seven games."],
+                    "answer_fields": [
+                        {"label": "Year", "accepted_answers": ["2016", "'16"]},
+                        {"label": "Round", "accepted_answers": ["Finals"]},
+                    ],
+                },
             ],
         )
         self.report = self.load()
 
     def test_every_type_landed_in_its_own_table(self) -> None:
-        self.assertEqual(len(self.report.created), 7)
+        self.assertEqual(len(self.report.created), 8)
         for model in QUESTION_MODELS.values():
             self.assertEqual(model.objects.count(), 1, model.__name__)
 
@@ -238,6 +269,36 @@ class LoadEveryTypeTests(ResourceTreeTestCase):
         self.assertEqual(
             sorted(a.value for a in question.accepted_answers.all()),
             ["Kobe", "Kobe Bryant"],
+        )
+
+    def test_gradual_hints_numbers_its_clues_in_the_authored_order(self) -> None:
+        """The list order is the reveal schedule, so the loader is the only
+        thing that ever assigns a position — a file cannot leave a gap in one,
+        and re-ordering the clues is re-ordering the lines."""
+        question = GradualHintsQuestion.objects.get(slug="hinted")
+        self.assertEqual(
+            [(hint.order, hint.text) for hint in question.hints.all()],
+            [(1, "The score was 93-89."), (2, "It went seven games.")],
+        )
+
+    def test_gradual_hints_fields_keep_their_accepted_spellings(self) -> None:
+        """Each box is a free-text answer in miniature, one level further down
+        the tree — the loader pairs bulk-created fields with their spec by
+        position, so a question whose second field takes the first one's answers
+        is how that pairing breaks."""
+        question = GradualHintsQuestion.objects.get(slug="hinted")
+        self.assertEqual(
+            [
+                (field.label, sorted(a.value for a in field.accepted_answers.all()))
+                for field in question.answer_fields.all()
+            ],
+            [("Year", ["'16", "2016"]), ("Round", ["Finals"])],
+        )
+
+    def test_gradual_hints_takes_the_default_interval_when_the_file_is_silent(self) -> None:
+        self.assertEqual(
+            GradualHintsQuestion.objects.get(slug="hinted").hint_interval_seconds,
+            DEFAULT_HINT_INTERVAL_SECONDS,
         )
 
     def test_option_images_are_copied_under_media_root(self) -> None:
@@ -375,6 +436,85 @@ class DeactivationTests(ResourceTreeTestCase):
 
         self.assertEqual(report.deactivated, [])
         self.assertTrue(SingleAnswerQuestion.objects.get(slug="cars").is_active)
+
+
+class ActiveManifestTests(ResourceTreeTestCase):
+    """``_active.yaml`` — the per-category switch for which files are loaded."""
+
+    def write_manifest(self, names, *, category: str = "nba") -> None:
+        folder = self.root / category
+        folder.mkdir(exist_ok=True)
+        (folder / sync.ACTIVE_FILE).write_text(yaml.safe_dump({"resources": names}))
+
+    def test_a_file_the_manifest_omits_is_not_loaded(self) -> None:
+        self.write_file("live.yaml", [single_answer("live")])
+        self.write_file("parked.yaml", [single_answer("parked")])
+        self.write_manifest(["live.yaml"])
+
+        report = self.load()
+
+        self.assertEqual(report.created, ["live"])
+        self.assertFalse(SingleAnswerQuestion.objects.filter(slug="parked").exists())
+
+    def test_parking_a_file_deactivates_the_questions_it_held(self) -> None:
+        """The point of the switch: the questions stop being served, and the
+        rows stay, because they are somebody's match history."""
+        self.write_file("live.yaml", [single_answer("live")])
+        self.write_file("parked.yaml", [single_answer("parked")])
+        self.write_manifest(["live.yaml", "parked.yaml"])
+        self.load()
+
+        self.write_manifest(["live.yaml"])
+        report = self.load()
+
+        self.assertEqual(report.deactivated, ["parked"])
+        self.assertFalse(SingleAnswerQuestion.objects.get(slug="parked").is_active)
+
+    def test_a_file_put_back_is_reactivated(self) -> None:
+        self.write_file("q.yaml", [single_answer("seasonal")])
+        self.write_file("filler.yaml", [single_answer("filler")])
+        self.write_manifest(["filler.yaml"])
+        self.load()
+
+        self.write_manifest(["filler.yaml", "q.yaml"])
+        self.load()
+
+        self.assertTrue(SingleAnswerQuestion.objects.get(slug="seasonal").is_active)
+
+    def test_the_manifest_itself_is_not_read_as_questions(self) -> None:
+        self.write_file("q.yaml", [single_answer("kept")])
+        self.write_manifest(["q.yaml"])
+        self.assertEqual(self.load().created, ["kept"])
+
+    def test_a_folder_without_a_manifest_still_loads_everything(self) -> None:
+        self.write_file("a.yaml", [single_answer("first")])
+        self.write_file("b.yaml", [single_answer("second")])
+        self.assertEqual(sorted(self.load().created), ["first", "second"])
+
+    def test_naming_a_file_that_is_not_there_is_refused(self) -> None:
+        self.write_file("q.yaml", [single_answer("kept")])
+        self.write_manifest(["q.yaml", "typo.yaml"])
+
+        with self.assertRaises(ValidationFailed) as caught:
+            self.load()
+        self.assertIn("typo.yaml", str(caught.exception.message))
+
+    def test_a_manifest_without_the_key_is_refused(self) -> None:
+        self.write_file("q.yaml", [single_answer("kept")])
+        (self.root / "nba" / sync.ACTIVE_FILE).write_text(yaml.safe_dump({"files": []}))
+
+        with self.assertRaises(ValidationFailed):
+            self.load()
+
+    def test_an_empty_manifest_loads_nothing_from_that_folder(self) -> None:
+        """``resources: []`` is a deliberate "not this season", and fails the
+        load the way an empty folder does rather than passing silently."""
+        self.write_file("q.yaml", [single_answer("kept")])
+        self.write_manifest([])
+
+        with self.assertRaises(ValidationFailed) as caught:
+            self.load()
+        self.assertIn("no .yaml files", str(caught.exception.details))
 
 
 class TeamMatrixTests(ResourceTreeTestCase):
@@ -567,6 +707,131 @@ class RefusalTests(ResourceTreeTestCase):
             [single_answer("unanswerable", options=[{"text": "A"}, {"text": "B"}])],
         )
         self.assertRefused("unanswerable", "exactly one option")
+
+    def test_a_hint_schedule_that_outlasts_its_clock(self) -> None:
+        """The clue that lands with no time to use it.
+
+        Nothing at play time would notice: the question would simply close on a
+        player still waiting for a hint that was never going to arrive. So it is
+        refused here, against whichever clock the question will actually get —
+        this one authors none, so it is the match engine's per-type fallback,
+        mirrored in ``apps.questions.constants``.
+        """
+        self.write_file(
+            "q.yaml",
+            [
+                gradual_hints(
+                    "too-slow",
+                    hints=["One", "Two", "Three", "Four", "Five"],
+                    hint_interval_seconds=15,
+                )
+            ],
+        )
+        self.assertRefused("too-slow", "to answer", "time_limit_seconds")
+
+    def test_a_long_schedule_is_allowed_a_clock_that_covers_it(self) -> None:
+        """The other side of the same rule: the fix is one line in the file, and
+        the file that takes it loads."""
+        self.write_file(
+            "q.yaml",
+            [
+                gradual_hints(
+                    "slow-but-honest",
+                    hints=["One", "Two", "Three", "Four", "Five"],
+                    hint_interval_seconds=15,
+                    time_limit_seconds=75,
+                )
+            ],
+        )
+        self.load()
+        self.assertTrue(GradualHintsQuestion.objects.filter(slug="slow-but-honest").exists())
+
+    def test_a_gradual_hints_field_may_say_it_wants_a_number(self) -> None:
+        """Authored per field, and the default is text — the kind is what the
+        board sizes the box from, so the file has to be able to say it."""
+        self.write_file(
+            "q.yaml",
+            [
+                gradual_hints(
+                    "typed-boxes",
+                    answer_fields=[
+                        {"label": "Year", "kind": "number", "accepted_answers": ["2016"]},
+                        {"label": "Round", "accepted_answers": ["Finals"]},
+                    ],
+                )
+            ],
+        )
+        self.load()
+        question = GradualHintsQuestion.objects.get(slug="typed-boxes")
+        self.assertEqual(
+            list(question.answer_fields.values_list("label", "kind")),
+            [("Year", "number"), ("Round", "text")],
+        )
+
+    def test_a_number_field_keyed_to_words(self) -> None:
+        """A short box with a number pad over an answer key of "Game 7" is a
+        promise the board cannot keep, and nothing at play time would notice —
+        the player would simply meet a box their answer does not fit."""
+        self.write_file(
+            "q.yaml",
+            [
+                gradual_hints(
+                    "lying-box",
+                    answer_fields=[
+                        {
+                            "label": "Game number",
+                            "kind": "number",
+                            "accepted_answers": ["7", "Game 7"],
+                        }
+                    ],
+                )
+            ],
+        )
+        self.assertRefused("Game number", "kind: number", "Game 7")
+
+    def test_a_gradual_hints_question_with_no_hints(self) -> None:
+        self.write_file("q.yaml", [gradual_hints("clueless", hints=[])])
+        self.assertRefused("hints", "at least 1 item")
+
+    def test_a_gradual_hints_question_repeating_a_clue(self) -> None:
+        """A reveal that stalls: the player waits out an interval for something
+        they have already read."""
+        self.write_file(
+            "q.yaml", [gradual_hints("stalled", hints=["Same clue", "SAME CLUE"])]
+        )
+        self.assertRefused("repeats a hint")
+
+    def test_a_gradual_hints_question_repeating_a_field_label(self) -> None:
+        self.write_file(
+            "q.yaml",
+            [
+                gradual_hints(
+                    "two-years",
+                    answer_fields=[
+                        {"label": "Year", "accepted_answers": ["2016"]},
+                        {"label": "year", "accepted_answers": ["2017"]},
+                    ],
+                )
+            ],
+        )
+        self.assertRefused("two-years", "repeats an answer field label")
+
+    def test_a_gradual_hints_field_repeating_an_accepted_answer(self) -> None:
+        """Compared case-insensitively at evaluation time, so two spellings that
+        differ only in case are one answer written twice — the same refusal
+        free-text makes, through the same helper."""
+        self.write_file(
+            "q.yaml",
+            [
+                gradual_hints(
+                    "said-twice",
+                    answer_fields=[
+                        {"label": "Round", "accepted_answers": ["Finals", "FINALS"]}
+                    ],
+                )
+            ],
+        )
+        self.assertRefused("accepted_answers", "repeats an answer")
 
     def test_a_multiple_answer_with_one_correct_option(self) -> None:
         self.write_file(

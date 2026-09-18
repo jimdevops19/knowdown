@@ -38,6 +38,7 @@ from apps.matches.tests.factories import stock_category
 from apps.players.tests.factories import make_player
 from apps.questions.api.serializers import FORBIDDEN_FIELD_NAMES
 from apps.questions.models import SingleAnswerQuestion
+from apps.questions.tests.factories import make_category, make_gradual_hints
 from apps.questions.selectors import QuestionRef
 from apps.questions.selectors import get_question as get_concrete_question
 
@@ -397,3 +398,142 @@ class MatchmakingPoolTests(TransactionTestCase):
         assert opponents_named == became_the_waiter  # 20 players, 0 left over
         assert pool.pool_size(category_slug=category_slug) == 0
         cache.clear()
+
+
+def _stock_gradual_hints(*, interval_seconds: int = 1, count: int = 10):
+    """A category of nothing but gradual-hints questions, revealing fast.
+
+    One clue a second rather than the authored five, so the suite watches a
+    whole reveal in about as long as one real interval. Built through the
+    factory rather than the loader for the reason ``questions.tests.factories``
+    exists at all — and the short interval is a *fixture*, not a loadable
+    question: the schema's floor is one second and its clock check would refuse
+    anything this brisk from a resource file.
+    """
+    category = make_category(slug="hints-only", name="Hints")
+    for n in range(count):
+        make_gradual_hints(
+            slug=f"hinted-{n}",
+            category=category,
+            level=3,
+            hints=(f"Clue one of {n}", f"Clue two of {n}"),
+            hint_interval_seconds=interval_seconds,
+        )
+    return category
+
+
+class GradualHintsRevealTests(TransactionTestCase):
+    """The clues arrive over the socket, on the server's clock, to both sides.
+
+    This is the type whose question is not finished being asked when the board
+    lands, so the board alone proves nothing: what has to be tested is that the
+    rest of it turns up, that it turns up *late*, and that it never rode along
+    with the board in the first place.
+    """
+
+    async def _paired_players(self, *, category):
+        one = await database_sync_to_async(make_player)(email="h1@example.com")
+        two = await database_sync_to_async(make_player)(email="h2@example.com")
+
+        pool = await _connect_matchmaking(one, category.slug)
+        await pool.receive_json_from(timeout=5)
+        pool2 = await _connect_matchmaking(two, category.slug)
+        found = await pool.receive_json_from(timeout=5)
+        await pool2.receive_json_from(timeout=5)
+        await pool.receive_output()
+        await pool2.receive_output()
+
+        matchup_id = found["matchup_id"]
+        # The ``Player`` rows come back with the tests: reconnecting means
+        # minting a token for one of them, and resolving ``player.user`` from an
+        # async test body would be a synchronous query in an event loop.
+        return (
+            matchup_id,
+            await _connect_matchup(one, matchup_id),
+            await _connect_matchup(two, matchup_id),
+            one,
+        )
+
+    async def test_the_board_says_how_many_clues_are_coming_and_not_what_they_say(self):
+        category = await database_sync_to_async(_stock_gradual_hints)()
+        _, sock_one, sock_two, _player = await self._paired_players(category=category)
+
+        board_one, board_two = await _gather_json(sock_one, sock_two)
+        assert board_one["type"] == events.QUESTION_STARTED
+        question = board_one["question"]
+
+        # The shape of the reveal: enough to draw two empty slots and a timer.
+        assert question["hint_count"] == 2
+        assert question["hint_interval_ms"] == 1000
+        # And none of its content, by name or by value.
+        assert "hints" not in set(_walk(question))
+        assert "Clue one" not in str(question)
+        assert not FORBIDDEN_FIELD_NAMES & set(_walk(board_one))
+        assert board_two["question"]["hint_count"] == 2
+
+        await sock_one.disconnect()
+        await sock_two.disconnect()
+
+    async def test_every_clue_reaches_both_players(self):
+        """In order, one frame each, and to both sides of the race.
+
+        Sent per socket rather than broadcast (``consumers._HintRevealMixin``),
+        so "both players saw it" is the thing that could plausibly break and is
+        therefore the thing asserted — a schedule computed from the server's own
+        ``started_at`` is what keeps the two in step without a broadcast.
+        """
+        category = await database_sync_to_async(_stock_gradual_hints)()
+        _, sock_one, sock_two, _player = await self._paired_players(category=category)
+        await _gather_json(sock_one, sock_two)  # the board
+
+        for expected_index in (1, 2):
+            # Generous: the first clue waits out QUESTION_READ_DELAY_SECONDS
+            # with the rest of the question, because the reveal is measured from
+            # the clock's zero-point and not from when the frame was dealt.
+            hint_one, hint_two = await _gather_json(sock_one, sock_two, timeout=10)
+            for hint in (hint_one, hint_two):
+                assert hint["type"] == events.HINT_REVEALED
+                assert hint["order"] == 1
+                assert hint["index"] == expected_index
+            assert hint_one["text"] == hint_two["text"]
+            assert hint_one["text"].startswith(
+                "Clue one" if expected_index == 1 else "Clue two"
+            )
+
+        await sock_one.disconnect()
+        await sock_two.disconnect()
+
+    async def test_a_reconnecting_player_is_caught_up_on_the_clues_already_due(self):
+        """A refresh mid-question must not cost the clues that have gone by.
+
+        Nothing stores which clues a player has seen — the schedule is a pure
+        function of the question and ``started_at`` — so this is the same code
+        path as a fresh connection, and that is exactly what makes it worth a
+        test: the catch-up is a *consequence* of the design rather than a
+        feature somebody remembered to add.
+        """
+        category = await database_sync_to_async(_stock_gradual_hints)()
+        matchup_id, sock_one, sock_two, player_one = await self._paired_players(
+            category=category
+        )
+        await _gather_json(sock_one, sock_two)
+
+        both = await _gather_json(sock_one, sock_two, timeout=10)  # clue one
+        assert both[0]["index"] == 1
+
+        await sock_one.disconnect()
+        rejoined = await _connect_matchup(player_one, matchup_id)
+
+        # The board first, then the catch-up. ``opponent.reconnected`` goes to
+        # the whole group, this socket included, so it lands somewhere in here
+        # too — the clue is what is being asserted, not the frame order around
+        # it.
+        frames = [await rejoined.receive_json_from(timeout=5) for _ in range(3)]
+        assert frames[0]["type"] == events.QUESTION_STARTED
+        caught_up = next(f for f in frames if f["type"] == events.HINT_REVEALED)
+        assert caught_up["type"] == events.HINT_REVEALED
+        assert caught_up["index"] == 1
+        assert caught_up["text"] == both[0]["text"]
+
+        await rejoined.disconnect()
+        await sock_two.disconnect()

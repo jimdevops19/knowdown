@@ -56,6 +56,22 @@ export const SEARCH_CANCEL = 'search.cancel'
  *  itself. Carries the play-time board — never a field naming an answer. */
 export const QUESTION_STARTED = 'question.started'
 
+/**
+ * One clue of a `gradual-hints` question came due.
+ *
+ * The only way a hint's text ever reaches a client: the board it arrives beside
+ * says how many are coming and how far apart, and nothing about what any of
+ * them says. Waiting is what buys a clue, so handing them all over at
+ * question-open would be a different game.
+ *
+ * Sent **per socket**, not broadcast to the matchup. The schedule is a pure
+ * function of the question and the server's own `started_at`, so both players'
+ * sockets reach the same instants without coordinating — the same argument the
+ * per-matchup board shuffle makes. A reconnecting client is caught up on the
+ * clues already due by the same path, with no replay mechanism of its own.
+ */
+export const HINT_REVEALED = 'hint.revealed'
+
 /** One player answered. Who, not what. */
 export const PLAYER_ANSWERED = 'player.answered'
 
@@ -128,6 +144,17 @@ export interface QuestionStartedMessage {
   started_at_ms: number
 }
 
+export interface HintRevealedMessage {
+  type: typeof HINT_REVEALED
+  /** Which question it belongs to. A clue for a question that is no longer open
+   *  — the pair answered early and the reveal ran on — is dropped rather than
+   *  drawn. */
+  order: number
+  /** 1-based, in reveal order. Hardest clue first. */
+  index: number
+  text: string
+}
+
 export interface PlayerAnsweredMessage {
   type: typeof PLAYER_ANSWERED
   order: number
@@ -185,6 +212,7 @@ export type ServerMessage =
   | SearchingMessage
   | MatchFoundMessage
   | QuestionStartedMessage
+  | HintRevealedMessage
   | PlayerAnsweredMessage
   | QuestionResultMessage
   | MatchCompletedMessage

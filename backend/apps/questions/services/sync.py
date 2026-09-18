@@ -41,6 +41,9 @@ from apps.core_common.exceptions import ValidationFailed
 from apps.questions.models import (
     QUESTION_MODELS,
     FreeTextAnswer,
+    GradualHint,
+    GradualHintsField,
+    GradualHintsFieldAnswer,
     ImageAnswerOption,
     MatrixCell,
     MatrixCellAnswer,
@@ -64,6 +67,10 @@ CATEGORIES_FILE = RESOURCES / "categories.yaml"
 
 #: The folder inside a category's resource directory holding its binaries.
 IMAGES_DIRNAME = "images"
+
+#: The per-category manifest naming the files a load reads. Leading underscore
+#: so it sorts away from the questions and reads as "not a question file".
+ACTIVE_FILE = "_active.yaml"
 
 #: Where copied images land under MEDIA_ROOT. Two trees, because a picture of
 #: the play being asked about and a picture that *is* an answer option are shown
@@ -153,13 +160,56 @@ def category_dirs(*, category: str | None = None) -> list[Path]:
 
 
 def _question_files(folder: Path) -> list[Path]:
-    """Every YAML file in a category folder, in a stable order.
+    """The YAML files a category folder offers, in the order it asks for.
 
-    Glob rather than a manifest: splitting ``single-answer.yaml`` into
-    ``playoffs.yaml`` and ``finals.yaml`` should need no code change, and a file
-    nobody listed is the classic way for a batch of questions to go missing.
+    ``_active.yaml`` is the switch: it lists the files this category loads, so a
+    batch of questions can be parked — drafted, half-reviewed, out of season —
+    by taking one line out, without moving the file or deleting the questions.
+    The order is the manifest's, so the file reads as the running order rather
+    than as a set.
+
+    A folder with no manifest falls back to every ``*.yaml`` in it. That keeps a
+    new category loadable the moment its first file exists, and is why the
+    manifest is opt-in rather than a thing every folder must carry.
+
+    Naming a file that is not there is refused rather than skipped: a typo in
+    the manifest is exactly the case where questions go quietly missing, which
+    is the failure the manifest is supposed to prevent.
     """
-    return sorted(folder.glob("*.yaml"))
+    manifest = folder / ACTIVE_FILE
+    present = sorted(
+        path for path in folder.glob("*.yaml") if path.name != ACTIVE_FILE
+    )
+    if not manifest.is_file():
+        return present
+
+    raw = _read_yaml(manifest)
+    names = raw.get("resources") if isinstance(raw, dict) else None
+    if names is None:
+        # An empty manifest is a deliberate "load nothing from here", and is
+        # spelled `resources: []`. A mapping without the key at all is a typo.
+        raise ValidationFailed(
+            f"{folder.name}/{ACTIVE_FILE}: must be a mapping with a "
+            "'resources' list of file names."
+        )
+    if not isinstance(names, list) or not all(isinstance(name, str) for name in names):
+        raise ValidationFailed(
+            f"{folder.name}/{ACTIVE_FILE}: 'resources' must be a list of file names."
+        )
+
+    files, missing = [], []
+    for name in names:
+        path = folder / name
+        if path.name != name or not path.is_file():
+            missing.append(name)
+        else:
+            files.append(path)
+    if missing:
+        raise ValidationFailed(
+            f"{folder.name}/{ACTIVE_FILE} names files that are not in "
+            f"{folder.name}/: {', '.join(sorted(missing))}"
+        )
+    return files
 
 
 def _parse_files(folders: list[Path]) -> list[tuple[Path, QuestionFileSpec]]:
@@ -213,7 +263,7 @@ def _reject_duplicate_slugs(parsed: list[tuple[Path, QuestionFileSpec]]) -> None
     A slug is unique across *every* question table, not just within one: a played
     matchup records a question by (type, id), and a slug meaning two different
     questions is one nobody can name in a bug report. Nothing in the database can
-    express that across seven tables, so it is checked here.
+    express that across eight tables, so it is checked here.
     """
     where: dict[str, list[str]] = {}
     for path, spec in parsed:
@@ -459,6 +509,8 @@ def _type_specific_fields(spec) -> dict:
             "column_count": len(spec.columns),
             "kind": spec.kind,
         }
+    if spec.type == QuestionType.GRADUAL_HINTS:
+        return {"hint_interval_seconds": spec.hint_interval_seconds}
     return {}
 
 
@@ -527,6 +579,33 @@ def _write_children(*, spec, question, folder: Path) -> None:
         OrderingOption.objects.bulk_create(
             OrderingOption(question=question, text=text, correct_position=index)
             for index, text in enumerate(spec.items, start=1)
+        )
+
+    elif spec.type == QuestionType.GRADUAL_HINTS:
+        # Two independent child sets, both numbered from the list order the way
+        # every position in this app is: the hints are the reveal *schedule* (so
+        # a file cannot leave a gap in it), and the fields are the boxes, whose
+        # accepted answers hang off them one level further down — the shape
+        # ``FreeTextAnswer`` has, once per field.
+        question.hints.all().delete()
+        GradualHint.objects.bulk_create(
+            GradualHint(question=question, order=order, text=text)
+            for order, text in enumerate(spec.hints, start=1)
+        )
+        question.answer_fields.all().delete()
+        fields = GradualHintsField.objects.bulk_create(
+            GradualHintsField(
+                question=question, order=order, label=field.label, kind=field.kind
+            )
+            for order, field in enumerate(spec.answer_fields, start=1)
+        )
+        # Zipped rather than looked up by label, for the reason the matrix cells
+        # below are: ``bulk_create`` hands back the rows in the order it was
+        # given them, which is the order of ``spec.answer_fields``.
+        GradualHintsFieldAnswer.objects.bulk_create(
+            GradualHintsFieldAnswer(field=field, value=value)
+            for field, spec_field in zip(fields, spec.answer_fields)
+            for value in spec_field.accepted_answers
         )
 
     elif spec.type == QuestionType.MATRIX:

@@ -1,0 +1,118 @@
+# NBA — gradual-hints questions: the clues arrive while the clock runs.
+#
+# THIS TYPE
+#   hints:                  up to five clues, authored HARDEST FIRST. The list
+#                           order is the reveal order; positions are not
+#                           authored, so a file cannot leave a gap in one.
+#   hint_interval_seconds:  the gap between one clue and the next. Defaults to
+#                           5, may be 1..15.
+#   answer_fields:          the boxes the player fills in — a label, every
+#                           spelling that fills it, and `kind: number` on the
+#                           ones that want digits (the default is `text`).
+#
+# The first clue lands the moment the clock starts and each of the others one
+# interval later, on the server's own stamp, so both players watch the same
+# reveal at the same instant. A player who answers on clue one is answering a
+# harder question than one who waits for clue five, and the match engine pays
+# them for it: points are credit times speed, and the clock does not stop while
+# you wait to be told more.
+#
+# WRITE THE CLUES AS A DESCENT. Clue one should be gettable only by someone who
+# was there — a final score, a stat line, a possession nobody else remembers.
+# Clue five should be nearly the giveaway. A file whose first clue already
+# names the series has made the other four decorative, and a file whose last
+# clue is still cryptic is a ten-second question wearing a forty-second clock.
+#
+# SCORING IS PER FIELD. A player who gets the year and the round but not the
+# game number scored two thirds, exactly the way a matrix grid is credited per
+# cell (see matrix.yaml). So fields should be independently knowable: "year"
+# and "round" are two facts, "year" and "the last two digits of the year" are
+# one fact asked twice.
+#
+# SAY WHICH BOXES ARE NUMBERS. `kind: number` draws a short box and opens a
+# number pad on a phone; `text` (the default) draws a wide one. It is a promise
+# about what to type, so the loader refuses a `number` field keyed to anything
+# that is not digits — a box wanting "Game 7" is a text box, even though it is
+# mostly a number. Nothing about the *answer* reaches the board: the width comes
+# from the kind, never from how long the accepted answers happen to be.
+#
+# ACCEPTED ANSWERS ARE SHORT. Matching is case- and whitespace-insensitive but
+# nothing else, so list every honest spelling — a player racing a clock types
+# `7`, not `Game 7`. Listing the same spelling twice in different cases is a
+# load error, as it is for free-text.
+#
+# THE CLOCK MUST OUTLAST THE SCHEDULE. A gradual-hints question gets 40 seconds
+# unless it sets `time_limit_seconds`, and the loader refuses any question whose
+# last clue would land with under 10 seconds left to type — five clues at five
+# seconds puts the last at 20s, which fits with room to spare. Slow the reveal
+# down and you must raise the clock to match.
+#
+# See single-answer.yaml for the fields every question carries.
+#
+# Loaded by: uv run python manage.py sync_questions
+
+category: nba
+
+questions:
+  - type: gradual-hints
+    slug: nba-guess-the-game-2016-finals-game-seven
+    description: Guess the game.
+    level: 6
+    tags: {topic: finals, era: 2010s}
+    hint_interval_seconds: 5
+    hints:
+      - The final score was 93-89.
+      - Draymond Green hit six three-pointers.
+      - '"OH, BLOCKED BY JAMES!" — LeBron James with the rejection.'
+      - The series ended 4-3 to the Cleveland Cavaliers.
+      - Kyrie Irving hit one of the clutchest threes ever in the final minute.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2016, 16]
+      - label: Round
+        accepted_answers: [Finals, NBA Finals, The Finals]
+      # Text, not number: "Game 7" and "Seven" fill it too, and a box that
+      # promised digits would be lying about half its answer key.
+      - label: Game number
+        accepted_answers: ["7", Game 7, Seven, "Game7"]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-2013-finals-game-six
+    description: Guess the game.
+    level: 7
+    tags: {topic: finals, era: 2010s}
+    hints:
+      - The home team trailed by five with 28 seconds left and won.
+      - Chris Bosh got the offensive rebound that kept the possession alive.
+      - Ray Allen backpedalled into the corner and tied it with 5.2 seconds left.
+      - It went to overtime and forced a game seven in Miami.
+      - The yellow rope was already around the court for the Spurs' trophy.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2013, 13]
+      - label: Round
+        accepted_answers: [Finals, NBA Finals, The Finals]
+      - label: Game number
+        accepted_answers: ["6", Game 6, Six, "Game6"]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-kobe-sixty-point-farewell
+    description: Guess the game and the score leader.
+    level: 4
+    tags: {topic: records, era: 2010s}
+    # Three clues rather than five: the player is the answer to two of the three
+    # fields, so a fourth clue would be the giveaway rather than a step toward it.
+    hints:
+      - The game day was 13th of April
+      - He took 50 shots, which nobody has done in the modern era.
+      - The losing team was the Utah Jazz, and nobody cared.
+      - It was his last NBA game, at the Staples Center
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2016, 16]
+      - label: Points scored
+        kind: number
+        accepted_answers: [60]

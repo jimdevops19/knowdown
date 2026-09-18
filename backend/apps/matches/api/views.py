@@ -10,12 +10,18 @@ from __future__ import annotations
 from drf_spectacular.utils import extend_schema
 from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.core_common.exceptions import Conflict, PermissionDenied
 from apps.matches import selectors
 from apps.players.services import ensure_player_for_user
 
-from .serializers import MatchupDetailSerializer, MatchupListSerializer
+from .serializers import (
+    MatchupDetailSerializer,
+    MatchupListSerializer,
+    MatchupParticipantSerializer,
+)
 
 
 class MatchHistoryListView(ListAPIView):
@@ -87,3 +93,29 @@ class MatchHistoryDetailView(RetrieveAPIView):
                 code="matchup_in_progress",
             )
         return matchup
+
+
+class MatchParticipantsView(APIView):
+    """``GET /api/v1/matches/{id}/participants/`` — who's playing, live or not.
+
+    ``MatchHistoryDetailView`` refuses a live matchup outright, because its
+    payload carries the score and the opponent's submissions — both of which
+    update *while the clock runs* and would leak who's ahead or who just
+    answered right. Identity has none of that problem: a player already knows
+    they're mid-match (they're looking at it), and this view answers only
+    each side's name and picture, resolved the same ownership-scoped way —
+    only a participant may ask, live or finished, since a matchup is a
+    private result between exactly two people either way.
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=["matches"], responses=MatchupParticipantSerializer(many=True))
+    def get(self, request, matchup_id):
+        player = ensure_player_for_user(user=request.user)
+        matchup = selectors.get_matchup(matchup_id=matchup_id)
+        if not matchup.players.filter(player=player).exists():
+            raise PermissionDenied("This matchup did not involve you.")
+        participants = selectors.matchup_players(matchup=matchup)
+        serializer = MatchupParticipantSerializer(participants, many=True)
+        return Response(serializer.data)

@@ -19,7 +19,12 @@ from apps.questions import selectors
 from apps.questions.constants import LEVEL_BANDS
 from apps.questions.models import QUESTION_MODELS, QuestionType
 
-from .factories import QUESTION_FACTORIES, make_category, make_single_answer
+from .factories import (
+    QUESTION_FACTORIES,
+    make_category,
+    make_gradual_hints,
+    make_single_answer,
+)
 
 
 def stock(*, category, levels, slug_prefix="q") -> None:
@@ -274,9 +279,59 @@ class CatalogDepthTests(TestCase):
 
     def test_the_depth_read_is_a_handful_of_queries_not_one_per_band(self) -> None:
         """One grouped query per question type. The report prints three bands and
-        seven types; counting them one cell at a time is 21 round trips to draw a
+        eight types; counting them one cell at a time is 24 round trips to draw a
         small table, and it grows with every band anyone adds."""
         stock(category=self.category, levels=[1, 4, 8])
 
         with self.assertNumQueries(len(QUESTION_MODELS) + 1):
             selectors.catalog_depth()
+
+
+class RevealScheduleTests(TestCase):
+    """What a question has left to say once it is on screen, and when.
+
+    The seam ``apps.matches`` asks through, so the thing under test is as much
+    the *shape of the answer* as the numbers in it: a caller holding any
+    question must be able to schedule the result without first asking what type
+    it is holding.
+    """
+
+    def test_a_question_with_nothing_to_reveal_says_so(self) -> None:
+        """Every type but one says everything it has to say on the board, and
+        each answers the same empty tuple rather than making the caller check
+        which it is holding."""
+        for question_type, factory in QUESTION_FACTORIES.items():
+            if question_type == QuestionType.GRADUAL_HINTS:
+                continue
+            with self.subTest(question_type):
+                question = factory(slug=f"{question_type}-nothing-to-reveal")
+                self.assertEqual(selectors.reveal_schedule(question=question), ())
+
+    def test_the_first_hint_lands_at_the_start_of_the_clock(self) -> None:
+        """Not one interval into it. The read delay has already bought the
+        player their beat to read the question, and a further five seconds of a
+        board with nothing on it is dead air rather than suspense."""
+        question = make_gradual_hints()
+        first = selectors.reveal_schedule(question=question)[0]
+        self.assertEqual(first.index, 1)
+        self.assertEqual(first.offset_ms, 0)
+
+    def test_the_hints_are_spaced_by_the_questions_own_interval(self) -> None:
+        question = make_gradual_hints(
+            hints=("One", "Two", "Three"), hint_interval_seconds=7
+        )
+        self.assertEqual(
+            [(step.index, step.text, step.offset_ms) for step in
+             selectors.reveal_schedule(question=question)],
+            [(1, "One", 0), (2, "Two", 7000), (3, "Three", 14000)],
+        )
+
+    def test_the_schedule_is_the_authored_order(self) -> None:
+        """Hardest first, as the file writes them: the reveal is an easing-off,
+        and a schedule that shuffled the clues would hand out the giveaway at
+        random."""
+        question = make_gradual_hints(hints=("Hardest", "Middle", "Easiest"))
+        self.assertEqual(
+            [step.text for step in selectors.reveal_schedule(question=question)],
+            ["Hardest", "Middle", "Easiest"],
+        )

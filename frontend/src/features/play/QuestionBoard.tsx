@@ -8,6 +8,7 @@ import { TrueFalseBoard } from './boards/TrueFalseBoard'
 import { FreeTextBoard } from './boards/FreeTextBoard'
 import { OrderingBoard } from './boards/OrderingBoard'
 import { MatrixBoard } from './boards/MatrixBoard'
+import { GradualHintsBoard } from './boards/GradualHintsBoard'
 import type { BoardProps } from './boards/types'
 
 /*
@@ -38,6 +39,7 @@ const QUESTION_BOARDS: Record<QuestionType, ComponentType<BoardProps<never>>> = 
   'free-text': FreeTextBoard,
   ordering: OrderingBoard,
   matrix: MatrixBoard,
+  'gradual-hints': GradualHintsBoard,
 } as Record<QuestionType, ComponentType<BoardProps<never>>>
 
 export function QuestionBoard(props: BoardProps<PlayQuestion> & { revealOptions: boolean }) {

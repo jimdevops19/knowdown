@@ -4,6 +4,7 @@ import type {
   DisplayNameAvailability,
   LadderEntry,
   MatchupDetail,
+  MatchupParticipant,
   MatchupSummary,
   Pagination,
   PlayerMe,
@@ -157,5 +158,19 @@ export async function listMyMatches(
  */
 export async function getMatch(matchupId: string): Promise<MatchupDetail> {
   const res = await apiClient.get<MatchupDetail>(`/matches/${matchupId}/`)
+  return res.data
+}
+
+/**
+ * `GET /matches/{id}/participants/` 🔒 — who's playing, live or not.
+ *
+ * The narrow escape hatch `getMatch` can't be: it answers only each side's
+ * name and picture, resolved through the same ownership check (only a
+ * participant may ask) but with none of the box score's mid-match leaks,
+ * because it carries no score and no question. Safe to call the moment a
+ * match starts.
+ */
+export async function getMatchParticipants(matchupId: string): Promise<MatchupParticipant[]> {
+  const res = await apiClient.get<MatchupParticipant[]>(`/matches/${matchupId}/participants/`)
   return res.data
 }

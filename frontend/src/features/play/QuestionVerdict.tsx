@@ -22,9 +22,12 @@ import { formatResponseTime } from '../../lib/format'
 export function QuestionVerdict({
   results,
   myPlayerId,
+  opponentName,
 }: {
   results: QuestionResultEntry[]
   myPlayerId: string | null
+  /** From `GET /matches/{id}/participants/`; "Rival" while that's in flight. */
+  opponentName: string
 }) {
   const mine = results.find((entry) => entry.player_id === myPlayerId) ?? null
   const theirs = results.find((entry) => entry.player_id !== myPlayerId) ?? null
@@ -39,7 +42,7 @@ export function QuestionVerdict({
       className="flex flex-col gap-2 motion-safe:animate-slide-up"
     >
       <Row label="You" entry={mine} emphasis />
-      <Row label="Rival" entry={theirs} />
+      <Row label={opponentName} entry={theirs} />
     </div>
   )
 }
@@ -141,7 +144,7 @@ function Shell({
       }`}
     >
       <span className="flex min-w-0 items-center gap-3">
-        <span className="w-10 shrink-0 font-display text-xs font-bold uppercase tracking-wider text-ash">
+        <span className="w-14 shrink-0 truncate font-display text-xs font-bold uppercase tracking-wider text-ash">
           {label}
         </span>
         {verdict}

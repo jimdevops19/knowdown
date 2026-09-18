@@ -23,6 +23,17 @@ export interface BoardProps<Q extends PlayQuestion = PlayQuestion> {
    */
   submission: AnswerSubmission | null
   /**
+   * The clues revealed so far, in reveal order.
+   *
+   * Empty for every type but `gradual-hints`, whose question is still being
+   * asked while the clock runs — the rest say everything they have to say on
+   * the board, and their boards ignore this. It is a prop rather than part of
+   * `question` because it is not part of the question the server sent: the text
+   * arrives later, frame by frame (`hint.revealed`), which is what makes
+   * waiting for a clue cost something.
+   */
+  hints: string[]
+  /**
    * The server's verdict for *this* player, once the question closed. Null
    * while the clock is running.
    *

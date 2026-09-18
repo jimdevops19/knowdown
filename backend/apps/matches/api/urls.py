@@ -5,11 +5,16 @@ from __future__ import annotations
 
 from django.urls import path
 
-from .views import MatchHistoryDetailView, MatchHistoryListView
+from .views import MatchHistoryDetailView, MatchHistoryListView, MatchParticipantsView
 
 app_name = "matches"
 
 urlpatterns = [
     path("", MatchHistoryListView.as_view(), name="list"),
     path("<uuid:matchup_id>/", MatchHistoryDetailView.as_view(), name="detail"),
+    path(
+        "<uuid:matchup_id>/participants/",
+        MatchParticipantsView.as_view(),
+        name="participants",
+    ),
 ]

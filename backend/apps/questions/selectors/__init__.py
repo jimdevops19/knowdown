@@ -5,7 +5,7 @@ match engine must stay independent of the concrete question type, so "give me
 five NBA questions" is a question the questions domain answers and the match
 domain merely asks. What comes back is a list of :class:`QuestionRef` — a
 ``(type, id)`` pair — which is exactly what ``matches.MatchupQuestion`` will
-store, and it is the reason the match tables need no foreign key into seven
+store, and it is the reason the match tables need no foreign key into eight
 different question tables.
 """
 
@@ -24,17 +24,24 @@ from apps.questions.constants import (
     LONGEST_MATCH_QUESTION_COUNT,
     LevelBand,
 )
-from apps.questions.models import QUESTION_MODELS, MAX_LEVEL, BaseQuestion
+from apps.questions.models import (
+    QUESTION_MODELS,
+    MAX_LEVEL,
+    BaseQuestion,
+    QuestionType,
+)
 
 __all__ = [
     "BandDepth",
     "CategoryDepth",
     "QuestionRef",
+    "RevealStep",
     "available_questions",
     "catalog_depth",
     "get_question",
     "question_by_slug",
     "question_pool",
+    "reveal_schedule",
     "select_questions",
 ]
 
@@ -169,6 +176,54 @@ def select_questions(
             code="not_enough_questions",
         )
     return (rng or random).sample(pool, count)
+
+
+@dataclass(frozen=True)
+class RevealStep:
+    """One thing a question says *later*, and how much later.
+
+    ``offset_ms`` is measured from the moment the question's clock starts — the
+    server's own ``MatchupQuestion.started_at``, which is the same stamp both
+    players' countdowns run on — so two clients compute the same wall-clock
+    instant for the same step without anything being written down per matchup,
+    and a player who reconnects halfway through recomputes exactly the schedule
+    they left.
+    """
+
+    index: int
+    text: str
+    offset_ms: int
+
+
+def reveal_schedule(*, question: BaseQuestion) -> tuple[RevealStep, ...]:
+    """What this question has left to say once it is on screen, and when.
+
+    The seam ``apps.matches`` asks through, and the reason it is here rather
+    than in the transport: the match engine must stay independent of the
+    concrete question type (``backend/CLAUDE.md``), so "is there anything to
+    reveal on a timer, and when" is a question this domain answers and the
+    socket merely obeys. Empty for every type that says everything it has to say
+    on the board, which is all of them but ``gradual-hints`` — a caller can
+    schedule the result without asking what type it is holding.
+
+    Deliberately **not** part of the play-time board
+    (``api.serializers``): the text in here is exactly what must not reach a
+    client before it is due. What a board carries is the *shape* of the reveal —
+    how many steps, how far apart — so a client can draw the waiting without
+    being told what it is waiting for.
+    """
+    if question.question_type != QuestionType.GRADUAL_HINTS:
+        return ()
+    interval_ms = question.hint_interval_seconds * 1000
+    return tuple(
+        # The first hint lands **at** the start of the clock rather than one
+        # interval into it: the read delay (``apps.matches.constants
+        # .QUESTION_READ_DELAY_SECONDS``) has already given the player their
+        # beat to read the question, and a further five seconds of an empty
+        # board is dead air, not suspense.
+        RevealStep(index=order, text=text, offset_ms=(order - 1) * interval_ms)
+        for order, text in question.hints.values_list("order", "text")
+    )
 
 
 def get_question(*, ref: QuestionRef) -> BaseQuestion:

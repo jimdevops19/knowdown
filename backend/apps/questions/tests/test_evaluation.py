@@ -21,6 +21,7 @@ from apps.questions.services.evaluation import ANSWER_EVALUATORS, evaluate_answe
 from .factories import (
     QUESTION_FACTORIES,
     make_free_text,
+    make_gradual_hints,
     make_matrix,
     make_team_matrix,
     make_multiple_answer,
@@ -67,7 +68,7 @@ def cell_payload(question, *titles_and_answers) -> dict:
 #: Each is a callable taking the question, because every payload but true/false's
 #: names an id that does not exist until the row does. The *malformed* entry is
 #: chosen to be a different kind of malformed per type, so the suite covers
-#: several ways a client can be wrong rather than seven copies of one: an id
+#: several ways a client can be wrong rather than eight copies of one: an id
 #: nobody has, an id belonging elsewhere, an empty string, a bad literal, an
 #: incomplete permutation, an unasked intersection.
 CASES: dict[str, dict] = {
@@ -137,7 +138,30 @@ CASES: dict[str, dict] = {
         # The one intersection the question does not author.
         "malformed": lambda q: cell_payload(q, ("Bulls", "2000s", "1996")),
     },
+    QuestionType.GRADUAL_HINTS: {
+        "right": lambda q: field_payload(q, ("Year", "2016"), ("Round", "NBA Finals"), ("Game number", "7")),
+        "wrong": lambda q: field_payload(q, ("Year", "1776"), ("Round", "1776"), ("Game number", "1776")),
+        # A field id belonging to nothing — the box the client drew itself.
+        "malformed": lambda q: {
+            "type": q.question_type,
+            "answer_fields": [{"field_id": ABSENT_OPTION_ID, "text": "2016"}],
+        },
+    },
 }
+
+
+def field_payload(question, *labels_and_answers: tuple[str, str]) -> dict:
+    """A gradual-hints submission, written by label and sent by id — the way
+    ``cell_payload`` above is, and for the same reason: a test that hard-coded
+    ids would be asserting about the sequence rather than about the answer."""
+    by_label = {field.label: field.id for field in question.answer_fields.all()}
+    return {
+        "type": question.question_type,
+        "answer_fields": [
+            {"field_id": by_label[label], "text": text}
+            for label, text in labels_and_answers
+        ],
+    }
 
 
 def correct_option_ids(question) -> list[int]:
@@ -164,7 +188,7 @@ class RegistryCoverageTests(TestCase):
 
 
 class EveryTypeTests(TestCase):
-    """Right, wrong and malformed, for all seven shapes."""
+    """Right, wrong and malformed, for all eight shapes."""
 
     def question_for(self, question_type: str, suffix: str):
         return QUESTION_FACTORIES[question_type](slug=f"{question_type}-{suffix}")
@@ -590,4 +614,100 @@ class TeamMatrixTests(TestCase):
         that asks about the Lakers does not carry its own copy of the Lakers."""
         self.assertEqual(
             MatrixCellAnswer.objects.filter(cell__question=self.question).count(), 0
+        )
+
+
+class GradualHintsTests(TestCase):
+    """Credit per authored field — the second type that can be partly right.
+
+    Everything here is the free-text rules applied several times over, and the
+    matrix rules applied to boxes instead of squares. What is worth its own
+    suite is the *denominator*: it is the fields the question asks for, not the
+    fields the player chose to fill, and getting that backwards would make
+    typing one box and leaving the rest empty a perfect answer.
+    """
+
+    def setUp(self) -> None:
+        self.question = make_gradual_hints()
+
+    def submit(self, *labels_and_answers: tuple[str, str]):
+        return evaluate_answer(
+            question=self.question,
+            submitted=field_payload(self.question, *labels_and_answers),
+        )
+
+    def test_every_field_right_is_a_correct_answer(self) -> None:
+        result = self.submit(("Year", "2016"), ("Round", "Finals"), ("Game number", "7"))
+        self.assertTrue(result.is_correct)
+        self.assertEqual(result.score, 1.0)
+
+    def test_two_fields_of_three_takes_two_thirds_of_the_credit(self) -> None:
+        result = self.submit(("Year", "2016"), ("Round", "Finals"), ("Game number", "6"))
+        self.assertFalse(result.is_correct)
+        self.assertEqual(result.score, 2 / 3)
+
+    def test_a_field_left_blank_is_wrong_and_not_malformed(self) -> None:
+        """Filling in what you know is the correct play, so a short submission
+        is a partial answer rather than a refusal — but the denominator is still
+        the whole question, or answering one box would be worth full marks."""
+        result = self.submit(("Year", "2016"))
+        self.assertEqual(result.score, 1 / 3)
+
+    def test_any_accepted_spelling_fills_a_field(self) -> None:
+        for spelling in ("Finals", "NBA Finals"):
+            with self.subTest(spelling):
+                self.assertEqual(self.submit(("Round", spelling)).score, 1 / 3)
+
+    def test_answers_are_compared_the_way_free_text_is(self) -> None:
+        """Same fold, same module (``apps.questions.matching``): a field that
+        accepted ``NBA Finals`` and refused ``  nba   finals `` would be a box
+        with a right answer nobody can type."""
+        self.assertEqual(self.submit(("Round", "  nba   FINALS ")).score, 1 / 3)
+
+    def test_answering_a_field_nobody_asked_about_is_malformed(self) -> None:
+        """A field id from another question — the client should never have drawn
+        the box, which is a bug rather than a wrong answer."""
+        other = make_gradual_hints(slug="another-hinted")
+        foreign = other.answer_fields.first()
+        with self.assertRaises(ValidationFailed) as caught:
+            evaluate_answer(
+                question=self.question,
+                submitted={
+                    "type": QuestionType.GRADUAL_HINTS,
+                    "answer_fields": [{"field_id": foreign.id, "text": "2016"}],
+                },
+            )
+        self.assertIn("not one of its answer fields", caught.exception.message)
+
+    def test_two_answers_for_one_field_is_malformed(self) -> None:
+        field = self.question.answer_fields.first()
+        with self.assertRaises(ValidationFailed):
+            evaluate_answer(
+                question=self.question,
+                submitted={
+                    "type": QuestionType.GRADUAL_HINTS,
+                    "answer_fields": [
+                        {"field_id": field.id, "text": "2016"},
+                        {"field_id": field.id, "text": "2017"},
+                    ],
+                },
+            )
+
+    def test_how_many_hints_the_player_waited_for_changes_no_credit(self) -> None:
+        """The reveal is priced in *speed*, which is the match engine's
+        (``apps.matches.constants.score_answer``). Crediting it here as well
+        would pay twice for the same patience — and this domain would be
+        deciding what a question is worth.
+
+        Asserted as a property of the evaluator rather than of a clock: two
+        questions differing only in how long their reveal takes score an
+        identical answer identically.
+        """
+        slow = make_gradual_hints(slug="slow-reveal", hint_interval_seconds=15)
+        answers = (("Year", "2016"), ("Round", "Finals"), ("Game number", "7"))
+        self.assertEqual(
+            evaluate_answer(
+                question=slow, submitted=field_payload(slow, *answers)
+            ).score,
+            self.submit(*answers).score,
         )

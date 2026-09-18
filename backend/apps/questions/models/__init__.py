@@ -13,6 +13,17 @@ from __future__ import annotations
 
 from .base import MAX_LEVEL, BaseQuestion, QuestionType
 from .free_text import FreeTextAnswer, FreeTextQuestion, TrueFalseQuestion
+from .gradual_hints import (
+    DEFAULT_HINT_INTERVAL_SECONDS,
+    MAX_ANSWER_FIELDS,
+    MAX_HINT_INTERVAL_SECONDS,
+    MAX_HINTS,
+    AnswerFieldKind,
+    GradualHint,
+    GradualHintsField,
+    GradualHintsFieldAnswer,
+    GradualHintsQuestion,
+)
 from .matrix import (
     DEFAULT_PROBABILITY_SCORE,
     MAX_PROBABILITY_SCORE,
@@ -44,10 +55,15 @@ QUESTION_MODELS: dict[str, type[BaseQuestion]] = {
     QuestionType.FREE_TEXT: FreeTextQuestion,
     QuestionType.ORDERING: OrderingQuestion,
     QuestionType.MATRIX: ColumnsRowsQuestion,
+    QuestionType.GRADUAL_HINTS: GradualHintsQuestion,
 }
 
 __all__ = [
+    "DEFAULT_HINT_INTERVAL_SECONDS",
     "DEFAULT_PROBABILITY_SCORE",
+    "MAX_ANSWER_FIELDS",
+    "MAX_HINTS",
+    "MAX_HINT_INTERVAL_SECONDS",
     "MAX_LEVEL",
     "MAX_PROBABILITY_SCORE",
     "MIN_PROBABILITY_SCORE",
@@ -56,6 +72,11 @@ __all__ = [
     "ColumnsRowsQuestion",
     "FreeTextAnswer",
     "FreeTextQuestion",
+    "AnswerFieldKind",
+    "GradualHint",
+    "GradualHintsField",
+    "GradualHintsFieldAnswer",
+    "GradualHintsQuestion",
     "ImageAnswerOption",
     "MatrixCell",
     "MatrixCellAnswer",

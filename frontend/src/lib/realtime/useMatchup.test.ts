@@ -67,6 +67,10 @@ function open(order: number, id = `q-${order}`, timeLimitMs = 10_000, startedAtM
   )
 }
 
+function hint(order: number, index: number, text: string) {
+  act(() => emit({ type: 'hint.revealed', order, index, text }))
+}
+
 function close(order: number, entries: { player_id: string; points: number }[]) {
   act(() =>
     emit({
@@ -288,5 +292,77 @@ describe('useMatchup', () => {
   it('subscribes to nothing without a matchup id', () => {
     renderHook(() => useMatchup(null, ME))
     expect(send).not.toHaveBeenCalled()
+  })
+
+  describe('gradual hints', () => {
+    /*
+     * The clues are the only part of a question that arrives after the board,
+     * which makes them the only part with a lifecycle worth testing: they have
+     * to attach to the right question, survive a reconnect without doubling,
+     * and stop when the question does.
+     */
+
+    it('accumulates the clues of the open question in reveal order', () => {
+      const { result } = renderHook(() => useMatchup('m-1', ME))
+      open(1)
+      hint(1, 1, 'The final score was 93-89')
+      hint(1, 2, 'It went seven games')
+
+      expect(result.current.hints).toEqual([
+        'The final score was 93-89',
+        'It went seven games',
+      ])
+    })
+
+    it('drops a clue that is not for the question on screen', () => {
+      // The reveal of a question the pair answered early keeps running
+      // server-side; a clue landing under the next question's text would be a
+      // hint to the wrong question.
+      const { result } = renderHook(() => useMatchup('m-1', ME))
+      open(1)
+      hint(1, 1, 'For question one')
+      close(1, [{ player_id: ME, points: 80 }])
+      open(2)
+      hint(1, 2, 'Still for question one')
+
+      expect(result.current.hints).toEqual([])
+    })
+
+    it('drops a clue that arrives after the question closed', () => {
+      const { result } = renderHook(() => useMatchup('m-1', ME))
+      open(1)
+      hint(1, 1, 'Before the verdict')
+      close(1, [{ player_id: ME, points: 80 }])
+      hint(1, 2, 'After the verdict')
+
+      expect(result.current.hints).toEqual(['Before the verdict'])
+    })
+
+    it('does not double a clue replayed by a reconnect', () => {
+      // A socket that comes back mid-question is re-sent the board *and* every
+      // clue already due — the catch-up and the live reveal are the same code
+      // path on the server, so the client is what has to be idempotent.
+      const { result } = renderHook(() => useMatchup('m-1', ME))
+      const startedAt = Date.now()
+      open(1, 'q-1', 40_000, startedAt)
+      hint(1, 1, 'First clue')
+      hint(1, 2, 'Second clue')
+
+      open(1, 'q-1', 40_000, startedAt) // the reconnect's re-sent board
+      hint(1, 1, 'First clue')
+      hint(1, 2, 'Second clue')
+
+      expect(result.current.hints).toEqual(['First clue', 'Second clue'])
+    })
+
+    it('starts a new question with no clues', () => {
+      const { result } = renderHook(() => useMatchup('m-1', ME))
+      open(1)
+      hint(1, 1, 'For question one')
+      close(1, [{ player_id: ME, points: 80 }])
+      open(2)
+
+      expect(result.current.hints).toEqual([])
+    })
   })
 })

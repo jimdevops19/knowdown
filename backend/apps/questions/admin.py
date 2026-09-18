@@ -19,6 +19,10 @@ from .models import (
     ColumnsRowsQuestion,
     FreeTextAnswer,
     FreeTextQuestion,
+    GradualHint,
+    GradualHintsField,
+    GradualHintsFieldAnswer,
+    GradualHintsQuestion,
     ImageAnswerOption,
     MatrixCell,
     MatrixCellAnswer,
@@ -92,6 +96,19 @@ class MatrixCellAnswerInline(_OptionInline):
     model = MatrixCellAnswer
 
 
+class GradualHintInline(_OptionInline):
+    model = GradualHint
+
+
+class GradualHintsFieldInline(_OptionInline):
+    model = GradualHintsField
+    show_change_link = True  # where its accepted answers are, see the admin below
+
+
+class GradualHintsFieldAnswerInline(_OptionInline):
+    model = GradualHintsFieldAnswer
+
+
 @admin.register(SingleAnswerQuestion)
 class SingleAnswerQuestionAdmin(_QuestionAdmin):
     inlines = [SingleAnswerOptionInline]
@@ -155,3 +172,39 @@ class ColumnsRowsQuestionAdmin(_QuestionAdmin):
     list_display = (*_QuestionAdmin.list_display, "kind", "row_count", "column_count")
     list_filter = (*_QuestionAdmin.list_filter, "kind")
     inlines = [MatrixRowInline, MatrixColumnInline, MatrixCellInline]
+
+
+@admin.register(GradualHintsField)
+class GradualHintsFieldAdmin(admin.ModelAdmin):
+    """Where one box's accepted spellings are proofread.
+
+    A page of its own for the reason ``MatrixCellAdmin`` has one: the answers
+    are the question's *grand*children and Django has no nested inline, so the
+    question lists the boxes and each one links here for the spellings that
+    fill it. This is the page to open when a player says a right answer was
+    marked wrong.
+    """
+
+    list_display = ("question", "order", "label", "kind", "answer_count")
+    list_filter = ("kind", "question__category")
+    search_fields = ("question__slug", "label")
+    inlines = [GradualHintsFieldAnswerInline]
+
+    @admin.display(description="accepted answers")
+    def answer_count(self, field: GradualHintsField) -> int:
+        return field.accepted_answers.count()
+
+
+@admin.register(GradualHintsQuestion)
+class GradualHintsQuestionAdmin(_QuestionAdmin):
+    """The clues, in reveal order, and the boxes they lead to.
+
+    ``hint_interval_seconds`` is on the list display because it is the one
+    number here that changes how the question *plays* rather than what it says:
+    the same five clues at three seconds and at fifteen are two different
+    questions, and the second may not fit its clock at all (the loader refuses
+    that — ``schemas.GradualHintsSpec``).
+    """
+
+    list_display = (*_QuestionAdmin.list_display, "hint_interval_seconds")
+    inlines = [GradualHintInline, GradualHintsFieldInline]

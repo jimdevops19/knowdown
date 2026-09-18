@@ -165,6 +165,44 @@ class MatrixSubmission(_StrictSubmission):
         return self
 
 
+class GradualHintsFieldSubmission(_StrictSubmission):
+    """One box, filled in.
+
+    Names its field **by id**, not by label, for the reason a matrix cell names
+    its row and column by id: the client was sent ids, and matching a label back
+    would make a player's answer depend on the exact spelling of a heading.
+    """
+
+    field_id: OptionId
+    text: str = Field(min_length=1, max_length=255)
+
+
+class GradualHintsSubmission(_StrictSubmission):
+    """The fields the player filled in — not necessarily all of them.
+
+    Scored per field (see ``services.evaluation``), so a partly filled
+    submission is a partly right answer rather than a malformed one; the
+    sibling of :class:`MatrixSubmission` in this and in what it refuses, which
+    is two answers for one field, because then there is no single thing the
+    player said.
+
+    A field left blank is simply absent. There is no "I do not know" value to
+    send, and an empty string is refused rather than treated as one: an answer
+    is something the player typed.
+    """
+
+    type: Literal[QuestionType.GRADUAL_HINTS]
+    answer_fields: list[GradualHintsFieldSubmission] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _one_answer_per_field(self) -> GradualHintsSubmission:
+        if len({field.field_id for field in self.answer_fields}) != len(
+            self.answer_fields
+        ):
+            raise ValueError("answer_fields gives two answers for the same field")
+        return self
+
+
 #: The discriminated union a submitted payload is parsed as. ``type`` picks the
 #: model — the same discriminator, drawn from the same
 #: :class:`~apps.questions.models.QuestionType`, as the resource union — so a
@@ -179,6 +217,7 @@ AnswerSubmission = Annotated[
         FreeTextSubmission,
         OrderingSubmission,
         MatrixSubmission,
+        GradualHintsSubmission,
     ],
     Field(discriminator="type"),
 ]
@@ -195,12 +234,15 @@ ANSWER_SUBMISSIONS: dict[str, type[_StrictSubmission]] = {
     QuestionType.FREE_TEXT: FreeTextSubmission,
     QuestionType.ORDERING: OrderingSubmission,
     QuestionType.MATRIX: MatrixSubmission,
+    QuestionType.GRADUAL_HINTS: GradualHintsSubmission,
 }
 
 __all__ = [
     "ANSWER_SUBMISSIONS",
     "AnswerSubmission",
     "FreeTextSubmission",
+    "GradualHintsFieldSubmission",
+    "GradualHintsSubmission",
     "ImageAnswerSubmission",
     "MatrixCellSubmission",
     "MatrixSubmission",

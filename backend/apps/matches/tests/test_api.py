@@ -175,3 +175,64 @@ class MatchHistoryDetailTests(APITestCase):
         response = _authed_client(alice).get(f"/api/v1/matches/{matchup.pk}/")
 
         self.assertEqual(response.status_code, 200)
+
+
+class MatchParticipantsTests(APITestCase):
+    """``.../participants/`` — the one thing the box score cannot say yet:
+    who you're playing, while the match is still live."""
+
+    def test_names_both_sides_of_a_live_matchup(self):
+        alice = make_player(email="alice@example.com")
+        bob = make_player(email="bob@example.com")
+        matchup = make_matchup(player_one=alice, player_two=bob, question_count=3)
+        services.start_matchup(matchup=matchup)
+
+        response = _authed_client(alice).get(f"/api/v1/matches/{matchup.pk}/participants/")
+
+        self.assertEqual(response.status_code, 200)
+        names = {row["player"]["display_name"] for row in response.json()["data"]}
+        self.assertEqual(names, {alice.display_name, bob.display_name})
+
+    def test_carries_no_score_while_the_clock_runs(self):
+        """The leak `MatchHistoryDetailView` refuses. This endpoint must not
+        reopen it through a different key."""
+        alice = make_player(email="alice@example.com")
+        bob = make_player(email="bob@example.com")
+        matchup = make_matchup(player_one=alice, player_two=bob, question_count=3)
+        services.start_matchup(matchup=matchup)
+        first = matchup.questions.get(order=1)
+        services.submit_answer(
+            matchup=matchup,
+            player=bob,
+            order=1,
+            payload={"type": "single-answer", "option_id": _first_option(first).pk},
+        )
+
+        response = _authed_client(alice).get(f"/api/v1/matches/{matchup.pk}/participants/")
+
+        for row in response.json()["data"]:
+            self.assertNotIn("score", row)
+            self.assertNotIn("correct_answers", row)
+            self.assertNotIn("is_winner", row)
+
+    def test_a_stranger_may_not_view_a_matchups_participants(self):
+        alice = make_player(email="alice@example.com")
+        bob = make_player(email="bob@example.com")
+        stranger = make_player(email="stranger@example.com")
+        matchup = make_matchup(player_one=alice, player_two=bob, question_count=3)
+        services.start_matchup(matchup=matchup)
+
+        response = _authed_client(stranger).get(f"/api/v1/matches/{matchup.pk}/participants/")
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_also_works_once_the_matchup_is_finished(self):
+        alice = make_player(email="alice@example.com")
+        bob = make_player(email="bob@example.com")
+        matchup = make_matchup(player_one=alice, player_two=bob, question_count=3)
+        services.start_matchup(matchup=matchup)
+        services.abandon_matchup(matchup=matchup, leaving_player=bob)
+
+        response = _authed_client(alice).get(f"/api/v1/matches/{matchup.pk}/participants/")
+
+        self.assertEqual(response.status_code, 200)
