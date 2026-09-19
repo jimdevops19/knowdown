@@ -49,8 +49,29 @@ class Command(BaseCommand):
 
         if options["dry_run"]:
             self.stdout.write(self.style.WARNING(f"dry run — would sync: {report}"))
+            self._report_unrated(report)
             return
 
         self.stdout.write(self.style.SUCCESS(f"Rooms synced: {report}"))
         for slug in report.deactivated:
             self.stdout.write(self.style.WARNING(f"  deactivated {slug}"))
+        # Printed on a dry run too — the point of --dry-run is to find this out
+        # before the row exists, so the branch above returning early would be
+        # the one case where the warning is most wanted and least shown.
+        self._report_unrated(report)
+
+    def _report_unrated(self, report) -> None:
+        """Name every room that draws from more than one category.
+
+        Not a failure: a mixed room is a legitimate thing to author. It just
+        cannot be rated — a rating is per category and a result moves exactly
+        one ladder — so this is the line that stops somebody discovering it
+        from a player asking why their win changed nothing.
+        """
+        for slug in report.unrated:
+            self.stdout.write(
+                self.style.WARNING(
+                    f"  {slug} draws from several categories — matches there are "
+                    "unrated (no ladder moves)"
+                )
+            )

@@ -15,7 +15,7 @@ from apps.core_common.exceptions import ValidationFailed
 from apps.questions.tests.factories import make_category
 from apps.rooms.models import Room, RoomCategory
 from apps.rooms.services import sync_rooms
-from apps.rooms.services.sync import ROOMS_FILE
+from apps.rooms.services.sync import LoadReport, ROOMS_FILE
 
 ONE_ROOM = """
 - name: Finals
@@ -25,6 +25,15 @@ ONE_ROOM = """
     - slug: nba
       filter_tags:
         topic: finals
+"""
+
+MIXED_ROOM = """
+- name: Ball Knowledge
+  slug: mixed-room
+  questions_asked_ranges: [4]
+  categories:
+    - slug: nba
+    - slug: f1
 """
 
 
@@ -152,6 +161,28 @@ class SyncRoomsTests(TestCase):
         sync_rooms(path=self._write(ONE_ROOM.replace("topic: finals", "era: 2000")))
         self.assertEqual(Room.objects.get().categories.get().filter_tags, {"era": "2000"})
 
+    def test_a_room_mixing_categories_loads_but_is_reported_unrated(self):
+        """A mixed room is legitimate, so it loads — but it can never move a
+        ladder (`Room.is_rated`), and the load is the last cheap moment to
+        find that out."""
+        make_category(slug="f1", name="F1")
+        report = sync_rooms(path=self._write(MIXED_ROOM))
+        self.assertEqual(report.unrated, ["mixed-room"])
+        self.assertTrue(Room.objects.filter(slug="mixed-room").exists())
+        self.assertIn("1 unrated", str(report))
+
+    def test_a_single_category_room_is_not_reported_unrated(self):
+        """Narrowing one category with tags is still one category — the line
+        must stay quiet for the ordinary room, or nobody will read it."""
+        report = sync_rooms(path=self._write(ONE_ROOM))
+        self.assertEqual(report.unrated, [])
+        self.assertNotIn("unrated", str(report))
+
+    def test_the_shipped_lobby_is_entirely_rated(self):
+        """Every room in `rooms.yaml` today draws from one category. If that
+        stops being true it should be a decision somebody made on purpose."""
+        self.assertEqual(sync_rooms().unrated, [])
+
     def test_a_room_may_name_an_inactive_category(self):
         """Out of season is not a reason to fail the whole file."""
         self.category.is_active = False
@@ -175,6 +206,29 @@ class SyncRoomsCommandTests(TestCase):
         call_command("sync_rooms", "--dry-run", stdout=out)
         self.assertIn("dry run", out.getvalue())
         self.assertFalse(Room.objects.exists())
+
+    def test_the_command_names_every_unrated_room(self):
+        """Printed, not just logged: the person running the sync is the person
+        who can still change the file."""
+        out = StringIO()
+        with patch(
+            "apps.rooms.management.commands.sync_rooms.sync_rooms",
+            return_value=LoadReport(created=["mixed-room"], unrated=["mixed-room"]),
+        ):
+            call_command("sync_rooms", stdout=out)
+        self.assertIn("mixed-room", out.getvalue())
+        self.assertIn("unrated", out.getvalue())
+
+    def test_a_dry_run_names_unrated_rooms_too(self):
+        """The run whose whole purpose is finding this out before the row
+        exists must not be the one that stays silent about it."""
+        out = StringIO()
+        with patch(
+            "apps.rooms.management.commands.sync_rooms.sync_rooms",
+            return_value=LoadReport(created=["mixed-room"], unrated=["mixed-room"]),
+        ):
+            call_command("sync_rooms", "--dry-run", stdout=out)
+        self.assertIn("unrated", out.getvalue())
 
     def test_a_bad_file_fails_the_command_and_prints_every_problem(self):
         """A refused load exits non-zero *and* names what to fix — the whole

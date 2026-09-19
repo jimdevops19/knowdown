@@ -50,11 +50,22 @@ class LoadReport:
     updated: list[str] = field(default_factory=list)
     deactivated: list[str] = field(default_factory=list)
 
+    #: Rooms that were loaded but will never move a ladder, because they draw
+    #: from more than one category (``Room.is_rated``). Not an error — a mixed
+    #: room is a legitimate thing to author — so it is reported rather than
+    #: refused, and the command prints it beside the deactivations.
+    unrated: list[str] = field(default_factory=list)
+
     def __str__(self) -> str:
-        return (
+        line = (
             f"{len(self.created)} created, {len(self.updated)} updated, "
             f"{len(self.deactivated)} deactivated"
         )
+        # Only when there are any: a counter reading zero on every run is the
+        # fastest way to teach somebody to stop reading the line.
+        if self.unrated:
+            line += f", {len(self.unrated)} unrated"
+        return line
 
 
 def _read_specs(*, path: Path) -> list[RoomSpec]:
@@ -145,6 +156,26 @@ def sync_rooms(*, path: Path | None = None) -> LoadReport:
         _write_categories(room=room, spec=spec, categories=categories)
         (report.created if created else report.updated).append(spec.slug)
 
+        # Said at authoring time, which is the only moment somebody can still
+        # change their mind cheaply. A room drawing from several categories
+        # cannot be rated — a rating is per category and a result moves exactly
+        # one ladder, so scoring the first for questions that came from the
+        # second would be a lie (`Room.is_rated`). The *categories* are
+        # untouched by this: their ladders are as real as ever, this room's
+        # matches simply never move one.
+        if len(spec.categories) > 1:
+            report.unrated.append(spec.slug)
+            named = ", ".join(entry.slug for entry in spec.categories)
+            logger.warning(
+                "Room draws from several categories and will not be rated",
+                room=spec.slug,
+                count=len(spec.categories),
+                reason=(
+                    f"draws from {named}; a result moves one ladder, so matches "
+                    "here are played unrated"
+                ),
+            )
+
     seen = {spec.slug for spec in specs}
     stale = Room.objects.filter(is_active=True).exclude(slug__in=seen)
     report.deactivated = sorted(stale.values_list("slug", flat=True))
@@ -162,7 +193,9 @@ def _write_categories(
     Wholesale, and ``order`` is the file's order rather than an authored number
     — the same rule every position on this platform follows, and the reason a
     resource file cannot leave a gap in one. Position 1 is the room's
-    ``primary_category``, which is what a match played here rates against.
+    ``primary_category`` — what a match played here is filed under, and the
+    ladder it moves when the room draws from that category alone
+    (``Room.is_rated``).
     """
     room.categories.all().delete()
     RoomCategory.objects.bulk_create(

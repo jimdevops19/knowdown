@@ -543,7 +543,9 @@ Three things are worth knowing:
   `create_matchup`, and frozen onto `Matchup.is_ranked` beside the CPU-opponent
   rule — never re-derived, so an edit to `rooms.yaml` cannot change what kind of
   game an already-played match was. The API sends it as `is_rated` on the room
-  so the lobby can say so before anybody joins.
+  so the lobby can say so before anybody joins, and `sync_rooms` warns on every
+  mixed room it loads (`LoadReport.unrated`, printed by the command including on
+  `--dry-run`) — it is not an error, but it should never be a surprise.
 - **Rooms are additive, not a replacement, in `apps.matches`.** `Matchup.room` is
   nullable and `create_matchup` takes a room **or** a category; given a room it
   draws the length from the room's own numbers and the board (and any
