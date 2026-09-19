@@ -1120,6 +1120,20 @@ earns no exception to a rule written for exactly this reason. See both
 commands' docstrings before running either against anything but a
 disposable environment.
 
+**`manage.py purge_stress`** is the teardown half of `stress/` at the repo
+root — a bigger, socket-driven relative of `load_rehearsal` that puts a whole
+cast in one lobby room at once (80 players is 40 simultaneous matchups) and
+reports what broke. Unlike `load_rehearsal_teardown`, which removes only the
+login, this one sweeps the *whole* walk leaf-first — answers, questions,
+matchup sides, matchups, rankings, badges, then the `Player` and finally the
+`User` — with **hard** deletes, because a soft-deleted `Player` still holds
+its display name in the unique index. It finds rows by two tags (an
+`@stress.knowdown.test` email and a `Stress …` display name), never by a state
+file, and it leaves alone any matchup with a real person on the other side:
+`MatchupPlayer.player`'s `PROTECT` is the rule, not an obstacle to route
+around. The driver's copy of the tags is in `stress/src/tags.py`; change one,
+change the other.
+
 ## Conventions
 
 - Service/selector/validator functions use **keyword-only args**

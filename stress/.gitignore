@@ -1,0 +1,5 @@
+# One run's accounts, passwords and JWTs. Throwaway, against a staging
+# deployment whose rows `stress teardown` deletes — but still credentials,
+# and still not something to commit.
+.state/
+__pycache__/

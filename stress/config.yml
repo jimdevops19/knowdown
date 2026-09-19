@@ -1,0 +1,81 @@
+# What a stress run is, by default. Every number here is overridable on the
+# command line (`--players`, `--rounds`, …) and the ones worth reaching for
+# mid-run are overridable from the environment too — see `src/config.py`.
+#
+#   task stress:all                 # the run described below
+#   task stress:all PLAYERS=150     # the same run, half again as crowded
+
+target:
+  # Left empty on purpose. The staging hostname carries the Mac's LAN IP
+  # (knowdown.<ip>.nip.io), which changes with the DHCP lease — a value
+  # committed here would be wrong within the week. The Taskfile fills it in
+  # from the current IP; set it per shell instead if you drive the CLI
+  # directly:
+  #
+  #   export KNOWDOWN_STRESS_BASE_URL="https://knowdown.10.100.102.7.nip.io"
+  #
+  # The run refuses any host that isn't recognisably staging or local (see
+  # src/config.py::_refuse_production).
+  base_url: ""
+
+  # Staging's certificate comes from a private step-ca, which this process has
+  # no reason to trust. Verification is off; the traffic is synthetic and the
+  # network is a LAN.
+  verify_tls: false
+  timeout_seconds: 30
+
+  # Where `stress teardown` reaches the deployment to run `purge_stress`.
+  # These match Taskfile.yml's K8S_CONTEXT / K8S_NAMESPACE.
+  kube_context: k3d-rpool-staging
+  kube_namespace: knowdown-staging
+  kube_deployment: backend
+
+cast:
+  # Accounts to register, and therefore players in the run. **Even**: a
+  # matchup is a race between exactly two people (`matches.constants
+  # .PLAYERS_PER_MATCHUP`), so 80 players is 40 games at once. An odd number
+  # is rounded down rather than leaving somebody in a queue nobody will join.
+  players: 80
+
+  # The lobby circle every player queues for. One room, not several, because
+  # the matchmaking pool is per-room: spreading 80 players over four rooms
+  # would be four quiet pools rather than one crowded one, and the crowd is
+  # the point. `apps/rooms/resources/rooms.yaml` is the list.
+  room: nba-room-general
+
+load:
+  # How many times the whole cast plays. One round is every player queueing at
+  # once, pairing off, and playing their match to the final whistle — which
+  # is the measurement this test exists for. More rounds repeat it against a
+  # deployment that is no longer cold.
+  rounds: 1
+
+  # Seconds a simulated player takes to answer a question, drawn uniformly
+  # from this band and then capped well inside the server's own clock so a
+  # slow answer is still an answer rather than a timeout. This is the
+  # intensity dial: 0.2-0.5 is a room of people racing, 3-8 is a room of
+  # people thinking.
+  answer_delay_seconds: [1.0, 4.0]
+
+  # How long one player waits for an opponent before giving up and reporting
+  # it. Generous: the interesting failure is "nobody was ever paired", and a
+  # short deadline would report a slow pool as a broken one.
+  wait_for_match_seconds: 120
+
+  # The whole cast joining the queue inside the same millisecond is a thundering
+  # herd against one `cache.add` mutex (`apps.matches.pool`) and not what a
+  # busy lobby looks like. Each player waits index x this before connecting,
+  # so 80 players arrive over four seconds.
+  join_stagger_seconds: 0.05
+
+seed:
+  # How many registrations are in flight at once. **Low on purpose**:
+  # `POST /auth/registration/` is on the `login` throttle scope, which is
+  # 10/min per IP by default, and every account this seeds comes from one
+  # machine. See stress/README.md — raising THROTTLE_LOGIN on the target is
+  # what makes seeding fast, not raising this.
+  workers: 4
+
+  # A 429 is expected here rather than exceptional, so it is retried with the
+  # server's own Retry-After rather than counted as a failure.
+  max_retries: 12

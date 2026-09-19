@@ -45,6 +45,22 @@ Redis.
 uv run python manage.py test --settings=config.settings.test
 ```
 
+## Load testing
+
+`stress/` is a load test against a **deployed** knowdown. It registers a cast,
+puts all of them in the same lobby room at the same moment, and lets
+matchmaking pair them off — 80 players is 40 matchups played out at once, over
+real sockets against the deployed `realtime` process.
+
+```bash
+task stress:all                 # 80 players → 40 simultaneous matchups
+task stress:all PLAYERS=150     # 150 players → 75 matchups
+```
+
+Everything it creates is tagged, and the teardown (`manage.py purge_stress`,
+run inside the deployment) removes all of it. See `stress/README.md` — in
+particular the note on signup throttling, which is what makes seeding slow.
+
 ## Defining rooms
 
 A **room** is the set of settings a match is played under — which categories the

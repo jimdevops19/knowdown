@@ -163,3 +163,88 @@ tasks:
     dir: frontend
     cmds:
       - npm audit --audit-level=high
+
+  # ------------------------------------------------------------- stress test
+
+  # Load test against a *deployed* stack (staging), in three phases so the
+  # logs can be watched while the middle one runs. Everything it creates is
+  # tagged and removed by `stress:teardown` — see stress/README.md.
+  #
+  # PLAYERS is the one number worth reaching for: two players per matchup, so
+  # the default 80 is 40 games at once.
+  #   task stress:all                 # 80 players, 40 simultaneous matchups
+  #   task stress:all PLAYERS=150     # 150 players, 75 matchups
+  #
+  # BASE_URL defaults to the staging ingress on this Mac's current LAN IP,
+  # which is the hostname that ingress actually answers on (rpool_ops
+  # fluxcd/apps/knowdown-staging/ingress.yaml). Override for another target:
+  #   task stress:seed BASE_URL=http://localhost:8000
+
+  stress:seed:
+    desc: "Stress: register the cast (PLAYERS=80 by default — 40 matchups)"
+    cmds:
+      - task: stress:cmd
+        vars: {STRESS_ARGS: 'seed {{.CLI_ARGS}}'}
+
+  stress:run:
+    desc: "Stress: put the whole cast in the lobby at once and report what happened"
+    cmds:
+      - task: stress:cmd
+        vars: {STRESS_ARGS: 'run {{.CLI_ARGS}}'}
+
+  stress:teardown:
+    desc: "Stress: hard-delete everything the run created (purge_stress in-cluster)"
+    cmds:
+      - task: stress:cmd
+        vars: {STRESS_ARGS: 'teardown {{.CLI_ARGS}}'}
+
+  stress:status:
+    desc: "Stress: what is currently seeded"
+    cmds:
+      - task: stress:cmd
+        vars: {STRESS_ARGS: 'status'}
+
+  stress:all:
+    desc: "Stress: seed, run, then tear down — the whole cycle unattended"
+    cmds:
+      - task: stress:seed
+      - task: stress:run
+      # `defer` so the teardown still runs if the load phase fails or is
+      # interrupted: leaving 80 accounts and 40 half-played matches behind is
+      # the one outcome this test must not have. It runs *after* the run's own
+      # exit status has been taken, so a failing run still reports as failing.
+      - defer: {task: stress:teardown}
+
+  stress:cmd:
+    internal: true
+    vars:
+      BASE_URL: '{{.BASE_URL | default ""}}'
+      # Two per matchup. Overridable as a task variable (PLAYERS=150) or as an
+      # ordinary environment variable, since both end up in the same place —
+      # `stress/src/config.py` reads KNOWDOWN_STRESS_PLAYERS.
+      PLAYERS: '{{.PLAYERS | default "80"}}'
+      ROUNDS: '{{.ROUNDS | default "1"}}'
+    cmds:
+      - |
+        set -eu
+        base="{{.BASE_URL}}"
+        if [ -z "$base" ]; then
+          iface=$(route -n get default 2>/dev/null | awk '/interface: /{print $2}')
+          ip=$(ipconfig getifaddr "${iface:-en0}" 2>/dev/null || true)
+          if [ -z "$ip" ]; then
+            echo "no LAN IP found — pass BASE_URL=... explicitly" >&2
+            exit 1
+          fi
+          base="https://knowdown.${ip}.nip.io"
+        fi
+        # The cast size is a *seed*-time decision: `run` drives whoever the
+        # state file says was registered, so echoing PLAYERS there would
+        # announce a number the run is not going to use.
+        case "{{.STRESS_ARGS}}" in
+          seed*) echo "target: $base  ·  players: {{.PLAYERS}}" ;;
+          *)     echo "target: $base" ;;
+        esac
+        KNOWDOWN_STRESS_BASE_URL="$base" \
+        KNOWDOWN_STRESS_PLAYERS="{{.PLAYERS}}" \
+        KNOWDOWN_STRESS_ROUNDS="{{.ROUNDS}}" \
+          uv run --group dev python -m stress.src.cli {{.STRESS_ARGS}}

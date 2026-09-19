@@ -64,6 +64,25 @@ def _ws_base(http_base: str) -> str:
     return f"{scheme}://{parsed.netloc}"
 
 
+def _origin(http_base: str) -> str:
+    """The ``Origin`` header every socket here has to send.
+
+    ``config/asgi.py`` wraps the routes in channels'
+    ``AllowedHostsOriginValidator``, and channels rejects a **missing**
+    ``Origin`` at the handshake, not only a wrong one — a browser always sends
+    one, so absence is not treated as permission. The ``websockets`` client
+    sends none unless told to, so without this every connection is refused
+    before it reaches a consumer, and the only trace is a ``REJECT`` line with
+    no reason attached.
+
+    The target's own origin is the right value: it is what the SPA served from
+    that host sends, and it is in the deployment's ``ALLOWED_HOSTS`` by
+    construction.
+    """
+    parsed = urlparse(http_base)
+    return f"{parsed.scheme}://{parsed.netloc}"
+
+
 @dataclass
 class PlayerRun:
     index: int
@@ -110,7 +129,11 @@ def _answer_payload(board: dict, rng: random.Random) -> dict:
     never a correct one on purpose. Scoring is not what this rehearses;
     ``services.evaluation`` already has that covered under
     ``apps.questions.tests.test_evaluation``. Every branch here mirrors one
-    variant of ``apps.questions.schemas.answers.AnswerSubmission``.
+    variant of ``apps.questions.schemas.answers.AnswerSubmission``, and there
+    is a branch for **every** type the catalog serves
+    (``apps/questions/resources/nba/_active.yaml`` lists nine) — a type with
+    no branch sinks one player's whole match and reads in the summary as a
+    platform failure it is not.
     """
     question_type = board["type"]
     if question_type in ("single-answer", "image-answer"):
@@ -139,6 +162,26 @@ def _answer_payload(board: dict, rng: random.Random) -> dict:
             for cell in board["cells"]
         ]
         return {"type": question_type, "cells": cells}
+    if question_type == "gradual-hints":
+        # Named by field id, never by label — the same rule a matrix cell
+        # follows (``schemas.answers.GradualHintsFieldSubmission``).
+        return {
+            "type": question_type,
+            "answer_fields": [
+                {"field_id": field["id"], "text": f"guess-{rng.randint(0, 999)}"}
+                for field in board["answer_fields"]
+            ],
+        }
+    if question_type == "name-as-many":
+        # One payload carrying the whole list, not one per name — and each
+        # entry distinct after case-folding, which the schema enforces. The
+        # index is what guarantees that, rather than trusting a sample not to
+        # repeat.
+        count = rng.randint(1, max(1, min(int(board.get("max_names", 20)), 20) // 2))
+        return {
+            "type": question_type,
+            "names": [f"rehearsal-name-{index}" for index in range(count)],
+        }
     raise ValueError(f"Unknown question type from the server: {question_type!r}")
 
 
@@ -148,15 +191,23 @@ async def _register(client: httpx.AsyncClient, *, email: str, password: str) -> 
         json={"email": email, "password1": password, "password2": password},
     )
     response.raise_for_status()
-    return response.json()["access"]
+    # The token is inside the ``{"data": ...}`` envelope every successful
+    # response is rendered in (``apps.core_common.renderers``); reading
+    # ``["access"]`` off the top level finds nothing but the envelope's one
+    # key. The refresh half is not in the body at all — it is set as an
+    # HttpOnly cookie and stays in this client's jar
+    # (``accounts.api.views._issue_refresh_cookie``), which is fine here: a
+    # rehearsal is over well inside the access token's 30 minutes.
+    body = response.json()
+    return body.get("data", body)["access"]
 
 
 async def _play_matchup(
-    *, ws_base: str, token: str, matchup_id: str, rng: random.Random,
+    *, ws_base: str, origin: str, token: str, matchup_id: str, rng: random.Random,
     min_delay: float, max_delay: float,
 ) -> None:
     url = f"{ws_base}/ws/v1/matches/{matchup_id}/?token={token}"
-    async with websockets.connect(url) as socket:
+    async with websockets.connect(url, origin=origin) as socket:
         while True:
             raw = await asyncio.wait_for(socket.recv(), timeout=60)
             message = json.loads(raw)
@@ -185,8 +236,8 @@ async def _play_matchup(
 
 
 async def _run_player(
-    *, run: PlayerRun, base_url: str, ws_base: str, category: str, password: str,
-    wait_for_match_seconds: int, min_delay: float, max_delay: float,
+    *, run: PlayerRun, base_url: str, ws_base: str, origin: str, category: str,
+    password: str, wait_for_match_seconds: int, min_delay: float, max_delay: float,
 ) -> None:
     rng = random.Random(f"{run.email}:{time.time_ns()}")
     try:
@@ -196,7 +247,7 @@ async def _run_player(
         queued_at = time.monotonic()
         mm_url = f"{ws_base}/ws/v1/matchmaking/{category}/?token={token}"
         matchup_id: str | None = None
-        async with websockets.connect(mm_url) as socket:
+        async with websockets.connect(mm_url, origin=origin) as socket:
             while matchup_id is None:
                 raw = await asyncio.wait_for(socket.recv(), timeout=wait_for_match_seconds)
                 message = json.loads(raw)
@@ -208,8 +259,8 @@ async def _run_player(
 
         match_started = time.monotonic()
         await _play_matchup(
-            ws_base=ws_base, token=token, matchup_id=matchup_id, rng=rng,
-            min_delay=min_delay, max_delay=max_delay,
+            ws_base=ws_base, origin=origin, token=token, matchup_id=matchup_id,
+            rng=rng, min_delay=min_delay, max_delay=max_delay,
         )
         run.completed = True
         run.match_duration_ms = int((time.monotonic() - match_started) * 1000)
@@ -222,6 +273,7 @@ async def _rehearse(
     wait_for_match_seconds: int, min_delay: float, max_delay: float,
 ) -> RehearsalResult:
     ws_base = _ws_base(base_url)
+    origin = _origin(base_url)
     password = secrets.token_urlsafe(16)
     result = RehearsalResult(run_id=run_id)
     runs = [
@@ -232,8 +284,9 @@ async def _rehearse(
     await asyncio.gather(
         *(
             _run_player(
-                run=run, base_url=base_url, ws_base=ws_base, category=category,
-                password=password, wait_for_match_seconds=wait_for_match_seconds,
+                run=run, base_url=base_url, ws_base=ws_base, origin=origin,
+                category=category, password=password,
+                wait_for_match_seconds=wait_for_match_seconds,
                 min_delay=min_delay, max_delay=max_delay,
             )
             for run in runs
