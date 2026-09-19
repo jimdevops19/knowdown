@@ -22,7 +22,7 @@ from apps.matches.authentication import JWTAuthMiddlewareStack
 from apps.matches.bots.answering import BOT_ANSWER_BUILDERS, build_bot_answer
 from apps.matches.models import BotProfile, Matchup
 from apps.matches.routing import websocket_urlpatterns
-from apps.matches.tests.factories import stock_category
+from apps.matches.tests.factories import every_default_clock, stock_category
 from apps.players.models import Player
 from apps.players.tests.factories import make_player
 from apps.questions.models import QUESTION_MODELS
@@ -111,8 +111,6 @@ class MatchmakingBotFallbackTests(TransactionTestCase):
     async def test_the_bot_plays_its_side_to_a_finished_matchup(self):
         from io import StringIO
 
-        from unittest import mock
-
         from django.core.management import call_command
 
         from .test_realtime import _connect_matchup
@@ -122,8 +120,8 @@ class MatchmakingBotFallbackTests(TransactionTestCase):
         # the matchup socket but never answers: what forces each question
         # closed is its own connect-time watchdog racing the bot's answer,
         # the same as a real client that stalls on one question would —
-        # which is why FALLBACK_QUESTION_TIME_LIMIT_MS is patched low rather
-        # than the test waiting out the real ten seconds per question.
+        # which is why every type's DEFAULT_TIME_LIMIT_SECONDS is patched low
+        # rather than the test waiting out the real ten seconds per question.
         await database_sync_to_async(call_command)("seed_bots", "--count", "1", stdout=StringIO())
         await database_sync_to_async(BotProfile.objects.update)(
             accuracy=1.0, min_response_fraction=0.01, max_response_fraction=0.02
@@ -136,7 +134,7 @@ class MatchmakingBotFallbackTests(TransactionTestCase):
         category = await database_sync_to_async(stock_category)()
         player = await database_sync_to_async(make_player)(email="vs-bot@example.com")
 
-        with mock.patch("apps.matches.constants.FALLBACK_QUESTION_TIME_LIMIT_MS", 100):
+        with every_default_clock(1):
             communicator = WebsocketCommunicator(
                 application, f"/ws/v1/matchmaking/{category.slug}/{_token_query(player)}"
             )

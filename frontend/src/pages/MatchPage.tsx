@@ -12,6 +12,7 @@ import { LiveScoreboard } from '../features/play/LiveScoreboard'
 import { QuestionBoard } from '../features/play/QuestionBoard'
 import { QuestionVerdict } from '../features/play/QuestionVerdict'
 import { MatchSummary } from '../features/play/MatchSummary'
+import { MatchupCountdown } from '../features/play/MatchupCountdown'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { StatusBadge } from '../components/StatusBadge'
@@ -101,6 +102,22 @@ export function MatchPage() {
     )
   }
 
+  /*
+   * The pre-match countdown owns the whole screen, and only ever at the very
+   * start: while the socket is still opening (nothing to show but the ring),
+   * and then through question one's read delay, which is the window the server
+   * already leaves before its clock starts (`MatchupCountdown`). A question two
+   * or a reconnect mid-match never reaches it — by then `match.current` is set,
+   * and the order is past one.
+   */
+  const countingIn =
+    (match.phase === 'connecting' && !match.current) ||
+    (match.phase === 'question' && match.current?.order === 1 && !clock.started)
+
+  if (countingIn) {
+    return <MatchupCountdown startsAt={match.current?.seenAt ?? null} />
+  }
+
   const locked = !match.canAnswer || clock.expired
 
   // When the server closes this question, as one stable instant. Derived from
@@ -131,13 +148,22 @@ export function MatchPage() {
       style={{ height: 'var(--page-fit)' }}
     >
       <header className="flex shrink-0 items-center justify-between gap-2">
-        <StatusBadge tone="live">
-          {/* No denominator: the match length (3, 5 or 7) is chosen per matchup
-              and never crosses the socket, so "Question 3 of 5" is not
-              something this client can honestly say. The count of pips it has
-              seen is, and that is what is shown. */}
-          Question {match.current?.order ?? 1}
-        </StatusBadge>
+        {/* A tie-breaker is still question N of the same match, but naming it
+            by number would bury the only thing about it worth saying: the
+            match was level and this question decides it. The server is the one
+            that knows (`is_tiebreaker` on `question.started`) — the client
+            cannot infer it, since it is never told the match length. */}
+        {match.current?.isTiebreaker ? (
+          <StatusBadge tone="warn">Tie breaker</StatusBadge>
+        ) : (
+          <StatusBadge tone="live">
+            {/* No denominator: the match length (3, 5 or 7) is chosen per
+                matchup and never crosses the socket, so "Question 3 of 5" is
+                not something this client can honestly say. The count of pips
+                it has seen is, and that is what is shown. */}
+            Question {match.current?.order ?? 1}
+          </StatusBadge>
+        )}
         <div className="flex items-center gap-3">
           {match.phase === 'connecting' && (
             <span className="flex items-center gap-1.5 text-xs text-gold">

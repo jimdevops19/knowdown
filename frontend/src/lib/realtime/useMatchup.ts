@@ -73,6 +73,10 @@ export interface LiveQuestion {
    *  on the question's type and its authored override, so a matrix board and a
    *  true/false one do not get the same clock. */
   timeLimitMs: number
+  /** Sudden death — an extra question the server added because the scores
+   *  were exactly level when the agreed board ran out. Changes nothing about
+   *  how it is played; it is here so the header can say so. */
+  isTiebreaker: boolean
 }
 
 export interface MatchupState {
@@ -203,6 +207,7 @@ function reduce(state: MatchupState, action: Action): MatchupState {
               // question and a resumed one are now the same code path.
               seenAt: message.started_at_ms,
               timeLimitMs: message.time_limit_ms,
+              isTiebreaker: message.is_tiebreaker ?? false,
             },
             // Dropped on a new question and kept on a resumed one, for the
             // reason the submission is: a reconnect re-sends the board for the

@@ -157,15 +157,21 @@ export function AppShell() {
   const navItems = navItemsFor(isAuthenticated)
 
   return (
-    <div className="relative flex min-h-full">
+    <div className="relative flex min-h-dvh">
       {/* Sidebar — an opaque column beside the body's layered background. Closing
           it animates the width to zero; the inner column keeps its own width so
           the links slide out of view instead of reflowing on the way. `inert`
-          keeps the hidden links out of tab order and screen readers. */}
+          keeps the hidden links out of tab order and screen readers.
+
+          `h-dvh`, not `h-screen`: on a tablet with retracting browser chrome
+          `vh` is the tall measurement, and a sidebar cut to it runs under the
+          toolbar. Same reason the shell above is `min-h-dvh` rather than
+          `min-h-full` — nothing in this app measures itself against a viewport
+          height the device isn't actually showing. */}
       <aside
         id="app-nav"
         inert={!navOpen}
-        className={`sticky top-0 hidden h-screen shrink-0 flex-col overflow-hidden bg-void transition-[width] duration-300 desk:flex ${
+        className={`sticky top-0 hidden h-dvh shrink-0 flex-col overflow-hidden bg-void transition-[width] duration-300 desk:flex ${
           navOpen ? 'w-60 border-r border-chalk/10' : 'w-0'
         }`}
       >

@@ -110,6 +110,17 @@ class GradualHintsQuestion(BaseQuestion):
         help_text="Seconds between one hint being revealed and the next.",
     )
 
+    #: The strictest case: this type is not merely *harder* to answer in ten
+    #: seconds, it is not finished being asked. Its clues are paid out on a
+    #: timer (``apps.questions.selectors.reveal_schedule``), so a clock that
+    #: closed the question before the last one landed would be a question whose
+    #: author wrote a clue nobody ever reads. Forty seconds holds the default
+    #: schedule — :data:`MAX_HINTS` at :data:`DEFAULT_HINT_INTERVAL_SECONDS` —
+    #: plus ``constants.HINT_ANSWER_WINDOW_SECONDS`` to answer in, and the
+    #: loader refuses any schedule that does not fit inside whatever clock a
+    #: question ends up with (``schemas.GradualHintsSpec``).
+    DEFAULT_TIME_LIMIT_SECONDS = 40
+
     class Meta(BaseQuestion.Meta):
         pass
 

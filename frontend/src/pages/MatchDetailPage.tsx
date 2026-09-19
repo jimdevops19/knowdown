@@ -192,6 +192,9 @@ function QuestionRecord({ record, myName }: { record: MatchupQuestionRecord; myN
           Q{record.order}
         </span>
         <LevelChip level={record.question.level} />
+        {/* Why the match ran past the length the header states: the scores
+            were level, so the server dealt one more. */}
+        {record.is_tiebreaker && <StatusBadge tone="warn">Tie breaker</StatusBadge>}
       </div>
 
       <p className="font-medium text-chalk">{record.question.description}</p>

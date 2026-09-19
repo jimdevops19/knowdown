@@ -53,7 +53,9 @@ export const SEARCH_CANCEL = 'search.cancel'
 /* --- Matchup socket: /ws/v1/matches/{matchup_id}/ -------------------------- */
 
 /** One question opened. `T0` is the server's, not a promise the client makes
- *  itself. Carries the play-time board — never a field naming an answer. */
+ *  itself. Carries the play-time board — never a field naming an answer. It
+ *  may also be flagged a tie-breaker: a match that ends level is extended one
+ *  question at a time rather than settled on total answer time. */
 export const QUESTION_STARTED = 'question.started'
 
 /**
@@ -142,6 +144,12 @@ export interface QuestionStartedMessage {
    *  the question in progress — rebuild the same clock everyone else sees
    *  instead of guessing a fresh one. */
   started_at_ms: number
+  /** Sudden death: the scores were exactly level when the agreed board ran
+   *  out, so the server drew one more question (`services/tiebreak.py`). A
+   *  label only — it is dealt, clocked and answered like any other question,
+   *  and its `order` follows the last one's. Optional so a client talking to
+   *  a server that predates the field still parses the frame. */
+  is_tiebreaker?: boolean
 }
 
 export interface HintRevealedMessage {
@@ -187,7 +195,8 @@ export interface MatchCompletedMessage {
   type: typeof MATCH_COMPLETED
   /** `played` or `abandoned`. Both move the ladder the same way. */
   outcome: 'played' | 'abandoned'
-  /** Null on the double tie the server leaves unbroken. */
+  /** Null on the double tie the server leaves unbroken — which only happens
+   *  once sudden death has run out of questions to ask. */
   winner_player_id: string | null
   /** Final points, by player id. */
   scores: Record<string, number>

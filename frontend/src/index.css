@@ -487,19 +487,41 @@
  * the widest value it can take is the honest figure. A board a few pixels short
  * of the screen is invisible; one a few pixels over has a scrollbar.
  */
+/* The two figures the sum is built from, each mirroring what AppShell actually
+   renders — the header's own height, and <main>'s top padding at the same
+   breakpoints its `pt-4 sm:pt-6 lg:pt-8 short:pt-3` uses. They were folded into
+   the calc as literals before, with the top padding fixed at 1rem, so from `sm`
+   up the figure came out 8px (and from `lg`, 16px) taller than the room there
+   really was: a board sized to fit put a scrollbar on the one screen that must
+   never have one. */
 :root {
-  --page-fit: calc(
-    100dvh - 4rem - env(safe-area-inset-top) - 1rem - max(2rem, env(safe-area-inset-bottom)) -
-      var(--nav-bar-inset)
-  );
+  --header-h: 4rem;
+  --page-pad-t: 1rem;
 }
+@media (min-width: 640px) {
+  :root {
+    --page-pad-t: 1.5rem;
+  }
+}
+@media (min-width: 1024px) {
+  :root {
+    --page-pad-t: 2rem;
+  }
+}
+/* Last, so a short viewport wins over the width-driven values above — the same
+   ordering rule `--nav-bar-inset` follows. */
 @media (max-height: 559px) {
   :root {
-    --page-fit: calc(
-      100dvh - 3rem - env(safe-area-inset-top) - 0.75rem - max(2rem, env(safe-area-inset-bottom)) -
-        var(--nav-bar-inset)
-    );
+    --header-h: 3rem;
+    --page-pad-t: 0.75rem;
   }
+}
+
+:root {
+  --page-fit: calc(
+    100dvh - var(--header-h) - env(safe-area-inset-top) - var(--page-pad-t) -
+      max(2rem, env(safe-area-inset-bottom)) - var(--nav-bar-inset)
+  );
 }
 
 /* React Query's devtools button (dev only) parks itself in a bottom corner,
@@ -512,9 +534,21 @@
 }
 
 /* ── Global base: a dark-only app over a layered background ─────────────── */
-html,
-body,
-#root {
+
+/* No percentage height on the document, on purpose.
+ *
+ * `height: 100%` resolves against the initial containing block, and on iOS
+ * Safari that block is the *large* viewport — the one measured with the URL bar
+ * retracted. So a page whose content fits the screen still came out about a
+ * toolbar taller than what is actually visible, and every screen in the app
+ * could be scrolled an inch even when there was nothing below the fold. That
+ * inch is the single clearest tell that something is a web page rather than an
+ * app, and it is what `100dvh` on #root (below) exists to avoid — a definite
+ * `height` here would have overridden it.
+ *
+ * `html` keeps a height so the scroll container is the viewport; `body` and
+ * `#root` size to their content, with #root floored at the dynamic viewport. */
+html {
   height: 100%;
 }
 
@@ -532,13 +566,15 @@ body {
      - tap-highlight: kills the grey flash iOS paints over anything tapped —
        which on an answer tile would fire on every single question.
      - text-size-adjust: stops Safari inflating text when a phone rotates.
-     - overscroll-behavior-y: no rubber-band chaining into the page behind, and
+     - overscroll-behavior: no rubber-band chaining into the page behind, and
        (installed, on Android) no pull-down that reloads the whole app — the
-       single worst thing that can happen with six seconds on the clock. */
+       single worst thing that can happen with six seconds on the clock. Both
+       axes: the horizontal one keeps a swipe that runs off the end of a
+       scrolling table from turning into the browser's back gesture. */
   -webkit-tap-highlight-color: transparent;
   text-size-adjust: 100%;
   -webkit-text-size-adjust: 100%;
-  overscroll-behavior-y: contain;
+  overscroll-behavior: contain;
 }
 
 /* The floodlight, and the pitch under it.
@@ -579,9 +615,13 @@ body::before {
     radial-gradient(900px 600px at 50% 118%, rgba(255, 107, 0, 0.07), transparent 60%);
 }
 
-/* The dynamic viewport unit tracks the mobile URL bar as it hides and shows, so
-   a full-height page stops being 60px too tall (and stops jumping) on a phone. */
+/* The app fills the screen and no more. `dvh` is the *visible* height and it
+   tracks the mobile URL bar as it slides away, so a page that fits doesn't
+   scroll at all and a full-height one isn't 60px too tall. `vh` first as the
+   fallback for anything too old to know `dvh` (iOS < 15.4) — there the old
+   behaviour is the worst case, not a broken layout. */
 #root {
+  min-height: 100vh;
   min-height: 100dvh;
 }
 

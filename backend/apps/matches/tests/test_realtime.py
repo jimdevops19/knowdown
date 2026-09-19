@@ -34,7 +34,7 @@ from apps.matches import selectors as match_selectors
 from apps.matches.authentication import JWTAuthMiddlewareStack
 from apps.matches.models import Matchup
 from apps.matches.routing import websocket_urlpatterns
-from apps.matches.tests.factories import stock_category
+from apps.matches.tests.factories import every_default_clock, stock_category
 from apps.players.tests.factories import make_player
 from apps.questions.api.serializers import FORBIDDEN_FIELD_NAMES
 from apps.questions.models import SingleAnswerQuestion
@@ -251,11 +251,11 @@ class MatchupPlayTests(TransactionTestCase):
 
     async def test_a_question_nobody_answers_still_closes(self):
         # Both the watchdog's own clock (consumers) and the deadline the
-        # service checks against (services) read ``time_limit_ms_for`` from
-        # ``apps.matches.constants`` at call time, so patching the one
-        # default it falls back to is enough to make both agree time has run
-        # out immediately.
-        with mock.patch("apps.matches.constants.FALLBACK_QUESTION_TIME_LIMIT_MS", 0):
+        # service checks against (services) read ``time_limit_ms_for`` at call
+        # time, and it reads each question model's own
+        # ``DEFAULT_TIME_LIMIT_SECONDS``, so zeroing those is enough to make
+        # both agree time has run out immediately.
+        with every_default_clock(0):
             matchup_id, sock_one, sock_two = await self._paired_players()
             await sock_one.receive_json_from(timeout=5)
             await sock_two.receive_json_from(timeout=5)

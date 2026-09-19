@@ -265,6 +265,31 @@ Positions and orders (`option.order`, `correct_position`, matrix row/column
 `order`) are **derived from the list order in the YAML**, never authored — which
 is why no resource file can have a gap or a duplicate position.
 
+#### How long a question stays open
+
+A question's clock has two tiers, and `apps.matches.constants.time_limit_ms_for`
+is the only place they are resolved: the question's own authored
+`time_limit_seconds` (rare, `None` for almost every row), and otherwise the
+`DEFAULT_TIME_LIMIT_SECONDS` **class constant on the model that answer shape is
+stored in**.
+
+The default lives on the class because "how long does it take to answer one of
+these" is a property of the answer shape, which is the thing the class *is*:
+`BaseQuestion` sets ten seconds, and a type that needs longer overrides it beside
+the fields that explain why — `ColumnsRowsQuestion` 20 (a grid is several sparse
+claims, not one), `GradualHintsQuestion` 40 (its clues are still arriving),
+`NameAsManyQuestion` 30 (the clock *is* the question, and its prompt says the
+number out loud). A per-type table in the match engine could be added to the
+registry and forgotten; a subclass cannot exist without inheriting or stating
+its own. `apps.matches.tests.test_constants` walks `QUESTION_MODELS` to prove
+every registered type resolves to its own class's number.
+
+It is **not** a field default: the column has to keep telling "the author asked
+for 45 seconds" apart from "the author said nothing", and a default written into
+every row would freeze today's number into the whole catalog. `apps.matches`
+still owns what a clock is *worth* — `FALLBACK_QUESTION_TIME_LIMIT_SECONDS`
+there is an alias for the ordinary ten, and the speed curve is entirely its own.
+
 #### Answering: three outcomes, not two
 
 `schemas/answers.py` is the payload contract (a discriminated union, strict about
@@ -369,12 +394,11 @@ the clues already due.
 
 **The clock has to outlast the schedule**, or a question closes on a player
 still waiting for a clue. Checked at load (`schemas.GradualHintsSpec`) against
-whichever clock the question will get — its own `time_limit_seconds`, or the
-type's fallback, 40s. That fallback is `apps.matches`' number and is *mirrored*
-in `apps.questions.constants.GRADUAL_HINTS_FALLBACK_CLOCK_SECONDS` (the loader
-needs it, and importing the match engine into the question schemas would invert
-every other dependency here) — `apps.matches.tests.test_constants` asserts the
-two agree.
+whichever clock the question will get — its own `time_limit_seconds`, or its
+type's default, `GradualHintsQuestion.DEFAULT_TIME_LIMIT_SECONDS` (40s). The
+loader reads that constant directly, off the model, rather than a copy: the
+default belongs to the question class (see "How long a question stays open"),
+so checking it here imports nothing from the match engine.
 
 #### name-as-many — the answer is a list, and a rarer name is worth more
 
@@ -406,8 +430,8 @@ reaches into `apps.matches`: `constants.SPEED_SCORED_TYPES` is every type *but*
 this one, so `score_answer` does not multiply it by speed. A curve paying 100
 for a complete answer at one second and 50 for the same answer at twenty-nine
 would be paying players to stop typing. The race is still a race — both sides
-spend the same thirty seconds (`FALLBACK_QUESTION_TIME_LIMITS_MS`), and the
-winner is whoever went deeper in them.
+spend the same thirty seconds (`NameAsManyQuestion
+.DEFAULT_TIME_LIMIT_SECONDS`), and the winner is whoever went deeper in them.
 
 **The whole list is submitted once.** There is no per-name verdict on the wire
 and there must not be one: a board that asked the server about each name as it
@@ -562,6 +586,19 @@ client cannot race the opponent's clock by asking the server to call time.
   exactly once, the same as any other result. `Matchup.outcome` (`played` /
   `abandoned`) is how a caller tells the two apart without inferring it from
   which rows exist.
+- **A tie is settled by play first** (`services/tiebreak.py`). When the agreed
+  board runs out and the scores are *exactly* level, `complete_question` draws
+  one more question — appended past `Matchup.question_count`, flagged
+  `MatchupQuestion.is_tiebreaker`, chosen at random from the category minus
+  everything this matchup already played, and dealt through the same
+  `start_question`/`submit_answer` path as any other, so neither the bots, the
+  consumers nor the client need a special case for it. It is asked again each
+  time the extended match comes out level, up to
+  `constants.MAX_TIEBREAKER_QUESTIONS`; past the cap, or in a category with
+  nothing unplayed left to ask, the match falls back to
+  `complete_matchup`'s original rules (lower total answer time, then no winner
+  at all). `question_count` deliberately does not move — it is the length both
+  players agreed to, and sudden death is played on top of it.
 - **Idempotency** is doubled the way display-name uniqueness is in
   `apps.players`: `submit_answer` looks up an existing `PlayerAnswer` before
   scoring, and a `UniqueConstraint` on `(matchup_question, player)` is the

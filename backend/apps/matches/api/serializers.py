@@ -59,6 +59,11 @@ class MatchupQuestionSerializer(serializers.Serializer):
     """
 
     order = serializers.IntegerField()
+    #: Sudden death — a question drawn past ``Matchup.question_count`` because
+    #: the match was level when the agreed board ran out
+    #: (``services.tiebreak``). Published so a box score can say why a
+    #: three-question match has a fourth line in it.
+    is_tiebreaker = serializers.BooleanField()
     started_at = serializers.DateTimeField()
     completed_at = serializers.DateTimeField()
     question = serializers.SerializerMethodField()

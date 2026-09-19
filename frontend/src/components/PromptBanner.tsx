@@ -11,13 +11,18 @@ import { X } from 'lucide-react'
  * own, a prompt is a question waiting for an answer and stays until it gets
  * one. There is at most a handful of them, ever.
  *
- * Where they sit is the other half. Pinned to the bottom edge they would land
- * on the phone tab bar and under the iOS home indicator, and on a desk they
- * would land on the toast rail — so on phone-shaped viewports the stack hangs
- * from 65% of the *dynamic* viewport height (`dvh`, so a collapsing URL bar
- * doesn't drag it around): low enough to stay out of what is being read, high
- * enough to be fully on screen and inside thumb reach. Desks keep a bottom
- * edge, on the left, opposite the toasts.
+ * Where they sit is the other half. The naive `bottom: 0` lands on the phone
+ * tab bar and under the iOS home indicator, so the stack sits on top of the
+ * bar instead — `--nav-bar-inset` is the bar's height plus the home indicator,
+ * already stated once in index.css, and half a rem of air above it.
+ *
+ * It used to hang from `top: 65dvh`, which put a fixed, full-width bar two
+ * thirds of the way down an otherwise empty screen. Nothing else in the app
+ * floats there, so it didn't read as a prompt about the app — it read as the
+ * navigation having come loose from the bottom of the window, which is exactly
+ * what the first person to see it on a phone reported. A banner belongs against
+ * an edge. Desks keep the bottom edge too, on the left, opposite the toasts
+ * (where `--nav-bar-inset` is 0 and the offset collapses to plain padding).
  *
  * Everything portals into one host element rather than each banner reaching
  * for <body> on its own: two `fixed` banners pinned to the same edge sit on
@@ -40,9 +45,9 @@ function promptHost(): HTMLElement {
   // about what just happened. `pointer-events-none` so the full-width column
   // doesn't swallow taps that miss a card; each card turns them back on.
   host.className = [
-    'pointer-events-none fixed inset-x-0 top-[65dvh] z-50 flex flex-col items-center gap-2 px-4',
+    'pointer-events-none fixed inset-x-0 bottom-[calc(var(--nav-bar-inset)+0.5rem)] z-50 flex flex-col items-center gap-2 px-4',
     // Desk: the bottom-left corner, clear of the bottom-right toast rail.
-    'desk:inset-x-auto desk:bottom-0 desk:left-0 desk:top-auto desk:items-start desk:p-4',
+    'desk:inset-x-auto desk:bottom-0 desk:left-0 desk:items-start desk:p-4',
   ].join(' ')
   document.body.appendChild(host)
   return host

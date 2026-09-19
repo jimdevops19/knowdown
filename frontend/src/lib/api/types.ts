@@ -195,6 +195,10 @@ export interface PlayerAnswerRecord {
  *  looks up its own row by name. */
 export interface MatchupQuestionRecord {
   order: number
+  /** Sudden death — a question the server added past the agreed match length
+   *  because the scores were exactly level when the board ran out. It is why a
+   *  three-question match can have a fourth line in its box score. */
+  is_tiebreaker: boolean
   started_at: string
   completed_at: string
   question: PlayQuestion

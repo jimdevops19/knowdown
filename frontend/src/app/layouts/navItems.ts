@@ -51,7 +51,10 @@ const PLAY_ITEM: NavItem = {
  */
 export const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Home', icon: Home },
-  { to: '/rankings', label: 'Rankings', icon: Medal, authOnly: true },
+  // `Ranks` in the bar: at five tabs on a 320px phone the slot is 58px and
+  // "Rankings" is the one label that runs past it, so the tab showed
+  // "Rankin…". The accessible name stays the full word.
+  { to: '/rankings', label: 'Rankings', tabLabel: 'Ranks', icon: Medal, authOnly: true },
   // Public: the rules are the clearest answer there is to "what would I be
   // signing up for", so they cannot sit behind signing up.
   { to: '/how-to-play', label: 'How to play', tabLabel: 'Rules', icon: BookOpen },

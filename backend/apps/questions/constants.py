@@ -15,7 +15,6 @@ from apps.questions.models import MAX_LEVEL
 
 __all__ = [
     "CATALOG_DEPTH_TARGET",
-    "GRADUAL_HINTS_FALLBACK_CLOCK_SECONDS",
     "HINT_ANSWER_WINDOW_SECONDS",
     "LEVEL_BANDS",
     "LONGEST_MATCH_QUESTION_COUNT",
@@ -85,27 +84,14 @@ CATALOG_DEPTH_TARGET = 50
 #: A hint schedule that runs to the edge of the time limit is a question whose
 #: last clue is decorative — it appears with no time to use it, and the player
 #: who was going to get it right anyway has already answered. Ten seconds is
-#: the free-text clock (``apps.matches.constants
-#: .FALLBACK_QUESTION_TIME_LIMIT_SECONDS``), which is what this is: once the
-#: hints have stopped, what is left is a typed answer against a clock.
+#: the ordinary question's clock (``BaseQuestion.DEFAULT_TIME_LIMIT_SECONDS``),
+#: which is what this is: once the hints have stopped, what is left is a typed
+#: answer against a clock.
 #:
 #: Checked when the file is loaded (``schemas.GradualHintsSpec``), where an
 #: over-long schedule is a question an author can still fix, rather than at
 #: play time where it is a clue nobody sees.
 HINT_ANSWER_WINDOW_SECONDS = 10
-
-#: What a gradual-hints question gets for a clock when it authors no
-#: ``time_limit_seconds`` of its own.
-#:
-#: **Owned by ``apps.matches``**, which is the domain that decides how long a
-#: question stays open — this is a *copy*, kept here because the load-time
-#: check above needs a number and importing the match engine into the question
-#: schemas would invert every other dependency in the platform. Exactly the
-#: arrangement ``LONGEST_MATCH_QUESTION_COUNT`` describes above, and it is
-#: held to the same standard: ``apps.matches.tests.test_constants`` asserts the
-#: two agree, so the copy cannot quietly drift into refusing questions the
-#: engine would have been happy to run (or, worse, accepting ones it cuts off).
-GRADUAL_HINTS_FALLBACK_CLOCK_SECONDS = 40
 
 
 def band_for_level(level: int) -> LevelBand:

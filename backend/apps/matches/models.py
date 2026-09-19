@@ -159,6 +159,15 @@ class MatchupQuestion(models.Model):
     #: 1-indexed position in the match, the order the server drew it in.
     order = models.PositiveSmallIntegerField()
 
+    #: Drawn *after* the board was frozen, because the scores were level once
+    #: the last question closed — see ``apps.matches.services.tiebreak``. Such
+    #: a row sits past ``Matchup.question_count``, which stays the length of
+    #: the match agreed at ``create_matchup``: a tie-breaker is sudden death
+    #: played on top of that match, not a longer match. The flag is what lets
+    #: the board a player is looking at say so, and what
+    #: ``tiebreak.tiebreaker_count`` counts against its cap.
+    is_tiebreaker = models.BooleanField(default=False)
+
     started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
 
@@ -272,7 +281,7 @@ class BotProfile(BaseModel):
     #: fixed number of milliseconds. A fixed millisecond band (the original
     #: shape of this field) reads as "fast" or "slow" only against the
     #: fallback ten-second question — a matrix question's own 20-second limit
-    #: (``constants.FALLBACK_QUESTION_TIME_LIMITS_MS``) would make even the
+    #: (``ColumnsRowsQuestion.DEFAULT_TIME_LIMIT_SECONDS``) would make even the
     #: slowest bot look instant, because it would still be answering in under
     #: half the time given. Storing a fraction and multiplying by
     #: ``apps.matches.constants.time_limit_ms_for(...)`` at answer time (see

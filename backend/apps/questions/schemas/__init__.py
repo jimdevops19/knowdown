@@ -21,10 +21,7 @@ from typing import Annotated, Literal, Union
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from apps.questions.career_stats import load_career_stats
-from apps.questions.constants import (
-    GRADUAL_HINTS_FALLBACK_CLOCK_SECONDS,
-    HINT_ANSWER_WINDOW_SECONDS,
-)
+from apps.questions.constants import HINT_ANSWER_WINDOW_SECONDS
 from apps.questions.models import (
     DEFAULT_HINT_INTERVAL_SECONDS,
     AnswerFieldKind,
@@ -36,6 +33,7 @@ from apps.questions.models import (
     MAX_PROBABILITY_SCORE,
     MIN_PROBABILITY_SCORE,
     MIN_TARGET_SCORE,
+    GradualHintsQuestion,
     MatrixKind,
     NameAsManyDataset,
     QuestionType,
@@ -80,8 +78,8 @@ class _QuestionSpec(_Strict):
     #: ``images/`` folder. Not the answer options; see ImageOptionSpec for those.
     image: str | None = None
     #: Overrides how long a matchup leaves this question open, in seconds.
-    #: Rare — most questions take their type's fallback
-    #: (``apps.matches.constants.time_limit_ms_for``) — but an unusually
+    #: Rare — most questions take their model's
+    #: ``DEFAULT_TIME_LIMIT_SECONDS`` — but an unusually
     #: fiddly question can ask for more without every question of its type
     #: getting it too. Unset (``None``) is the ordinary case.
     time_limit_seconds: int | None = Field(default=None, ge=1, le=600)
@@ -324,7 +322,8 @@ class GradualHintsSpec(_QuestionSpec):
 
         The schedule and the clock are authored in two different places — the
         hints here, the clock in ``time_limit_seconds`` or (far more often) in
-        the match engine's per-type fallback — and nothing at play time would
+        ``GradualHintsQuestion.DEFAULT_TIME_LIMIT_SECONDS`` — and nothing at
+        play time would
         notice them disagreeing: the question would simply close on a player
         who was still waiting for a clue that was never going to arrive. So it
         is checked here, against whichever of the two clocks this question will
@@ -332,7 +331,7 @@ class GradualHintsSpec(_QuestionSpec):
         hints, a tighter interval, or a ``time_limit_seconds`` that covers it.
         """
         last_hint_at = (len(self.hints) - 1) * self.hint_interval_seconds
-        clock = self.time_limit_seconds or GRADUAL_HINTS_FALLBACK_CLOCK_SECONDS
+        clock = self.time_limit_seconds or GradualHintsQuestion.DEFAULT_TIME_LIMIT_SECONDS
         if clock - last_hint_at < HINT_ANSWER_WINDOW_SECONDS:
             raise ValueError(
                 f"gradual-hints question {self.slug!r}: the last of its "

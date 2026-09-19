@@ -809,8 +809,8 @@ class RefusalTests(ResourceTreeTestCase):
         Nothing at play time would notice: the question would simply close on a
         player still waiting for a hint that was never going to arrive. So it is
         refused here, against whichever clock the question will actually get —
-        this one authors none, so it is the match engine's per-type fallback,
-        mirrored in ``apps.questions.constants``.
+        this one authors none, so it is its type's own
+        ``GradualHintsQuestion.DEFAULT_TIME_LIMIT_SECONDS``.
         """
         self.write_file(
             "q.yaml",

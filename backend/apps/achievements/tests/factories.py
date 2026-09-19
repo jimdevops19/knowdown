@@ -7,6 +7,7 @@ from __future__ import annotations
 import uuid
 
 from apps.categories.models import Category
+from apps.matches import selectors as match_selectors
 from apps.matches import services as match_services
 from apps.matches.models import Matchup, MatchupQuestion, PlayerAnswer
 from apps.matches.tests.factories import stock_category
@@ -26,16 +27,25 @@ def play_matchup(
     """A real matchup, played through ``apps.matches.services`` to
     ``COMPLETED`` — the path that actually fires
     ``award_achievements_for_matchup``. Alice and Bob answer every question the
-    same way throughout, which is enough to control who wins."""
+    same way throughout, which is enough to control who wins.
+
+    Plays whatever the engine deals rather than exactly ``question_count``
+    questions: two sides answering identically finish level, and a level match
+    is extended by sudden-death questions (``apps.matches.services.tiebreak``)
+    until the cap runs out. Following ``current_question`` is what keeps this
+    fixture's promise — a matchup that has actually reached ``COMPLETED``."""
     category = stock_category(category=category)
     matchup = match_services.create_matchup(
         category=category, player_one=alice, player_two=bob, question_count=question_count
     )
     match_services.start_matchup(matchup=matchup)
 
-    for order in range(1, question_count + 1):
+    while True:
         matchup.refresh_from_db()
-        row = matchup.questions.get(order=order)
+        row = match_selectors.current_question(matchup=matchup)
+        if row is None:
+            break
+        order = row.order
         concrete = get_question(ref=QuestionRef(row.question_type, row.question_id))
         correct_id = concrete.options.get(is_correct=True).id
         wrong_id = concrete.options.filter(is_correct=False).first().id

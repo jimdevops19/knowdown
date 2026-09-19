@@ -124,7 +124,10 @@ def _check_five_win_streak(*, matchup: Matchup, player: Player, side: MatchupPla
 
 
 def _check_perfect_match(*, matchup: Matchup, player: Player, side: MatchupPlayer) -> bool:
-    return side.correct_answers == matchup.question_count
+    # ``>=`` rather than ``==``: a level match is extended by sudden-death
+    # questions past ``question_count`` (``apps.matches.services.tiebreak``),
+    # and answering those right as well is not a reason to lose the badge.
+    return side.correct_answers >= matchup.question_count
 
 
 def _check_hundred_questions_answered(

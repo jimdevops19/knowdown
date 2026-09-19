@@ -42,7 +42,13 @@ export function Searching({
     <div className="mx-auto flex w-full max-w-sm flex-col items-center gap-6 py-8 text-center">
       <StatusBadge tone="live">Finding an opponent</StatusBadge>
 
-      <div className="relative flex h-40 w-40 items-center justify-center">
+      {/* 32 units on a small phone, 40 from `sm` up. The rings ping out to 2.2x
+          the box, and a transform counts towards the page's scrollable
+          overflow: at 160px that is a 352px ring, which is wider than a 320px
+          phone and gave every search screen a sideways scroll of a few pixels.
+          128px keeps the whole pulse inside the narrowest viewport the app
+          supports. */}
+      <div className="relative flex h-32 w-32 items-center justify-center sm:h-40 sm:w-40">
         {/* Two rings on the same clock, half a period apart, so the pulse is
             continuous rather than a single ping with a gap after it. */}
         {[0, 1].map((index) => (

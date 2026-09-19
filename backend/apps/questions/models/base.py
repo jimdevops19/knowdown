@@ -93,13 +93,32 @@ class BaseQuestion(BaseModel):
     is_active = models.BooleanField(default=True)
 
     #: Overrides how long a matchup leaves this question open, in seconds.
-    #: ``None`` — the common case — means "no override": a matchup falls back
-    #: to ``apps.matches.constants.time_limit_ms_for``'s per-type default, and
-    #: below that, its default of last resort. Authored per question, in YAML,
-    #: the same as ``level`` or ``tags`` — this app only carries the number;
+    #: ``None`` — the common case — means "no override": the question is worth
+    #: whatever its *type* says one of its shape is worth,
+    #: :attr:`DEFAULT_TIME_LIMIT_SECONDS`. Authored per question, in YAML, the
+    #: same as ``level`` or ``tags`` — this app only carries the number;
     #: deciding what it is *worth* is ``apps.matches``' the same way scoring is
     #: (``backend/CLAUDE.md``).
     time_limit_seconds = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    #: How long a question of this shape stays open when it authors no
+    #: ``time_limit_seconds`` of its own, in seconds.
+    #:
+    #: A class attribute rather than a table in the match engine, because "how
+    #: long does it take to answer one of these" is a property of the *answer
+    #: shape* — the same thing the class is — and a type whose default lived
+    #: elsewhere could be added without one. Subclassing is what states the
+    #: exception: a type that says nothing inherits the number below, which is
+    #: the ordinary glance-and-answer question, and a type that needs longer
+    #: overrides it beside the fields that make it need longer.
+    #:
+    #: Not a field default, because the column has to keep telling "authored"
+    #: apart from "not authored": a default would write ten into every row and
+    #: the day this number changes, every question already loaded would keep
+    #: the old one. Read through ``apps.matches.constants.time_limit_ms_for``,
+    #: which is where the tiers (authored override, then this) are resolved
+    #: once for the engine, the bots and the tester alike.
+    DEFAULT_TIME_LIMIT_SECONDS = 10
 
     class Meta:
         abstract = True

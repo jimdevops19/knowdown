@@ -39,6 +39,10 @@ MATCH_FOUND = "match.found"
 #: itself. Carries the play-time board (``questions.api.serializers.
 #: serialize_for_play``) — never a field named ``answer``, ``is_correct``,
 #: ``correct_position`` or any of ``FORBIDDEN_FIELD_NAMES``.
+#: ``is_tiebreaker`` marks the sudden-death questions a level match is
+#: extended by once its agreed board runs out (``services.tiebreak``) — a
+#: label for the client, nothing more: such a question is dealt, clocked,
+#: answered and closed exactly like any other.
 QUESTION_STARTED = "question.started"
 
 #: One clue of a ``gradual-hints`` question came due. Carries the hint's text

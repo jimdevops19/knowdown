@@ -225,7 +225,7 @@ fame.
 | Credit per question type | `backend/apps/questions/services/evaluation.py` (`ANSWER_EVALUATORS`) |
 | Points from credit + speed | `backend/apps/matches/constants.py` (`score_answer`, `MAX_QUESTION_POINTS`, `MIN_SPEED_FACTOR`, `SPEED_SCORED_TYPES`) |
 | Popularity/rarity grading | `backend/apps/questions/models` (`probability_score`, `DEFAULT_PROBABILITY_SCORE`) and `backend/apps/questions/career_stats.py` |
-| Question time limits | `backend/apps/matches/constants.py` (`FALLBACK_QUESTION_TIME_LIMITS_MS`, `time_limit_ms_for`) |
+| Question time limits | `backend/apps/questions/models/` (each model's `DEFAULT_TIME_LIMIT_SECONDS`), resolved by `backend/apps/matches/constants.py` (`time_limit_ms_for`) |
 | Ladder rating (Elo) | `backend/apps/rankings/services/ratings.py` |
 | Board draw / exposure bias | `backend/apps/questions/selectors/__init__.py` (`select_questions`), `backend/apps/exposure/selectors/__init__.py` (`pick_least_exposed`) |
 

@@ -230,7 +230,7 @@ class SelectMatchQuestionsTests(TestCase):
 
 class MatrixTimeLimitTests(TestCase):
     """A matrix question gets more clock than the default
-    (``apps.matches.constants.FALLBACK_QUESTION_TIME_LIMITS_MS``) — several sparse,
+    (``ColumnsRowsQuestion.DEFAULT_TIME_LIMIT_SECONDS``) — several sparse,
     independent cells read off a grid take longer to work through than one
     glance-and-answer claim."""
 
@@ -244,7 +244,7 @@ class MatrixTimeLimitTests(TestCase):
             FALLBACK_QUESTION_TIME_LIMIT_MS,
         )
 
-    def test_a_question_s_own_time_limit_outranks_its_type_s_fallback(self):
+    def test_a_question_s_own_time_limit_outranks_its_type_s_default(self):
         self.assertEqual(
             time_limit_ms_for(question_type=QuestionType.MATRIX, override_seconds=5), 5_000
         )

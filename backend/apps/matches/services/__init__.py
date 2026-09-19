@@ -51,6 +51,7 @@ from apps.matches.constants import (
     time_limit_ms_for,
 )
 from apps.matches.models import Matchup, MatchupPlayer, MatchupQuestion, PlayerAnswer
+from apps.matches.services.tiebreak import add_tiebreaker_question
 from apps.players.models import Player
 from apps.questions.selectors import QuestionRef
 from apps.questions.selectors import get_question as get_concrete_question
@@ -63,6 +64,7 @@ logger = get_logger(__name__)
 
 __all__ = [
     "abandon_matchup",
+    "add_tiebreaker_question",
     "complete_matchup",
     "complete_question",
     "create_matchup",
@@ -305,7 +307,8 @@ def submit_answer(
 
 @transaction.atomic
 def complete_question(*, matchup: Matchup, order: int) -> MatchupQuestion:
-    """Closes one question and advances the match.
+    """Closes one question and advances the match — to the next question, to
+    a tie-breaker drawn on the spot (``services.tiebreak``), or to the end.
 
     Refuses to close early: a question with players still owed an answer may
     only be completed once its time limit has actually elapsed — otherwise a
@@ -339,10 +342,20 @@ def complete_question(*, matchup: Matchup, order: int) -> MatchupQuestion:
     question.completed_at = timezone.now()
     question.save(update_fields=["completed_at"])
 
-    if order < matchup.question_count:
-        start_question(matchup=matchup, order=order + 1)
-    else:
+    next_order = order + 1
+    if next_order > matchup.question_count:
+        # The agreed board is played out. A level match gets one more question
+        # instead of being settled on total answer time — see
+        # ``services.tiebreak``, which answers ``None`` the moment it has
+        # nothing to add (not tied, cap reached, catalog exhausted) and hands
+        # the match back to ``complete_matchup``'s own tie rules.
+        tiebreaker = add_tiebreaker_question(matchup=matchup)
+        next_order = tiebreaker.order if tiebreaker is not None else None
+
+    if next_order is None:
         complete_matchup(matchup=matchup)
+    else:
+        start_question(matchup=matchup, order=next_order)
     return question
 
 
@@ -375,7 +388,10 @@ def complete_matchup(*, matchup: Matchup) -> Matchup:
 
     Higher total score wins; a tie on score falls to whoever spent less total
     time; a tie on both leaves neither side marked a winner rather than
-    picking one arbitrarily. Idempotent — a matchup already ``COMPLETED`` is
+    picking one arbitrarily. By the time a tie reaches either of those rules
+    the match has already been given every sudden-death question
+    ``services.tiebreak`` had to offer, so they settle only the ties that play
+    could not. Idempotent — a matchup already ``COMPLETED`` is
     returned unchanged, since ``complete_question`` may call this and
     ``abandon_matchup`` may race it.
     """

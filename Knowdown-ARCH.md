@@ -96,8 +96,8 @@ calls `submit_answer` **is** its response time, not a number it reports.
 in `[0.0, 1.0]` — instead of a fixed millisecond band. This matters because
 not every question gets the same amount of time: `apps.matches.constants
 .time_limit_ms_for` already gives a matrix question 20 seconds against the
-10-second fallback every other type gets
-(`FALLBACK_QUESTION_TIME_LIMITS_MS`), and any future question type or authored
+10-second default every other type gets
+(each model's `DEFAULT_TIME_LIMIT_SECONDS`), and any future question type or authored
 `time_limit_seconds` override can hand out a different number again. A fixed
 "answers in 2–9 seconds" band only reads as fast-to-slow against *one*
 specific clock; against a 20-second question, even the slowest bot (9s) would

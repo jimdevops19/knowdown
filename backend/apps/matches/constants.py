@@ -10,15 +10,15 @@ server-measured response time into points.
 
 from __future__ import annotations
 
-from apps.questions.models import QuestionType
+from apps.questions.models import QUESTION_MODELS, BaseQuestion, QuestionType
 
 __all__ = [
     "DEFAULT_PLAYER_RATING",
     "FALLBACK_QUESTION_TIME_LIMIT_MS",
     "FALLBACK_QUESTION_TIME_LIMIT_SECONDS",
-    "FALLBACK_QUESTION_TIME_LIMITS_MS",
     "MATCH_QUESTION_COUNTS",
     "MAX_QUESTION_POINTS",
+    "MAX_TIEBREAKER_QUESTIONS",
     "MIN_SPEED_FACTOR",
     "PLAYERS_PER_MATCHUP",
     "POOL_WAITING_TTL_SECONDS",
@@ -41,6 +41,17 @@ MATCH_QUESTION_COUNTS: tuple[int, ...] = (3, 5, 7)
 #: uniqueness is enforced twice in ``apps.players``.
 PLAYERS_PER_MATCHUP = 2
 
+#: How many sudden-death questions a level match may be extended by before
+#: the engine stops asking (``apps.matches.services.tiebreak``). A cap rather
+#: than "until someone wins" because two players who have matched each other
+#: point for point through seven questions can keep doing it, and a match that
+#: cannot end is worse than one that ends on the tie rules
+#: ``services.complete_matchup`` already has (total answer time, then no
+#: winner at all). Three is enough that the overwhelming majority of ties are
+#: settled by play rather than by stopwatch, and short enough that the extra
+#: round is still recognisably an overtime.
+MAX_TIEBREAKER_QUESTIONS = 3
+
 #: A player entering a category with no ``apps.rankings.Ranking`` row yet
 #: starts here. Lives beside the match numbers rather than in ``rankings``
 #: because seeding happens the moment a matchup needs a rating that is not
@@ -50,44 +61,17 @@ DEFAULT_PLAYER_RATING = 1000
 #: How long a question stays open once ``start_question`` stamps it, in
 #: server time, when *nothing more specific* says otherwise. The client
 #: displays a countdown from this number; it is never read back from the
-#: client. "Fallback" because two more specific numbers outrank it — see
-#: ``time_limit_ms_for``.
-FALLBACK_QUESTION_TIME_LIMIT_SECONDS = 10
-FALLBACK_QUESTION_TIME_LIMIT_MS = FALLBACK_QUESTION_TIME_LIMIT_SECONDS * 1000
-
-#: Per-``QuestionType`` fallbacks, used when a question does not author its
-#: own ``time_limit_seconds``. A matrix question is several sparse,
-#: independent claims read off a grid (``evaluation`` scores it "per authored
-#: cell" for the same reason) rather than one glance-and-answer claim, so it
-#: gets more clock than a type left out here, which falls all the way back to
-#: ``FALLBACK_QUESTION_TIME_LIMIT_MS`` in ``time_limit_ms_for``. Keyed by
-#: type, not by category: a board is drawn from one category but categories
-#: are independent of question types on purpose (``backend/CLAUDE.md``), so
-#: this has to live wherever "how long is fair" is decided, not wherever
-#: "what is this about" is decided.
+#: client. "Fallback" because a question may outrank it with a
+#: ``time_limit_seconds`` of its own — see ``time_limit_ms_for``.
 #:
-#: A gradual-hints question is the other case, and a stricter one: it is not
-#: merely *harder* to answer in ten seconds, it is not finished being asked.
-#: Its clues are paid out on a timer (``apps.questions.selectors
-#: .reveal_schedule``) and a clock that closed the question before the last one
-#: landed would be a question whose author wrote a clue nobody ever reads. The
-#: number is mirrored in ``apps.questions.constants
-#: .GRADUAL_HINTS_FALLBACK_CLOCK_SECONDS`` — where the loader needs it to refuse
-#: a schedule that will not fit, and where the comment explains why a copy is
-#: better than an import that would invert this platform's dependencies.
-#: ``tests.test_constants`` asserts the two agree.
-#: A ``name-as-many`` question is the third case, and the one where the clock
-#: *is* the question: "name as many as you can in thirty seconds" is authored
-#: with the number in the prompt, so this fallback and the words a player reads
-#: have to agree. Thirty seconds is long enough to be worth typing into and
-#: short enough to stay a race — and unlike the other two, a question of this
-#: type that wants a different clock should say so in its own wording and its
-#: own ``time_limit_seconds`` together.
-FALLBACK_QUESTION_TIME_LIMITS_MS: dict[QuestionType, int] = {
-    QuestionType.MATRIX: 20_000,
-    QuestionType.GRADUAL_HINTS: 40_000,
-    QuestionType.NAME_AS_MANY: 30_000,
-}
+#: The number itself belongs to the question models
+#: (``BaseQuestion.DEFAULT_TIME_LIMIT_SECONDS``): what an ordinary question is
+#: worth on the clock is a property of its answer shape, and each shape states
+#: its own beside the fields that justify it. This is the alias the engine and
+#: its tests name it by, so nothing here has to reach for a model class to say
+#: "the ordinary clock".
+FALLBACK_QUESTION_TIME_LIMIT_SECONDS = BaseQuestion.DEFAULT_TIME_LIMIT_SECONDS
+FALLBACK_QUESTION_TIME_LIMIT_MS = FALLBACK_QUESTION_TIME_LIMIT_SECONDS * 1000
 
 #: How long a question is on screen before its clock starts running — time to
 #: read it before the countdown (and eligibility to be timed out) begins.
@@ -112,19 +96,28 @@ QUESTION_READ_DELAY_MS = QUESTION_READ_DELAY_SECONDS * 1000
 def time_limit_ms_for(*, question_type: QuestionType, override_seconds: int | None = None) -> int:
     """How long one question stays open, in server time.
 
-    Three tiers, most specific first: ``override_seconds`` — the question's
-    own authored ``time_limit_seconds``, straight off its row, ``None`` when
-    the author left it unset; the type's fallback
-    (``FALLBACK_QUESTION_TIME_LIMITS_MS``); and, absent both, the fallback of
-    last resort, ``FALLBACK_QUESTION_TIME_LIMIT_MS``. This is the one place
-    both ``services`` (measuring an answer against the clock) and the
-    realtime transport (telling a client how long to count down from, and how
-    long its own watchdog should sleep) ask the question, so the two can
+    Two tiers, most specific first: ``override_seconds`` — the question's own
+    authored ``time_limit_seconds``, straight off its row, ``None`` when the
+    author left it unset; and the default for its *kind*, the
+    ``DEFAULT_TIME_LIMIT_SECONDS`` on the model that shape is stored in, which
+    is ten seconds for every type that does not say otherwise
+    (:data:`FALLBACK_QUESTION_TIME_LIMIT_SECONDS`).
+
+    Looked up through ``QUESTION_MODELS`` rather than through a table here, so
+    a new question type arrives with its own clock already decided — a type
+    that is added to the registry and forgotten here is not a type quietly
+    playing at somebody else's tempo. This app still owns the *tiers*: it is
+    the one place both ``services`` (measuring an answer against the clock) and
+    the realtime transport (telling a client how long to count down from, and
+    how long its own watchdog should sleep) ask the question, so the two can
     never quietly disagree about when a question closes.
     """
     if override_seconds is not None:
         return override_seconds * 1000
-    return FALLBACK_QUESTION_TIME_LIMITS_MS.get(question_type, FALLBACK_QUESTION_TIME_LIMIT_MS)
+    model = QUESTION_MODELS.get(question_type)
+    if model is None:
+        return FALLBACK_QUESTION_TIME_LIMIT_MS
+    return model.DEFAULT_TIME_LIMIT_SECONDS * 1000
 
 
 #: What a fully correct, instant answer is worth.

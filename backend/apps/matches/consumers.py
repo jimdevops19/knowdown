@@ -705,6 +705,7 @@ class MatchupConsumer(_WatchdogMixin, _HintRevealMixin, AsyncJsonWebsocketConsum
                 "question": message["question"],
                 "time_limit_ms": message["time_limit_ms"],
                 "started_at_ms": message["started_at_ms"],
+                "is_tiebreaker": message.get("is_tiebreaker", False),
             }
         )
         self._spawn(
@@ -791,6 +792,7 @@ def _current_state(*, matchup) -> dict | None:
             question_type=question.question_type, override_seconds=concrete.time_limit_seconds
         ),
         "started_at_ms": _epoch_ms(question.started_at),
+        "is_tiebreaker": question.is_tiebreaker,
     }
 
 
@@ -906,6 +908,7 @@ def _close_question_if_ready(*, matchup_id: str, order: int) -> None:
             board=outcome["next"]["question"],
             time_limit_ms=outcome["next"]["time_limit_ms"],
             started_at_ms=outcome["next"]["started_at_ms"],
+            is_tiebreaker=outcome["next"]["is_tiebreaker"],
         )
     if outcome["summary"] is not None:
         publish.publish_match_completed(matchup_id=matchup_id, summary=outcome["summary"])
@@ -965,6 +968,7 @@ def _try_close_question(*, matchup_id: str, order: int) -> dict | None:
                     override_seconds=upcoming_concrete.time_limit_seconds,
                 ),
                 "started_at_ms": _epoch_ms(upcoming.started_at),
+                "is_tiebreaker": upcoming.is_tiebreaker,
             }
 
     return {"results": results, "next": next_question, "summary": summary}

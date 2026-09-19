@@ -4,13 +4,37 @@ services the way ``accounts.tests.factories``/``players.tests.factories`` do."""
 from __future__ import annotations
 
 import uuid
+from collections.abc import Iterator
+from contextlib import ExitStack, contextmanager
+from unittest import mock
 
 from apps.categories.models import Category
 from apps.matches import services
 from apps.matches.models import Matchup
 from apps.players.models import Player
 from apps.players.tests.factories import make_player
+from apps.questions.models import QUESTION_MODELS
 from apps.questions.tests.factories import make_category, make_single_answer
+
+
+@contextmanager
+def every_default_clock(seconds: int) -> Iterator[None]:
+    """Give every question type the same default time limit for the duration.
+
+    The clock a question gets with no authored override is its model's
+    ``DEFAULT_TIME_LIMIT_SECONDS`` (resolved by
+    ``apps.matches.constants.time_limit_ms_for``), so a test that needs a
+    question to close *now* has to say so on the classes rather than on one
+    number in the match engine. Patching all of them, rather than the type a
+    fixture happens to build, keeps such a test honest if the fixture ever
+    stocks a category with a second shape.
+    """
+    with ExitStack() as stack:
+        for model in QUESTION_MODELS.values():
+            stack.enter_context(
+                mock.patch.object(model, "DEFAULT_TIME_LIMIT_SECONDS", seconds)
+            )
+        yield
 
 
 def stock_category(*, category: Category | None = None, count: int = 10) -> Category:

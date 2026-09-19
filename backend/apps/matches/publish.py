@@ -37,7 +37,13 @@ def publish_match_found(*, player_id: UUID | str, matchup_id: UUID | str) -> Non
 
 
 def publish_question_started(
-    *, matchup_id: UUID | str, order: int, board: dict, time_limit_ms: int, started_at_ms: int
+    *,
+    matchup_id: UUID | str,
+    order: int,
+    board: dict,
+    time_limit_ms: int,
+    started_at_ms: int,
+    is_tiebreaker: bool = False,
 ) -> None:
     """One question opened. ``board`` is already play-time-serialized
     (``questions.api.serializers.serialize_for_play``) — this module does not
@@ -52,7 +58,9 @@ def publish_question_started(
     is what lets a reconnect (or a hard page refresh, which throws away
     anything the client remembered about the question in progress) rebuild
     the same clock everyone else is looking at instead of guessing a fresh
-    one."""
+    one. ``is_tiebreaker`` says this question is sudden death — drawn after
+    the agreed board ran out level (``apps.matches.services.tiebreak``) — so
+    a client can label it; it changes nothing about how it is played."""
     _send_to_matchup(
         matchup_id=matchup_id,
         message={
@@ -61,6 +69,7 @@ def publish_question_started(
             "question": board,
             "time_limit_ms": time_limit_ms,
             "started_at_ms": started_at_ms,
+            "is_tiebreaker": is_tiebreaker,
         },
     )
 
