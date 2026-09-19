@@ -30,6 +30,14 @@ category: nba
 # and every drag is a re-read of the ones either side of it.
 time_limit_seconds: 30
 
+# Shown alone, full screen, for a beat before any question in this file appears
+# — the whole file's questions are answered the same way, so the task is stated
+# once here rather than on each entry. Ordering is the type whose tiles look
+# like options and are not: a player who reads them as "pick the right one" has
+# lost the question before the clock starts. An entry may override it, or write
+# an empty one to open with no screen at all.
+pre_question_info: Click to order from earliest to latest
+
 questions:
   - type: ordering
     slug: nba-order-bulls-finals-opponents

@@ -378,7 +378,8 @@ class FreeTextTests(TestCase):
 
 
 class MultipleAnswerTests(TestCase):
-    """All or nothing — the decision recorded in ``services.evaluation``."""
+    """Credit per correct option, minus the wrong picks — the decision recorded
+    in ``services.evaluation``."""
 
     def setUp(self) -> None:
         self.question = make_multiple_answer()
@@ -399,15 +400,45 @@ class MultipleAnswerTests(TestCase):
     def test_the_exact_set_is_correct_whatever_order_it_arrives_in(self) -> None:
         self.assertTrue(self.submit(reversed(self.correct)).is_correct)
 
-    def test_a_subset_scores_nothing(self) -> None:
+    def test_a_subset_is_paid_for_what_it_got_right(self) -> None:
+        """One of the two correct options: half the question, and not a tick —
+        a partial answer is worth something, but only a complete one is
+        ``is_correct``."""
         result = self.submit(self.correct[:1])
+        self.assertFalse(result.is_correct)
+        self.assertEqual(result.score, 0.5)
+
+    def test_a_wrong_pick_costs_what_a_missing_one_costs(self) -> None:
+        """Both correct options *and* one wrong: two right minus one wrong, over
+        two authored — the same half as naming one of them and stopping."""
+        result = self.submit(self.correct + self.incorrect[:1])
+        self.assertFalse(result.is_correct)
+        self.assertEqual(result.score, 0.5)
+
+    def test_selecting_everything_scores_nothing(self) -> None:
+        """The reason the wrong picks are subtracted rather than ignored: with
+        per-option credit alone, the shotgun is a strategy rather than a
+        mistake."""
+        result = self.submit(self.correct + self.incorrect)
         self.assertFalse(result.is_correct)
         self.assertEqual(result.score, 0.0)
 
-    def test_selecting_everything_scores_nothing(self) -> None:
-        """The reason there is no per-option credit: with it, the shotgun is a
-        strategy rather than a mistake."""
-        result = self.submit(self.correct + self.incorrect)
+    def test_credit_never_goes_below_zero(self) -> None:
+        """More wrong picks than the question has right answers is still just a
+        miss — a negative score would take points off the rest of the match."""
+        question = make_multiple_answer(
+            slug="one-right",
+            options=(
+                ("Bill Russell", True),
+                ("Karl Malone", False),
+                ("Charles Barkley", False),
+            ),
+        )
+        wrong = [option.id for option in question.options.filter(is_correct=False)]
+        result = evaluate_answer(
+            question=question,
+            submitted={"type": QuestionType.MULTIPLE_ANSWER, "option_ids": wrong},
+        )
         self.assertFalse(result.is_correct)
         self.assertEqual(result.score, 0.0)
 

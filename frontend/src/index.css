@@ -245,6 +245,11 @@
      beat rather than whenever their board finished painting. */
   --animate-count-in: count-in 1s cubic-bezier(0.16, 1, 0.3, 1) both;
 
+  /* The task screen's own beat, drained by a bar with no numeral on it
+     (PreQuestionInfo). The duration is set per-instance by the component, from
+     the same constant the backend adds to the read delay. */
+  --animate-task-drain: task-drain 2.5s linear both;
+
   /* One word of the question prompt, staggered per-word by the caller
      (QuestionBoard) so the whole line reveals like a streamed reply rather
      than a paragraph flashing in as a block. */
@@ -335,6 +340,15 @@
   30% { opacity: 1; transform: scale(1); filter: blur(0); }
   70% { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(0.7); }
+}
+
+/* The task screen's beat draining away (PreQuestionInfo). A transform rather
+   than a width, so it is composited rather than laid out every frame, and
+   linear because it is standing in for a clock — an eased drain would look
+   like it was slowing down as it ran out. */
+@keyframes task-drain {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
 }
 
 @keyframes word-in {

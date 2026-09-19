@@ -3,6 +3,7 @@ import type { MatrixCellSubmission, MatrixQuestion } from '../../../lib/api/type
 import { Input } from '../../../components/Input'
 import { Button } from '../../../components/Button'
 import { type BoardProps } from './types'
+import { useAutoSubmitAtDeadline } from './useAutoSubmitAtDeadline'
 
 /*
  * A grid to fill in — "which team did each of these players win a title with,
@@ -21,7 +22,10 @@ import { type BoardProps } from './types'
  * right is worth three-fifths, not nothing. That changes what the submit button
  * is for — filling in what you know and sending it is the correct play, so the
  * button is enabled from the first filled cell rather than waiting for a
- * complete grid the way the ordering board does.
+ * complete grid the way the ordering board does — and why the filled cells are
+ * sent **at the wire** even if the button never gets pressed, since a grid
+ * three-fifths filled and never submitted is worth nothing at all
+ * (`useAutoSubmitAtDeadline`).
  *
  * On a phone the grid scrolls sideways inside its own container. The page it
  * sits on must not scroll (an answer tile below the fold is an answer the clock
@@ -32,6 +36,7 @@ export function MatrixBoard({
   question,
   submission,
   verdict,
+  deadlineAt,
   locked,
   onAnswer,
 }: BoardProps<MatrixQuestion>) {
@@ -53,14 +58,26 @@ export function MatrixBoard({
 
   const filled = Object.entries(shown).filter(([, answer]) => answer.trim().length > 0)
 
-  const submit = () => {
+  const build = () => {
     const cells: MatrixCellSubmission[] = filled.map(([key, answer]) => {
       const [rowId, columnId] = key.split(':').map(Number)
       return { row_id: rowId, column_id: columnId, answer }
     })
-    if (cells.length === 0) return
-    onAnswer({ type: 'matrix', cells })
+    return cells.length === 0 ? null : { type: 'matrix' as const, cells }
   }
+
+  const submit = () => {
+    const submission = build()
+    if (submission !== null) onAnswer(submission)
+  }
+
+  useAutoSubmitAtDeadline({
+    deadlineAt,
+    committed: committed !== null,
+    locked,
+    build,
+    onAnswer,
+  })
 
   const tone =
     verdict === 'correct'

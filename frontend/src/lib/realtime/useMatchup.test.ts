@@ -48,6 +48,7 @@ function question(id: string): PlayQuestion {
     level: 4,
     category: 'nba',
     image: null,
+    pre_question_info: '',
     options: [
       { id: 1, text: 'A' },
       { id: 2, text: 'B' },

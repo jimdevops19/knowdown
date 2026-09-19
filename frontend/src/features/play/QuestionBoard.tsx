@@ -1,6 +1,7 @@
 import { Fragment, type ComponentType } from 'react'
 import type { PlayQuestion, QuestionType } from '../../lib/api/types'
 import { LevelChip } from '../../components/LevelChip'
+import { QuestionCallout } from './QuestionCallout'
 import { SingleAnswerBoard } from './boards/SingleAnswerBoard'
 import { ImageAnswerBoard } from './boards/ImageAnswerBoard'
 import { MultipleAnswerBoard } from './boards/MultipleAnswerBoard'
@@ -64,6 +65,11 @@ export function QuestionBoard(props: BoardProps<PlayQuestion> & { revealOptions:
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Before the question, not with the options: a type whose whole
+          interaction is unusual has to say so while there is still nothing to
+          tap. Outside the `revealOptions` gate on purpose — it owns the read
+          delay, and is still there when the tiles arrive under it. */}
+      <QuestionCallout key={`callout-${question.id}`} question={question} />
       {/* Keyed on the question too, so the word-by-word reveal replays for
           every new question rather than sitting fully revealed because React
           reused the same DOM nodes underneath it. */}

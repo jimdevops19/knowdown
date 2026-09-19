@@ -27,9 +27,13 @@ is not a correct answer, and it is not worth nothing either.
 - single, image, true/false, free text, ordering — all or nothing. Each is one
   indivisible claim; half of an ordering is not half an answer, it is a
   different arrangement.
-- multiple answer — the set must match exactly. Per-option credit would make
-  selecting every option a strategy worth arithmetic, and "select all that apply"
-  where a shotgun scores is not the question that was asked.
+- multiple answer — **per correct option, minus the wrong ones**:
+  ``(right picked - wrong picked) / correct``, floored at zero. Two of three
+  right is worth two thirds; adding a wrong pick costs one of them back; ticking
+  every option is worth nothing at all. That floor is what used to justify
+  all-or-nothing — per-option credit alone would make the shotgun a strategy
+  worth arithmetic — and it survives the subtraction, while a player who
+  genuinely knew most of the set is no longer scored as though they knew none.
 - matrix — **per cell**, ``correct / authored``. A grid is genuinely several
   claims, sparse and independent (see ``models.MatrixCell``), and it is the one
   shape where all-or-nothing turns a nine-cell answer into a coin flip on the
@@ -158,11 +162,22 @@ def _evaluate_one_option(
 def _evaluate_multiple(
     *, question: MultipleAnswerQuestion, submitted: MultipleAnswerSubmission
 ) -> AnswerResult:
-    """multiple-answer: the set must match exactly.
+    """multiple-answer: credit per correct option, minus the wrong picks.
 
-    Extra picks are as wrong as missing ones — the question is "which of these",
-    and an answer naming an option that is not correct has answered it wrongly
-    however many correct ones it also names.
+    ``(right picked - wrong picked) / correct``, floored at zero. The
+    denominator is the options the question *authored* as correct, so a complete
+    set is the only thing worth 1.0 — ``AnswerResult.of`` still reserves
+    ``is_correct`` for it — and two of three right is two thirds of a question
+    rather than a miss.
+
+    Subtracting the wrong picks is what makes partial credit safe here. Paying
+    only for the right ones would make ticking every option a perfect answer,
+    which is the one strategy "select all that apply" must not reward; charging
+    a wrong pick what a missing one costs means the shotgun scores exactly zero,
+    and every honest answer in between is paid for what it knew.
+
+    An option belonging to another question is still malformed rather than
+    wrong — a client bug, not a guess (see the module docstring).
     """
     options = dict(question.options.values_list("id", "is_correct"))
     chosen = set(submitted.option_ids)
@@ -175,7 +190,16 @@ def _evaluate_multiple(
         )
 
     correct = {option_id for option_id, is_correct in options.items() if is_correct}
-    return RIGHT if chosen == correct else WRONG
+    # A question with no correct option cannot be answered rightly by anybody,
+    # and would divide by zero trying. The loader refuses to write one and the
+    # admin can; scoring it zero keeps the denominator honest either way —
+    # exactly what ``_evaluate_matrix`` does for a cell with no answers.
+    if not correct:
+        return WRONG
+
+    picked_right = len(chosen & correct)
+    picked_wrong = len(chosen - correct)
+    return AnswerResult.of(max(0.0, (picked_right - picked_wrong) / len(correct)))
 
 
 def _evaluate_true_false(

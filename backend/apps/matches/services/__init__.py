@@ -46,7 +46,7 @@ from apps.matches import selectors
 from apps.matches.constants import (
     MATCH_QUESTION_COUNTS,
     PLAYERS_PER_MATCHUP,
-    QUESTION_READ_DELAY_MS,
+    read_delay_ms_for,
     score_answer,
     time_limit_ms_for,
 )
@@ -245,13 +245,24 @@ def start_question(*, matchup: Matchup, order: int) -> MatchupQuestion:
     deadline in ``complete_question``, the watchdog's sleep — does not start
     until then, giving players a beat to read the question before the
     countdown they see is actually running against them.
+
+    A question that states its task first (``pre_question_info``) is stamped
+    further out still, by ``read_delay_ms_for``: the task screen owns the
+    display for its own beat *before* the reading one, so neither is spent on
+    the other. Nothing downstream is told about the difference — it is one
+    stamp, and the split back into "task screen, then question" is the
+    client's to draw from it.
     """
     if matchup.status != Matchup.Status.ACTIVE:
         raise Conflict(f"Matchup {matchup.pk} is {matchup.status}, not active.")
 
     question = selectors.get_matchup_question(matchup=matchup, order=order)
     if question.started_at is None:
-        question.started_at = timezone.now() + timedelta(milliseconds=QUESTION_READ_DELAY_MS)
+        concrete = get_concrete_question(
+            ref=QuestionRef(question.question_type, question.question_id)
+        )
+        delay_ms = read_delay_ms_for(pre_question_info=concrete.pre_question_info)
+        question.started_at = timezone.now() + timedelta(milliseconds=delay_ms)
         question.save(update_fields=["started_at"])
     return question
 

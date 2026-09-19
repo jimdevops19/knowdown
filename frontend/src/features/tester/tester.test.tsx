@@ -77,6 +77,7 @@ const ORDERING_QUESTION: PlayQuestion = {
   level: 6,
   category: 'nba',
   image: null,
+  pre_question_info: '',
   instruction: 'Earliest first.',
   options: [
     { id: 2, text: '1996' },

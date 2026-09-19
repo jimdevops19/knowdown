@@ -86,6 +86,14 @@ class _QuestionSpec(_Strict):
     #: Unset (``None``) is the ordinary case, and the loader fills it in from
     #: the file before anything is written.
     time_limit_seconds: int | None = Field(default=None, ge=1, le=600)
+    #: The line shown on its own, full screen, before the question is revealed
+    #: — what the player is being asked to *do* ("Click to order from earliest
+    #: to latest"). Ordinarily authored once per file rather than here
+    #: (``QuestionFileSpec.pre_question_info``), since the task is a property of
+    #: the answer shape; an entry writes its own only when it is asking for
+    #: something unusual. ``None`` means "whatever the file says"; an explicit
+    #: ``""`` is how one entry opts *out* of a file that sets one.
+    pre_question_info: str | None = Field(default=None, max_length=160)
 
 
 class _TextOptionSpec(_Strict):
@@ -650,6 +658,14 @@ class QuestionFileSpec(_Strict):
     #: ``constants.DEFAULT_TIME_LIMIT_SECONDS``, the ordinary
     #: glance-and-answer clock.
     time_limit_seconds: int | None = Field(default=None, ge=1, le=600)
+    #: What every question in this file asks the player to *do*, shown alone on
+    #: screen before the question appears. Authored here for the same reason
+    #: the clock is: a file is a file of one answer shape, and "click them in
+    #: order" is a fact about that shape rather than about any one question.
+    #: A file that says nothing has no such screen, which is the ordinary case
+    #: — the types that are answered the way they look need no instructions,
+    #: and an instruction on every question is an instruction on none of them.
+    pre_question_info: str | None = Field(default=None, max_length=160)
     questions: list[QuestionSpec] = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -663,6 +679,19 @@ class QuestionFileSpec(_Strict):
             for question in self.questions:
                 if question.time_limit_seconds is None:
                     question.time_limit_seconds = self.time_limit_seconds
+        return self
+
+    @model_validator(mode="after")
+    def _hand_the_file_instruction_down(self) -> QuestionFileSpec:
+        """Same two tiers as the clock above, resolved the same way and here
+        rather than at write time — and the same distinction between "said
+        nothing" and "said nothing on purpose": ``None`` takes the file's line,
+        an authored ``""`` keeps its empty self and plays with no screen at all.
+        """
+        if self.pre_question_info is not None:
+            for question in self.questions:
+                if question.pre_question_info is None:
+                    question.pre_question_info = self.pre_question_info
         return self
 
     @model_validator(mode="after")

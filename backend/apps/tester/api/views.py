@@ -26,7 +26,7 @@ from rest_framework.views import APIView
 
 from apps.core_common.exceptions import ValidationFailed
 from apps.matches.constants import (
-    QUESTION_READ_DELAY_MS,
+    read_delay_ms_for,
     score_answer,
     time_limit_ms_for,
 )
@@ -249,7 +249,12 @@ class RehearsalView(_QuestionView):
                 "time_limit_ms": time_limit_ms_for(
                     override_seconds=question.time_limit_seconds
                 ),
-                "read_delay_ms": QUESTION_READ_DELAY_MS,
+                # The same delay a match would stamp, including the extra
+                # beat a question with a task screen is given for it — the
+                # rehearsal is meant to run at the tempo the question plays at.
+                "read_delay_ms": read_delay_ms_for(
+                    pre_question_info=question.pre_question_info
+                ),
                 "board": serialize_for_play(question=question, matchup_id=seed),
                 "hints": [
                     {"index": step.index, "text": step.text, "offset_ms": step.offset_ms}

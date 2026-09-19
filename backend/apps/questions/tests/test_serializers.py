@@ -145,6 +145,26 @@ class RenderedPayloadTests(TestCase):
                 self.assertIn("description", payload)
                 self.assertIn("id", payload)
 
+    def test_every_payload_carries_the_task_line_whatever_the_shape(self) -> None:
+        """Declared on the base serializer rather than on the types that use
+        it today, so a shape authored with one tomorrow does not need this
+        module edited to show it. Blank for a question nobody wrote one for,
+        which is what the client reads as "no task screen"."""
+        for question_type in QUESTION_MODELS:
+            with self.subTest(question_type):
+                self.assertEqual(self.payload_for(question_type)["pre_question_info"], "")
+
+    def test_an_authored_task_line_reaches_the_board(self) -> None:
+        question = QUESTION_FACTORIES["ordering"](slug="ordering-with-a-task")
+        question.pre_question_info = "Click to order from earliest to latest"
+        question.save(update_fields=["pre_question_info"])
+
+        payload = serialize_for_play(question=question, matchup_id=MATCHUP)
+
+        self.assertEqual(
+            payload["pre_question_info"], "Click to order from earliest to latest"
+        )
+
     def test_no_payload_carries_the_question_slug(self) -> None:
         """A slug is authored to be readable, and ``kobe-81-point-game`` is a
         perfectly ordinary slug and a complete answer."""

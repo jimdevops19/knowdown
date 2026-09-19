@@ -37,7 +37,14 @@ const record = (submitted: PlayerAnswerRecord['submitted'], is_correct = true): 
   answered_at: '2026-01-01T00:00:00Z',
 })
 
-const base = { id: 'q1', description: 'Who?', level: 5, category: 'nba', image: null }
+const base = {
+  id: 'q1',
+  description: 'Who?',
+  level: 5,
+  category: 'nba',
+  image: null,
+  pre_question_info: '',
+}
 
 const singleAnswer: SingleAnswerQuestion = {
   ...base,

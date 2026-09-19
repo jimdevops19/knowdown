@@ -87,6 +87,22 @@ class BaseQuestion(BaseModel):
     #: options (see ``ImageAnswerOption``).
     image = models.ImageField(upload_to="questions/", null=True, blank=True)
 
+    #: The one line shown on its own, full screen, before the question itself —
+    #: "Click to order from earliest to latest". What the *task* is, not what is
+    #: being asked: a type whose interaction is unlike the rest costs a player
+    #: the first seconds of the clock while they work out what the board even
+    #: wants, and those are the seconds the question is scored on.
+    #:
+    #: Resolved in two tiers by the loader, exactly as ``time_limit_seconds``
+    #: is: the entry's own line if it wrote one, otherwise the line its resource
+    #: file sets for every question in it (``schemas.QuestionFileSpec``) — which
+    #: is the tier that matters, because "what you do with an ordering board" is
+    #: a fact about the *answer shape*, written once at the top of
+    #: ``ordering.yaml`` rather than onto a hundred entries. Blank (the default,
+    #: and what an entry writing ``pre_question_info: ""`` opts back into) means
+    #: no such screen: the question opens the ordinary way.
+    pre_question_info = models.CharField(max_length=160, blank=True, default="")
+
     #: Off means "do not serve this to anyone". Set by the loader when a question
     #: disappears from the YAML, because a matchup that already played it keeps
     #: pointing at the row: deleting it would edit a game that has been played.

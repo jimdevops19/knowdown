@@ -38,7 +38,6 @@ from apps.matches import services as match_services
 from apps.matches.bots import controller as bot_controller
 from apps.matches.bots.selection import pick_bot_player_id
 from apps.matches.constants import (
-    QUESTION_READ_DELAY_MS,
     RECONNECT_GRACE_SECONDS,
     time_limit_ms_for,
 )
@@ -123,15 +122,21 @@ class _WatchdogMixin:
         return task
 
     async def _watch_question_timeout(
-        self, *, matchup_id: UUID | str, order: int, time_limit_ms: int
+        self, *, matchup_id: UUID | str, order: int, time_limit_ms: int, started_at_ms: int
     ) -> None:
-        # This is scheduled right when the question is dealt, but the clock
-        # it is watching (``MatchupQuestion.started_at``) does not start
-        # until ``QUESTION_READ_DELAY_MS`` later — so the sleep has to cover
-        # that read delay too, or the watchdog would fire while the server's
-        # own deadline still has a beat left on it.
+        # Slept *to the stamp*, not for a duration. This is scheduled when the
+        # question is dealt, but the clock it is watching
+        # (``MatchupQuestion.started_at``) does not start until the read delay
+        # is out — and how long that delay is belongs to
+        # ``services.start_question``, which lengthens it for a question that
+        # states its task first (``constants.read_delay_ms_for``). Re-deriving
+        # it here would be this module holding a second opinion about when the
+        # question opened; ``started_at_ms`` is the first one, already on the
+        # frame that scheduled this, and it is equally right for a reconnect
+        # joining a question that has been running for eight seconds.
+        remaining_ms = started_at_ms + time_limit_ms - _now_ms()
         await asyncio.sleep(
-            (QUESTION_READ_DELAY_MS + time_limit_ms) / 1000 + 0.5
+            max(0.0, remaining_ms / 1000) + 0.5
         )  # a small margin over the server clock
         await database_sync_to_async(_close_question_if_ready)(matchup_id=matchup_id, order=order)
 
@@ -610,7 +615,10 @@ class MatchupConsumer(_WatchdogMixin, _HintRevealMixin, AsyncJsonWebsocketConsum
             await self.send_json({"type": events.QUESTION_STARTED, **state})
             self._spawn(
                 self._watch_question_timeout(
-                    matchup_id=self.matchup_id, order=state["order"], time_limit_ms=state["time_limit_ms"]
+                    matchup_id=self.matchup_id,
+                    order=state["order"],
+                    time_limit_ms=state["time_limit_ms"],
+                    started_at_ms=state["started_at_ms"],
                 )
             )
             # A reconnect mid-question resumes the reveal as well as the clock:
@@ -769,7 +777,10 @@ class MatchupConsumer(_WatchdogMixin, _HintRevealMixin, AsyncJsonWebsocketConsum
         )
         self._spawn(
             self._watch_question_timeout(
-                matchup_id=self.matchup_id, order=message["order"], time_limit_ms=message["time_limit_ms"]
+                matchup_id=self.matchup_id,
+                order=message["order"],
+                time_limit_ms=message["time_limit_ms"],
+                started_at_ms=message["started_at_ms"],
             )
         )
         self._spawn(self._reveal_hints(matchup_id=self.matchup_id, order=message["order"]))
@@ -943,6 +954,12 @@ def _match_summary(*, matchup) -> dict:
         "winner_player_id": str(winner.player_id) if winner else None,
         "scores": {str(side.player_id): side.score for side in sides},
     }
+
+
+def _now_ms() -> int:
+    """Now, in the units ``_epoch_ms`` speaks — so a deadline stamped on a
+    question and this socket's idea of "how long until it" are the same clock."""
+    return int(time.time() * 1000)
 
 
 def _epoch_ms(dt) -> int:

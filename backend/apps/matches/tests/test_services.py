@@ -12,6 +12,9 @@ from apps.core_common.exceptions import Conflict, ValidationFailed
 from apps.matches import selectors, services
 from apps.matches.constants import (
     FALLBACK_QUESTION_TIME_LIMIT_MS,
+    LATE_ANSWER_FLOOR_MS,
+    PRE_QUESTION_INFO_MS,
+    QUESTION_READ_DELAY_MS,
     SPEED_SCORED_TYPES,
     score_answer,
     time_limit_ms_for,
@@ -20,6 +23,8 @@ from apps.matches.models import Matchup
 from apps.matches.tests.factories import make_matchup, stock_category
 from apps.players.tests.factories import make_player
 from apps.questions.models import QuestionType
+from apps.questions.selectors import QuestionRef
+from apps.questions.selectors import get_question as get_concrete_question
 from apps.questions.tests.factories import make_matrix
 
 
@@ -97,6 +102,36 @@ class ScoringTests(TestCase):
         self.assertEqual(
             score_answer(credit=1.0, response_time_ms=FALLBACK_QUESTION_TIME_LIMIT_MS), 50
         )
+
+    def test_the_last_second_of_the_clock_is_all_worth_the_floor(self):
+        """Why the end of the curve is flat: the part-credited boards send
+        themselves a beat before the whistle, and that lead is network margin
+        rather than thinking time (``LATE_ANSWER_FLOOR_MS``)."""
+        at_the_wire = score_answer(
+            credit=1.0, response_time_ms=FALLBACK_QUESTION_TIME_LIMIT_MS
+        )
+        auto_submitted = score_answer(
+            credit=1.0,
+            response_time_ms=FALLBACK_QUESTION_TIME_LIMIT_MS - LATE_ANSWER_FLOOR_MS,
+        )
+        self.assertEqual(auto_submitted, at_the_wire)
+
+    def test_a_partial_answer_caught_by_the_clock_is_paid_partly(self):
+        """The whole point of the auto-submit: two of three right at the wire is
+        two thirds of a question at the floor multiplier, not a zero."""
+        self.assertEqual(
+            score_answer(
+                credit=2 / 3,
+                response_time_ms=FALLBACK_QUESTION_TIME_LIMIT_MS,
+                question_type=QuestionType.MULTIPLE_ANSWER,
+            ),
+            33,
+        )
+
+    def test_a_short_clock_still_has_a_curve(self):
+        """The flat end is capped at half the clock, so a question authored with
+        a one-second limit is not paid the floor for an instant answer."""
+        self.assertEqual(score_answer(credit=1.0, response_time_ms=0, time_limit_ms=1_000), 100)
 
     def test_partial_credit_scales_the_same_curve(self):
         full = score_answer(credit=1.0, response_time_ms=0)
@@ -347,3 +382,57 @@ class MatrixTimeLimitTests(TestCase):
                 order=1,
                 payload={"type": "single-answer", "option_id": _correct_option_id(concrete)},
             )
+
+
+class TaskScreenDelayTests(TestCase):
+    """A question that states its task first is dealt earlier.
+
+    The server sends one stamp, not two: ``started_at`` is when the clock
+    starts, and for a question carrying a ``pre_question_info`` line it is
+    pushed out by the beat that line owns the screen for. Everything measured
+    from the stamp — the time-limit check, the deadline, the watchdog, a
+    gradual-hints reveal — moves with it, which is why there is nothing else to
+    change; and the client re-derives "when the question is revealed" by
+    subtracting the ordinary read delay back off it.
+    """
+
+    def _started_question(self, *, pre_question_info: str):
+        matchup = make_matchup(question_count=3)
+        question = selectors.get_matchup_question(matchup=matchup, order=1)
+        concrete = get_concrete_question(
+            ref=QuestionRef(question.question_type, question.question_id)
+        )
+        concrete.pre_question_info = pre_question_info
+        concrete.save(update_fields=["pre_question_info"])
+
+        matchup.status = Matchup.Status.ACTIVE
+        matchup.started_at = timezone.now()
+        matchup.save(update_fields=["status", "started_at"])
+        before = timezone.now()
+        started = services.start_question(matchup=matchup, order=1)
+        return before, started
+
+    def test_an_ordinary_question_is_stamped_the_ordinary_delay_out(self) -> None:
+        before, question = self._started_question(pre_question_info="")
+        delay_ms = (question.started_at - before).total_seconds() * 1000
+        self.assertAlmostEqual(delay_ms, QUESTION_READ_DELAY_MS, delta=500)
+
+    def test_a_question_with_a_task_screen_is_stamped_further_out(self) -> None:
+        before, question = self._started_question(
+            pre_question_info="Click to order from earliest to latest"
+        )
+        delay_ms = (question.started_at - before).total_seconds() * 1000
+        self.assertAlmostEqual(
+            delay_ms, QUESTION_READ_DELAY_MS + PRE_QUESTION_INFO_MS, delta=500
+        )
+
+    def test_the_reading_beat_is_whole_either_way(self) -> None:
+        """The property the design rests on, checked as a difference rather
+        than as two numbers: whatever the task screen costs, it is spent
+        *before* the beat spent reading the question, never out of it."""
+        plain_before, plain = self._started_question(pre_question_info="")
+        task_before, task = self._started_question(pre_question_info="Do the thing")
+        extra_ms = ((task.started_at - task_before) - (plain.started_at - plain_before))
+        self.assertAlmostEqual(
+            extra_ms.total_seconds() * 1000, PRE_QUESTION_INFO_MS, delta=500
+        )

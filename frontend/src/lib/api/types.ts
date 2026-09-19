@@ -305,6 +305,16 @@ interface BaseQuestion {
   /** An illustration of the play being asked about — most questions have none.
    *  Not to be confused with an image-answer question's *options*. */
   image: string | null
+  /** What the player is being asked to *do*, shown alone on screen for a beat
+   *  before the question appears — "Click to order from earliest to latest".
+   *  Empty for most questions, which are answered the way they look and need no
+   *  such screen (`apps.questions.models.BaseQuestion.pre_question_info`).
+   *
+   *  The beat it is shown for is *added* to the read delay by the server, not
+   *  taken out of it: a question that has one is stamped
+   *  `PRE_QUESTION_INFO_MS` further out, which is exactly how this client knows
+   *  when to stop showing it — see `lib/config.ts`. */
+  pre_question_info: string
 }
 
 /** An option the player picks, and the id they pick it by. Submissions name

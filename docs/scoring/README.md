@@ -24,6 +24,8 @@ if credit <= 0:
     points = 0
 elif question_type not in SPEED_SCORED_TYPES:      # name-as-many only
     points = round(MAX_QUESTION_POINTS * credit)
+elif response_time_ms >= time_limit_ms - min(LATE_ANSWER_FLOOR_MS, time_limit_ms / 2):
+    points = round(MAX_QUESTION_POINTS * credit * MIN_SPEED_FACTOR)   # at the wire
 else:
     remaining_fraction = max(0, (time_limit_ms - response_time_ms) / time_limit_ms)
     speed_factor = MIN_SPEED_FACTOR + (1 - MIN_SPEED_FACTOR) * remaining_fraction
@@ -35,7 +37,15 @@ answer is worth nothing no matter how fast it arrived — speed only
 multiplies credit that already exists, so guessing quickly is never better
 than answering correctly slowly. A correct answer submitted with no time
 left still keeps half its value (the `0.5` floor), so a hard question worked
-out right at the wire is not scored like a coin flip. `response_time_ms` is
+out right at the wire is not scored like a coin flip. The last
+`LATE_ANSWER_FLOOR_MS = 1000` of the clock are *all* paid exactly that floor,
+because the part-credited boards submit themselves a beat before the question
+closes (`AUTO_SUBMIT_LEAD_MS` in
+`frontend/src/features/play/boards/useAutoSubmitAtDeadline.ts`) — that lead is
+network margin, not thinking time, and without the flat end a player who ran
+out of time would be paid fractionally more for owning a slower phone. The
+window is capped at half the clock so a question authored with a one-second
+limit still has a curve. `response_time_ms` is
 always measured by the server, never reported by the client, which is what
 keeps a patched client from lying about its own stopwatch to win a race it
 lost.
@@ -49,10 +59,10 @@ would reward stopping early.
 ## Question types and their credit formulas
 
 The platform has nine question types, sharing one evaluator each
-(`ANSWER_EVALUATORS` in `apps/questions/services/evaluation.py`). Eight of
-them are **all-or-nothing or all-or-the-matching-set** — credit is either
-`0.0` or `1.0`, and the interesting cases are the two that award partial
-credit, plus the one that pays for rarity.
+(`ANSWER_EVALUATORS` in `apps/questions/services/evaluation.py`). Five of them
+are **all-or-nothing** — credit is either `0.0` or `1.0` — and the interesting
+cases are the three that award partial credit (multiple answer, matrix, gradual
+hints), plus the one that pays for rarity.
 
 ### Single answer / image answer
 
@@ -65,13 +75,24 @@ for a right pick and `0` for a wrong one.
 
 ### Multiple answer
 
-The player submits a set of option ids, and credit is `1.0` only if that set
-is an **exact match** for the question's correct options — extra picks are
-just as wrong as missing ones. Per-option credit is deliberately not
-offered: it would make selecting every option a winning strategy, and
-"select all that apply" stops being the question being asked the moment a
-shotgun answer scores anything. Like single-answer, this collapses to
-`0.0`/`1.0`, so points are `100 × speed_factor` or `0`.
+The player submits a set of option ids, and credit is **per correct option,
+minus the wrong picks**:
+
+```
+credit = max(0, (picked_right - picked_wrong) / authored_correct)
+```
+
+Two of three correct options is worth two thirds; adding a wrong pick costs one
+of them back; ticking every option is worth exactly nothing, which is what keeps
+"select all that apply" from being won by a shotgun — the reason this type used
+to be all-or-nothing. Only the exact set is `1.0`, and only the exact set counts
+as `is_correct` on the scoreboard; everything in between is paid for what it
+knew, at `100 × credit × speed_factor`.
+
+Because partial work is worth real points here, the board also **submits itself
+at the whistle**: whatever is ticked when the clock is about to run out is sent
+at the speed floor rather than lost. Same for the other part-credited boards
+(matrix, gradual hints, name-as-many) — see `useAutoSubmitAtDeadline`.
 
 ### True/false
 
@@ -223,7 +244,8 @@ fame.
 | Concern | Location |
 | --- | --- |
 | Credit per question type | `backend/apps/questions/services/evaluation.py` (`ANSWER_EVALUATORS`) |
-| Points from credit + speed | `backend/apps/matches/constants.py` (`score_answer`, `MAX_QUESTION_POINTS`, `MIN_SPEED_FACTOR`, `SPEED_SCORED_TYPES`) |
+| Points from credit + speed | `backend/apps/matches/constants.py` (`score_answer`, `MAX_QUESTION_POINTS`, `MIN_SPEED_FACTOR`, `LATE_ANSWER_FLOOR_MS`, `SPEED_SCORED_TYPES`) |
+| Sending a half-built answer at the whistle | `frontend/src/features/play/boards/useAutoSubmitAtDeadline.ts` |
 | Popularity/rarity grading | `backend/apps/questions/models` (`probability_score`, `DEFAULT_PROBABILITY_SCORE`) and `backend/apps/questions/career_stats.py` |
 | Question time limits | `backend/apps/questions/resources/<category>/<type>.yaml` (each file's own `time_limit_seconds`, written onto every question it holds), resolved by `backend/apps/matches/constants.py` (`time_limit_ms_for`) |
 | Ladder rating (Elo) | `backend/apps/rankings/services/ratings.py` |

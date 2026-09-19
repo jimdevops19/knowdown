@@ -133,6 +133,7 @@ class ResourceTreeTestCase(TestCase):
         *,
         category: str = "nba",
         time_limit_seconds: int | None = None,
+        pre_question_info: str | None = None,
     ) -> Path:
         folder = self.root / category
         folder.mkdir(exist_ok=True)
@@ -140,6 +141,8 @@ class ResourceTreeTestCase(TestCase):
         document: dict = {"category": category}
         if time_limit_seconds is not None:
             document["time_limit_seconds"] = time_limit_seconds
+        if pre_question_info is not None:
+            document["pre_question_info"] = pre_question_info
         document["questions"] = questions
         path.write_text(yaml.safe_dump(document))
         return path
@@ -412,6 +415,85 @@ class TimeLimitSecondsTests(ResourceTreeTestCase):
         self.write_file("too-long.yaml", [single_answer("too-long", time_limit_seconds=601)])
         with self.assertRaises(ValidationFailed):
             self.load()
+
+
+class PreQuestionInfoTests(ResourceTreeTestCase):
+    """Where the task screen's line comes from: its own entry, or its file.
+
+    The same two tiers as the clock above, resolved the same way and at the
+    same moment — the row carries one resolved string, so nothing downstream
+    (the play serializer, the read delay a match stamps) re-decides the order
+    of precedence per question.
+    """
+
+    def test_a_file_line_reaches_every_question_in_it(self) -> None:
+        """The tier that matters: what you do with this kind of board is a fact
+        about the answer shape, written once at the top of its file."""
+        self.write_file(
+            "typed.yaml",
+            [single_answer("one"), single_answer("two")],
+            pre_question_info="Click to order from earliest to latest",
+        )
+        self.load()
+        for slug in ("one", "two"):
+            self.assertEqual(
+                SingleAnswerQuestion.objects.get(slug=slug).pre_question_info,
+                "Click to order from earliest to latest",
+            )
+
+    def test_a_question_s_own_line_outranks_its_file_s(self) -> None:
+        self.write_file(
+            "mixed.yaml",
+            [
+                single_answer("ordinary"),
+                single_answer("unusual", pre_question_info="Pick the odd one out"),
+            ],
+            pre_question_info="Click them in order",
+        )
+        self.load()
+        self.assertEqual(
+            SingleAnswerQuestion.objects.get(slug="ordinary").pre_question_info,
+            "Click them in order",
+        )
+        self.assertEqual(
+            SingleAnswerQuestion.objects.get(slug="unusual").pre_question_info,
+            "Pick the odd one out",
+        )
+
+    def test_an_entry_can_opt_out_of_its_file_s_line(self) -> None:
+        """An authored empty string is a decision, not a silence: it means this
+        one question opens with no task screen, and the hand-down leaves it."""
+        self.write_file(
+            "opt-out.yaml",
+            [single_answer("plain", pre_question_info="")],
+            pre_question_info="Click them in order",
+        )
+        self.load()
+        self.assertEqual(SingleAnswerQuestion.objects.get(slug="plain").pre_question_info, "")
+
+    def test_a_question_nobody_wrote_a_line_for_stores_blank(self) -> None:
+        """The ordinary case, and the one the whole feature is gated on: no
+        line anywhere means the question opens the way it always has."""
+        self.write_file("silent.yaml", [single_answer("silent")])
+        self.load()
+        self.assertEqual(SingleAnswerQuestion.objects.get(slug="silent").pre_question_info, "")
+
+    def test_a_line_longer_than_the_screen_holds_is_refused(self) -> None:
+        """Capped at the model's width. The screen shows it at headline size
+        for a couple of seconds; a paragraph there is unreadable in the time
+        and would be truncated by the column anyway."""
+        self.write_file("wordy.yaml", [single_answer("wordy", pre_question_info="x" * 161)])
+        with self.assertRaises(ValidationFailed):
+            self.load()
+
+    def test_the_shipped_ordering_file_states_its_task(self) -> None:
+        """Not a loader test — a *content* one, and the reason the feature was
+        built. Ordering is the type whose tiles look like options and are not,
+        so every question in the shipped file has to say so before it opens."""
+        document = yaml.safe_load(
+            (self._real_resources / "nba" / "ordering.yaml").read_text()
+        )
+        self.assertTrue(document.get("pre_question_info"))
 
 
 class IdempotencyTests(ResourceTreeTestCase):

@@ -5,6 +5,8 @@ import { Flag, WifiOff } from 'lucide-react'
 import { useAuth } from '../features/auth/useAuth'
 import { useMatchup, UNAVAILABLE_REASONS } from '../lib/realtime'
 import { useQuestionClock } from '../hooks/useQuestionClock'
+import { useInstantPassed } from '../hooks/useInstantPassed'
+import { QUESTION_READ_DELAY_MS } from '../lib/config'
 import { getMatchParticipants } from '../lib/api/endpoints'
 import { queryKeys } from '../lib/query/queryClient'
 import { Countdown } from '../features/play/Countdown'
@@ -13,6 +15,7 @@ import { QuestionBoard } from '../features/play/QuestionBoard'
 import { QuestionVerdict } from '../features/play/QuestionVerdict'
 import { MatchSummary } from '../features/play/MatchSummary'
 import { MatchupCountdown } from '../features/play/MatchupCountdown'
+import { PreQuestionInfo } from '../features/play/PreQuestionInfo'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { StatusBadge } from '../components/StatusBadge'
@@ -68,6 +71,29 @@ export function MatchPage() {
     onQuestion ? (match.current?.timeLimitMs ?? null) : null,
   )
 
+  /*
+   * The task screen, and when it stops.
+   *
+   * The server sends one stamp, not two: `seenAt` is when the clock starts,
+   * and for a question that states its task first it was stamped a beat
+   * further out to pay for it (`apps.matches.constants.read_delay_ms_for`).
+   * The instant the question is revealed is therefore that stamp minus the
+   * ordinary read delay — everything before it belongs to the instruction,
+   * everything after it to reading the question. Derived rather than sent, so
+   * a reconnect mid-question computes the same boundary and finds it long
+   * past instead of replaying the screen at someone who is eight seconds into
+   * answering.
+   *
+   * Hooks run before the early returns below on purpose: `useInstantPassed`
+   * has to be called on every render of this component, including the ones
+   * that end in the summary screen.
+   */
+  const taskScreenUntil =
+    onQuestion && match.current?.question.pre_question_info
+      ? match.current.seenAt - QUESTION_READ_DELAY_MS
+      : null
+  const taskScreenDone = useInstantPassed(taskScreenUntil)
+
   // The match that just ended is a different document from the one any cached
   // box score holds, and the history list has a new row in it. Invalidate on
   // the transition rather than on every render of the completed state.
@@ -113,6 +139,17 @@ export function MatchPage() {
   const countingIn =
     (match.phase === 'connecting' && !match.current) ||
     (match.phase === 'question' && match.current?.order === 1 && !clock.started)
+
+  /*
+   * Ahead of the pre-match countdown, and of everything else. The order is the
+   * order the beats were bought in: the task first, then — on question one —
+   * the three-two-one whistle that fills the reading beat, then the board.
+   * Question one is the only place the two meet, and putting the instruction
+   * first is what keeps it from landing on a player who is already counting.
+   */
+  if (!taskScreenDone && match.current) {
+    return <PreQuestionInfo text={match.current.question.pre_question_info} />
+  }
 
   if (countingIn) {
     return <MatchupCountdown startsAt={match.current?.seenAt ?? null} />

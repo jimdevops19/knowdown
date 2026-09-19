@@ -3,6 +3,7 @@ import type { MultipleAnswerQuestion } from '../../../lib/api/types'
 import { AnswerTile, type TileState } from '../AnswerTile'
 import { Button } from '../../../components/Button'
 import { OPTION_GRID, OPTION_LETTERS, type BoardProps } from './types'
+import { useAutoSubmitAtDeadline } from './useAutoSubmitAtDeadline'
 
 /*
  * Tick every option that is right — and the board does not say how many that
@@ -16,16 +17,23 @@ import { OPTION_GRID, OPTION_LETTERS, type BoardProps } from './types'
  * commit is therefore explicit, and the button says how many are selected so
  * the decision being confirmed is visible.
  *
- * Scoring is all-or-nothing here: the set must match exactly. That is the
- * server's rule (`apps.questions.services.evaluation`), and it is why the
- * button is a deliberate act rather than something the clock can trigger by
- * accident — an empty set is not a submission, and a half-finished one is
- * simply wrong.
+ * Scoring is partial: the server credits the correct ticks and charges the
+ * wrong ones, `(right - wrong) / correct` floored at zero
+ * (`apps.questions.services.evaluation`). So two of three right is worth two
+ * thirds, and ticking everything is still worth nothing.
+ *
+ * Which is why the ticks are also sent **at the wire** if the player never
+ * presses the button: partial work that was never submitted is the one way to
+ * score zero on a question you mostly knew, and the clock should not be able to
+ * do that to somebody who is still deciding on their last tick. An empty set is
+ * still never sent — the server refuses it as malformed, and it is worth what
+ * silence is worth anyway.
  */
 export function MultipleAnswerBoard({
   question,
   submission,
   verdict,
+  deadlineAt,
   locked,
   onAnswer,
 }: BoardProps<MultipleAnswerQuestion>) {
@@ -33,6 +41,15 @@ export function MultipleAnswerBoard({
 
   const committed = submission?.type === 'multiple-answer' ? submission.option_ids : null
   const shown = committed ?? selected
+
+  useAutoSubmitAtDeadline({
+    deadlineAt,
+    committed: committed !== null,
+    locked,
+    build: () =>
+      shown.length === 0 ? null : { type: 'multiple-answer' as const, option_ids: shown },
+    onAnswer,
+  })
 
   const toggle = (optionId: number) =>
     setSelected((current) =>

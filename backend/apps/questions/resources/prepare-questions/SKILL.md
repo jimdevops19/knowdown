@@ -73,6 +73,31 @@ Today's numbers: `free-text` 20, `ordering` 30, `gradual-hints` 30,
 `name-as-many` 30, `matrix` 60, and 10 for `single-answer`, `image-answer`,
 `multiple-answer` and `true-false`.
 
+### The file's task line
+
+A file may also state, once, what its questions ask the player to *do*:
+
+```yaml
+category: nba
+pre_question_info: Click to order from earliest to latest
+```
+
+That line is shown **alone, full screen, for a beat before the question
+appears** — and the beat is added to the read delay rather than taken out of
+it, so nobody pays for it in clock. It is authored per file for the same reason
+the clock is: "what you do with an ordering board" is a fact about the answer
+shape, not about any one question.
+
+Only set it for a type whose *interaction* is unlike the rest — `ordering`
+sets it, because its tiles look like options to choose between and are
+actually positions to assign. A type answered the way it looks should not:
+an instruction on every question is an instruction on none of them, and the
+eye stops reading a screen that is always there and always says something
+obvious.
+
+≤160 characters, and it should read as a task ("Click to order…"), not as a
+description of the question.
+
 **A new type file must be added to it, or nothing in it is loaded.** Commenting
 a line out is how a batch of questions is parked without deleting it — those
 questions are deactivated on the next sync and reactivated when the line comes
@@ -98,6 +123,7 @@ back. Naming a file that isn't in the folder fails the load.
 | `level` | integer 1–10. See "picking a level" below. |
 | `tags` | `dict[str, str]`, free-form. Keep keys consistent within a category (`topic`, `era` are what `nba` already uses) or a themed-round filter finds nothing. |
 | `image` | optional filename (not a path) in `<category>/images/`. Illustrates what's being asked — **not** the answer; that's `image-answer`'s `options`. Missing file fails the load. |
+| `pre_question_info` | optional, ≤160 chars. Overrides the task line the **file** sets for just this question — or `""` to open this one with no task screen at all. Almost always left unset: the file's line is the one that should be right. |
 | `time_limit_seconds` | optional, 1–600. Overrides the clock the **file** sets for just this question. Leave unset unless a question is unusually fiddly — and if you do set it, say why in a comment beside it. |
 
 Unknown keys are a load error, not a silent default — don't invent field

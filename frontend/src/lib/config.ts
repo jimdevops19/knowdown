@@ -67,6 +67,43 @@ export const QUESTION_TIME_LIMIT_MS = positiveIntEnv(
  */
 
 /**
+ * How long a question's task screen ("Click to order from earliest to latest")
+ * owns the display before the question itself appears, for the questions that
+ * carry one (`pre_question_info`) — `apps.matches.constants
+ * .PRE_QUESTION_INFO_MS`.
+ *
+ * Unlike the read delay above, this one *is* still needed on the client, and
+ * for a reason worth being precise about. The server does not send two stamps.
+ * It sends one — `started_at_ms`, when the clock starts — and for a question
+ * with a task screen it stamps that beat further out (`constants
+ * .read_delay_ms_for`). Subtracting `QUESTION_READ_DELAY_MS` from it gives the
+ * instant the task screen ends and the question is revealed; the screen runs
+ * from whenever this client first saw the question until then. So the split is
+ * drawn from the server's own zero-point rather than from a `Date.now()` taken
+ * when the frame arrived, and a reconnect halfway through a question finds the
+ * screen already over instead of replaying it.
+ *
+ * A mismatch with the backend is cosmetic in the same way `QUESTION_TIME_LIMIT_MS`
+ * is: too small and the question is revealed early into a clock that has not
+ * started, too large and the task screen eats the read beat. Neither can touch
+ * the scoring, which is measured against the stamp alone.
+ */
+export const PRE_QUESTION_INFO_MS = positiveIntEnv(
+  import.meta.env.VITE_PRE_QUESTION_INFO_MS,
+  2_500,
+)
+
+/**
+ * The beat a question is on screen before its countdown starts —
+ * `apps.matches.constants.QUESTION_READ_DELAY_SECONDS`. Only used to find where
+ * the task screen above ends; nothing here counts it down.
+ */
+export const QUESTION_READ_DELAY_MS = positiveIntEnv(
+  import.meta.env.VITE_QUESTION_READ_DELAY_MS,
+  3_000,
+)
+
+/**
  * How long the server gives a disconnected player to come back before their
  * opponent is awarded the win — `apps.matches.constants.RECONNECT_GRACE_SECONDS`.
  *

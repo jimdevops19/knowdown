@@ -48,6 +48,7 @@ const BASE = {
   description: 'Who led the NBA in assists in 2019-20?',
   level: 5,
   category: 'nba',
+  pre_question_info: '',
   image: null,
 }
 
@@ -130,6 +131,15 @@ const QUESTION_FIXTURES: Record<QuestionType, PlayQuestion> = {
 } as Record<QuestionType, PlayQuestion>
 
 const TYPES = Object.keys(QUESTION_FIXTURES) as QuestionType[]
+
+/** A press and a release that never moved — the ordering board's quick path,
+ *  and the half of its gesture handling that is not a drag. It listens on
+ *  pointer events rather than `click`, so `fireEvent.click` alone does nothing
+ *  to it. */
+function tap(element: Element) {
+  fireEvent.pointerDown(element, { pointerId: 1, clientX: 10, clientY: 10, button: 0 })
+  fireEvent.pointerUp(element, { pointerId: 1, clientX: 10, clientY: 10 })
+}
 
 describe('QuestionBoard', () => {
   it.each(TYPES)('renders a board for %s', (type) => {
@@ -319,5 +329,181 @@ describe('QuestionBoard', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('sends the ticks of an unfinished multiple-answer at the whistle', async () => {
+    // The partial-credit half of the same rule: the server now pays
+    // `(right - wrong) / correct`, so ticks nobody pressed the button on are
+    // worth real points — and a player still deciding on their last tick must
+    // not lose the two they were sure of to the clock.
+    vi.useFakeTimers()
+    try {
+      const submissions: unknown[] = []
+      const { getByText } = render(
+        <QuestionBoard
+          question={QUESTION_FIXTURES['multiple-answer']}
+          hints={[]}
+          submission={null}
+          verdict={null}
+          locked={false}
+          deadlineAt={Date.now() + 10_000}
+          onAnswer={(submission) => submissions.push(submission)}
+          revealOptions
+        />,
+      )
+
+      fireEvent.click(getByText('Trae Young'))
+
+      expect(submissions).toEqual([])
+      act(() => {
+        vi.advanceTimersByTime(10_000)
+      })
+      expect(submissions).toEqual([{ type: 'multiple-answer', option_ids: [2] }])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('sends nothing at the whistle when no option was ticked', () => {
+    // An empty set is malformed rather than a zero — the server refuses it, so
+    // the board must not send one. Silence costs the player exactly the same.
+    vi.useFakeTimers()
+    try {
+      const submissions: unknown[] = []
+      render(
+        <QuestionBoard
+          question={QUESTION_FIXTURES['multiple-answer']}
+          hints={[]}
+          submission={null}
+          verdict={null}
+          locked={false}
+          deadlineAt={Date.now() + 10_000}
+          onAnswer={(submission) => submissions.push(submission)}
+          revealOptions
+        />,
+      )
+
+      act(() => {
+        vi.advanceTimersByTime(10_000)
+      })
+      expect(submissions).toEqual([])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('says the question is an ordering one before any option is on screen', () => {
+    // The whole reason the call-out lives on `QuestionBoard` rather than on the
+    // board: during the read delay there are no tiles yet, and that is exactly
+    // the beat in which a player has to learn that this question is answered by
+    // arranging rather than by picking.
+    const { container } = render(
+      <QuestionBoard
+        question={QUESTION_FIXTURES.ordering}
+        hints={[]}
+        submission={null}
+        verdict={null}
+        locked={false}
+        deadlineAt={null}
+        onAnswer={() => {}}
+        revealOptions={false}
+      />,
+    )
+
+    expect(container.textContent).toContain('tap the options in order')
+    expect(container.textContent).toContain('Most points first')
+    // Still the read delay: the instruction is up, the options are not.
+    expect(container.textContent).not.toContain('LeBron James')
+  })
+
+  it('draws a numbered slot per position and fills them by tapping a card', () => {
+    // The board's whole shape: N empty, numbered slots from the start, the
+    // options loose in a pool, and a tap — the fast gesture, next to the drag —
+    // moving a card between the two.
+    const { getByRole, getByLabelText, queryByLabelText } = render(
+      <QuestionBoard
+        question={QUESTION_FIXTURES.ordering}
+        hints={[]}
+        submission={null}
+        verdict={null}
+        locked={false}
+        deadlineAt={null}
+        onAnswer={() => {}}
+        revealOptions
+      />,
+    )
+
+    expect(getByLabelText('Position 1, empty')).toBeTruthy()
+    expect(getByLabelText('Position 2, empty')).toBeTruthy()
+    // The button names the slot still open, not just a count.
+    expect(getByRole('button', { name: 'Fill the 1st slot' })).toBeTruthy()
+
+    tap(getByLabelText('Trae Young. Activate to put it in position 1'))
+    expect(getByLabelText('Position 1: Trae Young. Activate to take it out')).toBeTruthy()
+    expect(getByRole('button', { name: 'Fill the 2nd slot' })).toBeTruthy()
+
+    // And a tap on a filled slot sends the card back to the pool.
+    tap(getByLabelText('Position 1: Trae Young. Activate to take it out'))
+    expect(queryByLabelText('Position 1: Trae Young. Activate to take it out')).toBeNull()
+    expect(getByLabelText('Position 1, empty')).toBeTruthy()
+  })
+
+  it('drops a dragged card into the slot it was released over', () => {
+    // The gesture the layout promises. It is pointer-events rather than HTML5
+    // drag-and-drop because `dragstart` never fires on touch — on a phone-first
+    // game the native version would be a desktop-only feature — so this walks
+    // the real sequence: down on the card, move across, up over slot 2.
+    const { container, getByLabelText } = render(
+      <QuestionBoard
+        question={QUESTION_FIXTURES.ordering}
+        hints={[]}
+        submission={null}
+        verdict={null}
+        locked={false}
+        deadlineAt={null}
+        onAnswer={() => {}}
+        revealOptions
+      />,
+    )
+
+    // jsdom lays nothing out, so the slots are given the geometry the drop is
+    // resolved against — the board reads these rects live, at drop time.
+    const rows = container.querySelectorAll('ol > li')
+    rows.forEach((row, index) => {
+      row.getBoundingClientRect = () =>
+        ({ left: 0, right: 300, top: index * 50, bottom: index * 50 + 44 }) as DOMRect
+    })
+
+    const card = getByLabelText('Trae Young. Activate to put it in position 1')
+    fireEvent.pointerDown(card, { pointerId: 2, clientX: 10, clientY: 200, button: 0 })
+    fireEvent.pointerMove(card, { pointerId: 2, clientX: 100, clientY: 60 })
+    fireEvent.pointerUp(card, { pointerId: 2, clientX: 100, clientY: 60 })
+
+    // Position 2, not position 1: a drag goes where it was dropped, while a
+    // tap takes the first free slot.
+    expect(getByLabelText('Position 2: Trae Young. Activate to take it out')).toBeTruthy()
+    expect(getByLabelText('Position 1, empty')).toBeTruthy()
+  })
+
+  it('submits the sequence in the order the cards were placed', () => {
+    const submissions: unknown[] = []
+    const { getByRole, getByLabelText } = render(
+      <QuestionBoard
+        question={QUESTION_FIXTURES.ordering}
+        hints={[]}
+        submission={null}
+        verdict={null}
+        locked={false}
+        deadlineAt={null}
+        onAnswer={(submission) => submissions.push(submission)}
+        revealOptions
+      />,
+    )
+
+    tap(getByLabelText('Trae Young. Activate to put it in position 1'))
+    tap(getByLabelText('LeBron James. Activate to put it in position 2'))
+    fireEvent.click(getByRole('button', { name: 'Lock in this order' }))
+
+    expect(submissions).toEqual([{ type: 'ordering', option_ids: [2, 1] }])
   })
 })

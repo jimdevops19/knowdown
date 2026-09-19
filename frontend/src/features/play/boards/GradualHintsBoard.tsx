@@ -4,6 +4,7 @@ import type { AnswerFieldSubmission, GradualHintsQuestion } from '../../../lib/a
 import { Input } from '../../../components/Input'
 import { Button } from '../../../components/Button'
 import { type BoardProps } from './types'
+import { useAutoSubmitAtDeadline } from './useAutoSubmitAtDeadline'
 
 /*
  * "Guess the game" — a question that is still being asked while you answer it.
@@ -25,27 +26,40 @@ import { type BoardProps } from './types'
  * for the same glance and suggest that waiting is the plan. The new clue
  * announces itself by appearing.
  *
- * **A box is as big as what goes in it.** Every field says whether it wants
- * text or a number (`field.kind`, authored per question), and a number gets a
- * short box and a numeric keypad instead of a full-width one and a full
- * keyboard. A year and a game number are two and one characters wide; drawing
- * both the width of a sentence asks the player to wonder, under a clock,
- * whether more was wanted. The width comes from the *kind* and never from the
- * answer — a box sized to its own answer key would tell the player how many
- * characters to find.
+ * **The boxes are a grid, not a row that wraps.** Every field takes the same
+ * column — two across on a phone, three from `sm` up — so however many boxes a
+ * question asks for, they line up on both edges. Sizing each box to its own
+ * `field.kind` instead (a short one for a number, whatever was left of the row
+ * for text) is what this used to do, and on a 390px phone it laid "Year /
+ * Round / Game number" out as a thumbnail box, a box running to the right
+ * edge, and a third stranded full-width on a line of its own: three widths,
+ * none of them agreeing, for three boxes of equal importance. The kind still
+ * decides the *keyboard* and the length cap, which is the part of it a player
+ * can feel; it no longer decides the width. A lone box takes the full row —
+ * half a row with nothing beside it is just a gap.
+ *
+ * Bottoms align (`items-end`), not tops: a label that wraps to two lines
+ * ("Season ending year" beside "Wins") would otherwise push its own box a line
+ * lower than its neighbour's, and a row of boxes at two different heights
+ * reads as a mistake rather than as a longer label.
  *
  * **A partial answer is a real answer**, exactly as on the matrix board: the
  * server credits this question per field, so filling in the two boxes you know
  * and sending is the correct play rather than a concession. Hence the submit
  * button goes live on the first filled box instead of waiting for a complete
  * set — and says how many of how many are going, so nobody sends two of three
- * believing they sent everything.
+ * believing they sent everything. The boxes are also sent **at the wire** if the
+ * button never gets pressed: two fields right and never submitted is worth
+ * nothing, and on the one board where waiting for another clue is a real
+ * strategy, the clock catching somebody mid-thought must not cost them
+ * everything they had (`useAutoSubmitAtDeadline`).
  */
 export function GradualHintsBoard({
   question,
   hints,
   submission,
   verdict,
+  deadlineAt,
   locked,
   onAnswer,
 }: BoardProps<GradualHintsQuestion>) {
@@ -63,7 +77,7 @@ export function GradualHintsBoard({
     (field) => (shown[field.id] ?? '').trim().length > 0,
   )
 
-  const submit = () => {
+  const build = () => {
     const answer_fields: AnswerFieldSubmission[] = filled.map((field) => ({
       field_id: field.id,
       // Verbatim, like every typed answer in this app: folding and trimming are
@@ -71,9 +85,21 @@ export function GradualHintsBoard({
       // the player can be shown afterwards.
       text: shown[field.id],
     }))
-    if (answer_fields.length === 0) return
-    onAnswer({ type: 'gradual-hints', answer_fields })
+    return answer_fields.length === 0 ? null : { type: 'gradual-hints' as const, answer_fields }
   }
+
+  const submit = () => {
+    const submission = build()
+    if (submission !== null) onAnswer(submission)
+  }
+
+  useAutoSubmitAtDeadline({
+    deadlineAt,
+    committed: committed !== null,
+    locked,
+    build,
+    onAnswer,
+  })
 
   return (
     <form
@@ -124,18 +150,18 @@ export function GradualHintsBoard({
         })}
       </ol>
 
-      <div className="flex flex-wrap gap-2.5">
+      <div className="grid grid-cols-2 items-end gap-x-3 gap-y-3 sm:grid-cols-3">
         {question.answer_fields.map((field, index) => {
           const numeric = field.kind === 'number'
           return (
             <label
               key={field.id}
-              // A number takes a fixed, short box; text takes whatever is left of
-              // the row and wraps to the next one rather than shrinking past
-              // readable. So "Year / Round / Game number" lays itself out as a
-              // narrow box, a wide one and a narrow one without the question
-              // having authored a single width.
-              className={`flex flex-col gap-1 ${numeric ? 'w-28 shrink-0' : 'min-w-[10rem] flex-1'}`}
+              // One column each, and the whole row when there is only one box
+              // to put in it. `min-w-0` because a grid track's default minimum
+              // is its content: without it a long label would push its own
+              // column wider than the share it was given and take the grid off
+              // the side of the screen.
+              className="flex min-w-0 flex-col gap-1 [&:only-child]:col-span-full"
             >
               <span className="font-display text-xs font-semibold uppercase tracking-wide text-ash">
                 {field.label}

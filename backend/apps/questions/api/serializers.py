@@ -198,6 +198,13 @@ class _QuestionPlaySerializer(_PlaySerializer):
     level = serializers.IntegerField(read_only=True)
     category = serializers.CharField(source="category.slug", read_only=True)
     image = serializers.SerializerMethodField()
+    #: What the player is asked to *do*, shown alone before the question
+    #: (``models.BaseQuestion.pre_question_info``). Safe while the clock runs
+    #: for the same reason an ordering question's ``instruction`` is: it
+    #: describes the interaction, not the answer — and it is authored per file,
+    #: so it says the same thing for every question of that shape and could not
+    #: single one of them out. Blank for most questions.
+    pre_question_info = serializers.CharField(read_only=True)
 
     def get_image(self, question) -> str | None:
         """The question's own illustration, or nothing.

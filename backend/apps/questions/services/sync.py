@@ -468,6 +468,10 @@ def _write_question(*, spec, category: Category, folder: Path) -> bool:
         "tags": spec.tags,
         "level": spec.level,
         "time_limit_seconds": spec.time_limit_seconds,
+        # Already resolved against the file's line by the schema, so this is
+        # one value rather than a fallback decided again here; "" is a question
+        # that opens without a task screen.
+        "pre_question_info": spec.pre_question_info or "",
         "image": _question_image(spec=spec, folder=folder),
         "is_active": True,
         # Revive rather than insert beside it — see sync_categories.

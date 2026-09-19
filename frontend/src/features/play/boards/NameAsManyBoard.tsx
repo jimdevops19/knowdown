@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { Plus, X } from 'lucide-react'
 import type { NameAsManyQuestion } from '../../../lib/api/types'
 import { Input } from '../../../components/Input'
 import { Button } from '../../../components/Button'
 import { type BoardProps } from './types'
+import { useAutoSubmitAtDeadline } from './useAutoSubmitAtDeadline'
 
 /*
  * "Name as many players as you can with 1,000+ career three-pointers."
@@ -29,25 +30,14 @@ import { type BoardProps } from './types'
  *    that rule as "already got it", not as an error message.
  *  - **The list submits itself at the wire.** A player typing when the clock
  *    runs out would otherwise score nothing at all — the one failure this mode
- *    can produce that has nothing to do with knowing basketball. See
- *    `AUTO_SUBMIT_LEAD_MS`.
+ *    can produce that has nothing to do with knowing basketball. Shared with
+ *    every other part-credited board; see `useAutoSubmitAtDeadline`.
  *
  * Autocomplete, autocorrect and spellcheck are off for the reason
  * `FreeTextBoard` turns them off: a phone helpfully correcting a surname would
  * cost somebody the question, and a browser offering their earlier answers
  * would be a cheat sheet built from their own history.
  */
-
-/**
- * How long before the server closes the question this board sends what it has.
- *
- * Far enough back that the frame still lands inside the clock the *server* is
- * keeping (`submit_answer` refuses one that arrives late), close enough that it
- * costs a player nothing — this type is not scored on speed, so a submission at
- * 29.2s is worth exactly what the same submission at 2s is worth. A second is
- * the round trip plus the margin for a phone on a slow network.
- */
-const AUTO_SUBMIT_LEAD_MS = 1_000
 
 export function NameAsManyBoard({
   question,
@@ -63,14 +53,12 @@ export function NameAsManyBoard({
   const shown = committed ?? names
   const full = shown.length >= question.max_names
 
-  // Read through a ref by the timer below, so arming it does not depend on the
-  // list — a timer re-armed on every keystroke is a timer that fires late on
-  // the one question where somebody is typing right up to the whistle. Written
-  // in an effect rather than during render: a ref is not rendering state, and
-  // the timer that reads it only ever fires after one has committed.
-  const latest = useRef(shown)
-  useEffect(() => {
-    latest.current = shown
+  useAutoSubmitAtDeadline({
+    deadlineAt,
+    committed: committed !== null,
+    locked,
+    build: () => (shown.length === 0 ? null : { type: 'name-as-many' as const, names: shown }),
+    onAnswer,
   })
 
   const submit = (list: string[]) => {
@@ -92,17 +80,6 @@ export function NameAsManyBoard({
     if (locked || committed) return
     setNames(shown.filter((existing) => existing !== name))
   }
-
-  useEffect(() => {
-    if (deadlineAt === null || committed !== null || locked) return
-    const delay = deadlineAt - AUTO_SUBMIT_LEAD_MS - Date.now()
-    // Already past the lead: send immediately rather than never. A board
-    // mounted this late has nothing to lose by trying — the server refuses a
-    // late frame, which costs the player exactly what silence would have.
-    const timer = window.setTimeout(() => submit(latest.current), Math.max(0, delay))
-    return () => window.clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deadlineAt, committed, locked])
 
   return (
     <form

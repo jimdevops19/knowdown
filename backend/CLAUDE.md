@@ -328,6 +328,29 @@ when nothing anywhere named one: a row built straight through the ORM in a
 test, or a file written before file clocks existed. `apps.matches` still owns
 what a clock is *worth*; the speed curve is entirely its own.
 
+#### Saying what the task is, before the question
+
+`pre_question_info` on the row is the same shape of thing as the clock above,
+and is resolved by the same two tiers at load time: the entry's own line, else
+the **file's** one line beside `category:` (`schemas.QuestionFileSpec`). Blank
+means no such screen, which is almost every question — an entry may write `""`
+to opt out of a file that sets one.
+
+What it buys is a beat where the instruction is the *only* thing on screen
+(`PreQuestionInfo` on the client), before the question is dealt. Only the types
+whose interaction is unlike the rest set it: `ordering.yaml` does, because its
+tiles look like options to choose between and are positions to assign, and a
+player who reads them wrong has lost the question before the clock starts.
+
+The beat is **added to the read delay, never taken out of it**
+(`apps.matches.constants.read_delay_ms_for`): `services.start_question` stamps
+such a question's `started_at` `PRE_QUESTION_INFO_MS` further out, so the
+reading beat that follows is still whole and the clock still starts with the
+options. That stays one stamp rather than two — everything measured from it
+(scoring, the deadline, the watchdog's sleep, a gradual-hints reveal) moves
+with it automatically, and the client re-derives "when the question is
+revealed" by subtracting the ordinary read delay back off.
+
 #### Answering: three outcomes, not two
 
 `schemas/answers.py` is the payload contract (a discriminated union, strict about

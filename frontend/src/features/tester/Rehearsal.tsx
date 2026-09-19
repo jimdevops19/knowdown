@@ -6,6 +6,8 @@ import { SectionHeading } from '../../components/SectionHeading'
 import { Countdown } from '../play/Countdown'
 import { QuestionBoard } from '../play/QuestionBoard'
 import { useQuestionClock } from '../../hooks/useQuestionClock'
+import { useInstantPassed } from '../../hooks/useInstantPassed'
+import { QUESTION_READ_DELAY_MS } from '../../lib/config'
 import type { AnswerKey, AnswerSubmission, TesterRehearsal, TesterVerdict } from '../../lib/api/types'
 import { getTesterAnswerKeyFor, submitTesterAnswer } from './api'
 import { AnswerKeyPanel } from './AnswerKeyPanel'
@@ -75,6 +77,16 @@ export function Rehearsal({ rehearsal }: { rehearsal: TesterRehearsal }) {
   const [hints, setHints] = useState<string[]>([])
 
   const clock = useQuestionClock(clockStart, rehearsal.time_limit_ms)
+
+  // The same boundary `MatchPage` draws, from the same two numbers: the task
+  // screen owns the front of the delay, and the question is revealed
+  // `QUESTION_READ_DELAY_MS` before the clock starts. A rehearsal shows it as a
+  // strip rather than as the full-screen takeover a match uses — a maintainer
+  // is inspecting this question, not playing it, and a black screen dropped
+  // over the controls on every run would be in the way of the job.
+  const taskBeatDone = useInstantPassed(
+    rehearsal.board.pre_question_info ? clockStart - QUESTION_READ_DELAY_MS : null,
+  )
 
   const restart = useCallback(
     (nextSeed?: string) => {
@@ -192,7 +204,20 @@ export function Rehearsal({ rehearsal }: { rehearsal: TesterRehearsal }) {
         {/* The countdown lives above the board here rather than in a match
             header, because there is no scoreboard to sit beside — but it is the
             same bar, reading the same clock. */}
-        <Countdown clock={clock} label={clock.started ? undefined : 'Reading…'} />
+        <Countdown
+          clock={clock}
+          label={clock.started ? undefined : taskBeatDone ? 'Reading…' : 'Task…'}
+        />
+
+        {/* What a player would be looking at, alone on a black screen, right
+            now (`PreQuestionInfo`). Shown for the same beat the server pays
+            for, so a question whose instruction is wrong is wrong here at the
+            moment it would be wrong in a match. */}
+        {!taskBeatDone && (
+          <p className="rounded-tile border border-volt/30 bg-volt/8 px-3 py-2.5 text-center font-display text-sm font-bold text-volt motion-safe:animate-pop-in">
+            {rehearsal.board.pre_question_info}
+          </p>
+        )}
 
         <QuestionBoard
           key={`${rehearsal.id}:${seed}:${runId}`}

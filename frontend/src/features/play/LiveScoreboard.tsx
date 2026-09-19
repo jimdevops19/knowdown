@@ -13,9 +13,17 @@ import type { MatchupState } from '../../lib/realtime'
  * their id (`Avatar`'s `seed`) so there's a specific someone to look at rather
  * than a blank even in that window.
  *
- * The scoreboard shows *points*, not questions won — points are what the ladder
- * moves on, and they carry speed as well as correctness, so a player who is
- * level on answers and behind on the clock can see that they are behind.
+ * ── No score during play ─────────────────────────────────────────────────────
+ * The running totals are *concealed* until the match is over. Points carry
+ * speed as well as correctness, so a mid-match total is a number a player would
+ * play differently against — chasing a deficit that a fast wrong answer only
+ * deepens — and watching it tick is attention spent off the question. Each side
+ * keeps its place in the layout as three dots, and the real figures arrive all
+ * at once on the summary screen (`MatchSummary`, off `match.completed`).
+ *
+ * What *is* still said here is whether each side has locked in — who, never
+ * what — which is the only thing about the opponent that may be published while
+ * this player's clock is running.
  */
 export function LiveScoreboard({
   state,
@@ -33,8 +41,6 @@ export function LiveScoreboard({
   opponentAvatarUrl: string | null
 }) {
   const opponentId = findOpponentId(state, myPlayerId)
-  const myScore = myPlayerId ? state.scores[myPlayerId] : undefined
-  const theirScore = opponentId ? state.scores[opponentId] : undefined
 
   return (
     <div className="flex items-stretch gap-2">
@@ -42,8 +48,6 @@ export function LiveScoreboard({
         name={myName}
         seed={myPlayerId ?? myName}
         avatarUrl={myAvatarUrl}
-        score={myScore}
-        known={state.scoresComplete}
         accent="court"
         answered={state.mySubmission !== null}
         align="left"
@@ -61,8 +65,6 @@ export function LiveScoreboard({
         // whole match even in the brief window before the name resolves.
         seed={opponentId ?? 'rival'}
         avatarUrl={opponentAvatarUrl}
-        score={theirScore}
-        known={state.scoresComplete}
         accent="rival"
         answered={state.opponentAnswered}
         away={state.opponentAway}
@@ -76,8 +78,6 @@ function Side({
   name,
   seed,
   avatarUrl,
-  score,
-  known,
   accent,
   answered,
   away = false,
@@ -86,8 +86,6 @@ function Side({
   name: string
   seed: string
   avatarUrl: string | null
-  score: number | undefined
-  known: boolean
   accent: 'court' | 'rival'
   answered: boolean
   away?: boolean
@@ -124,18 +122,17 @@ function Side({
           {away && <WifiOff size={13} className="shrink-0 text-rival" aria-hidden />}
           <span className="truncate">{name}</span>
         </span>
-        {/* The score, in widened display digits — the one number on the screen
-            that is meant to be seen from further away than it is read. */}
+        {/* Where the score goes, holding its place at the same size and colour
+            so the reveal at the end lands in a shape the player already knows.
+            Dots rather than a dash: a dash reads as "nothing yet", and there
+            very much is something — it is simply not being shown. */}
         <span
-          className={`nums font-display text-2xl font-bold [font-stretch:var(--display-wide)] leading-none ${text}`}
+          role="img"
+          aria-label="Score hidden until the end of the match"
+          title="Scores are revealed at the end of the match"
+          className={`font-display text-2xl font-bold leading-none tracking-[0.1em] opacity-50 ${text}`}
         >
-          {/* A dash rather than a number this client cannot vouch for. A
-              reconnect resumes at the question in progress and is told nothing
-              about the ones already played, so the running total would be
-              quietly short — and a scoreboard that is quietly wrong is worse
-              than one that admits it doesn't know. The real figure arrives with
-              `match.completed`. */}
-          {known ? (score ?? 0) : '—'}
+          •••
         </span>
       </div>
       {/* "They locked in" — who, never what. The opponent's verdict is not

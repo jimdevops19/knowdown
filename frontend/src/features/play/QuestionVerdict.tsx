@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Clock, Minus, Trophy, Zap } from 'lucide-react'
+import { Clock, Minus, Trophy } from 'lucide-react'
 import type { QuestionResultEntry } from '../../lib/realtime'
 import { formatResponseTime } from '../../lib/format'
 
@@ -18,6 +18,13 @@ import { formatResponseTime } from '../../lib/format'
  * "answered wrong" — and the difference matters to a player, because one of
  * them is a mistake and the other is a habit. So a missing entry reads as "out
  * of time", not as a wrong answer.
+ *
+ * **No points.** What each answer was *worth* is withheld for the same reason
+ * the running total on the scoreboard is (`LiveScoreboard`): a per-question
+ * "+7" is a total in instalments, and a player adding them up as they go is
+ * playing the scoreboard rather than the question. The verdict — right, partly
+ * right, wrong, or out of time — and how long it took are feedback on the
+ * answer itself, so those stay. The points all land at the end.
  */
 export function QuestionVerdict({
   results,
@@ -69,7 +76,6 @@ function Row({
             Out of time
           </span>
         }
-        points={<span className="font-display text-lg font-bold text-idle">+0</span>}
       />
     )
   }
@@ -108,38 +114,27 @@ function Row({
           <span className="nums text-ash">{formatResponseTime(entry.response_time_ms)}</span>
         </span>
       }
-      points={
-        <span
-          className={`nums flex items-center gap-1 font-display text-lg font-bold motion-safe:animate-score-pop ${
-            entry.points > 0 ? 'text-chalk' : 'text-idle'
-          }`}
-        >
-          {entry.points > 0 && <Zap size={15} className="text-gold" aria-hidden />}+{entry.points}
-        </span>
-      }
     />
   )
 }
 
-/** The row's frame: who it is about on the left, what they scored on the
- *  right. Split out so the "out of time" case and the scored case cannot drift
- *  apart in spacing — they sit directly above one another. */
+/** The row's frame: who it is about on the left, how they did on the right.
+ *  Split out so the "out of time" case and the scored case cannot drift apart
+ *  in spacing — they sit directly above one another. */
 function Shell({
   tone,
   label,
   emphasis,
   verdict,
-  points,
 }: {
   tone: string
   label: string
   emphasis: boolean
   verdict: ReactNode
-  points: ReactNode
 }) {
   return (
     <div
-      className={`flex items-center justify-between gap-3 rounded-tile border px-3.5 py-2.5 ${tone} ${
+      className={`flex items-center gap-3 rounded-tile border px-3.5 py-2.5 ${tone} ${
         emphasis ? '' : 'opacity-90'
       }`}
     >
@@ -149,7 +144,6 @@ function Shell({
         </span>
         {verdict}
       </span>
-      {points}
     </div>
   )
 }

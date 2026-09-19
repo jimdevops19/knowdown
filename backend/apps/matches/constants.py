@@ -17,6 +17,7 @@ __all__ = [
     "DEFAULT_PLAYER_RATING",
     "FALLBACK_QUESTION_TIME_LIMIT_MS",
     "FALLBACK_QUESTION_TIME_LIMIT_SECONDS",
+    "LATE_ANSWER_FLOOR_MS",
     "MATCH_QUESTION_COUNTS",
     "MAX_QUESTION_POINTS",
     "MAX_TIEBREAKER_QUESTIONS",
@@ -24,10 +25,12 @@ __all__ = [
     "PLAYERS_PER_MATCHUP",
     "POOL_WAITING_TTL_SECONDS",
     "PRESENCE_TTL_SECONDS",
+    "PRE_QUESTION_INFO_MS",
     "QUESTION_READ_DELAY_MS",
     "SPEED_SCORED_TYPES",
     "QUESTION_READ_DELAY_SECONDS",
     "RECONNECT_GRACE_SECONDS",
+    "read_delay_ms_for",
     "score_answer",
     "time_limit_ms_for",
 ]
@@ -96,6 +99,41 @@ QUESTION_READ_DELAY_SECONDS = 3
 QUESTION_READ_DELAY_MS = QUESTION_READ_DELAY_SECONDS * 1000
 
 
+#: How long a question's task screen ("Click to order from earliest to latest")
+#: owns the whole display before the question itself appears, for the questions
+#: that have one (``apps.questions.models.BaseQuestion.pre_question_info``).
+#:
+#: **Added to the read delay, never taken out of it.** The three seconds below
+#: are the beat spent reading *this question*; a player who spent them learning
+#: what an ordering board is has not read the question, and would meet the
+#: clock having done half the job the delay is there for. So a question with a
+#: task screen is simply dealt earlier: its ``started_at`` is stamped this much
+#: further out, and everything measured from that stamp — scoring, the
+#: deadline, the watchdog, a gradual-hints reveal — moves with it, which is the
+#: same property that lets the read delay itself be changed by editing one
+#: number.
+#:
+#: Long enough to read a line of instruction twice and short enough that a
+#: player who already knows the type is not made to sit through it; mirrored on
+#: the frontend by ``PRE_QUESTION_INFO_MS`` (``frontend/src/lib/config.ts``),
+#: which is what splits the window into "task screen" and "read the question".
+PRE_QUESTION_INFO_MS = 2_500
+
+
+def read_delay_ms_for(*, pre_question_info: str = "") -> int:
+    """How long one question is on screen before its clock starts.
+
+    The ordinary :data:`QUESTION_READ_DELAY_MS`, plus
+    :data:`PRE_QUESTION_INFO_MS` for a question that says what the task is
+    first. A function for :func:`time_limit_ms_for`'s reason: the stamp and
+    everything that has to sleep past it are computed in different modules, and
+    two of them deciding this separately is one of them being wrong.
+    """
+    if pre_question_info:
+        return QUESTION_READ_DELAY_MS + PRE_QUESTION_INFO_MS
+    return QUESTION_READ_DELAY_MS
+
+
 def time_limit_ms_for(*, override_seconds: int | None = None) -> int:
     """How long one question stays open, in server time.
 
@@ -139,6 +177,23 @@ SPEED_SCORED_TYPES: frozenset[str] = frozenset(
     for question_type in QuestionType.values
     if question_type != QuestionType.NAME_AS_MANY
 )
+
+#: How much of the end of the clock is all scored as "at the wire".
+#:
+#: An answer arriving with less than this left is timed at the full limit, so it
+#: is paid :data:`MIN_SPEED_FACTOR` exactly rather than a hair above it. The
+#: reason is the boards that send *themselves* at the whistle: multiple-answer,
+#: matrix and gradual-hints all commit whatever the player has in hand a beat
+#: before the question closes (``AUTO_SUBMIT_LEAD_MS``, which this mirrors),
+#: because work that was never submitted is worth nothing at all. That lead is
+#: network margin, not thinking time, and without this window a player who ran
+#: out of time would be paid fractionally *more* than the floor for the slow
+#: phone that sent their answer earliest.
+#:
+#: A human answering inside the same last second is paid the floor too, which is
+#: the right answer for the same reason: a fifth of a second either side of the
+#: whistle is not a difference in how well anybody knew the question.
+LATE_ANSWER_FLOOR_MS = 1_000
 
 #: The floor of the speed multiplier. Even an answer submitted with one
 #: millisecond left on the clock is still worth this fraction of
@@ -187,6 +242,10 @@ def score_answer(
     this function does not re-derive it from a clock, so it can be called from a
     test with any number and stay honest about what it is measuring.
 
+    The last :data:`LATE_ANSWER_FLOOR_MS` of the clock are all scored at
+    :data:`MIN_SPEED_FACTOR` — see that constant for why the boards that submit
+    themselves at the whistle need the end of the curve to be flat.
+
     ``question_type`` decides whether speed applies at all — see
     :data:`SPEED_SCORED_TYPES`. It is optional, and an unstated type is scored
     on speed, because that is what every type but one does and a caller that
@@ -196,6 +255,12 @@ def score_answer(
         return 0
     if question_type is not None and question_type not in SPEED_SCORED_TYPES:
         return round(MAX_QUESTION_POINTS * credit)
+    # Never more than half the clock, so a question authored with a very short
+    # one (``time_limit_seconds`` may be as low as 1) still has a curve to speak
+    # of rather than paying the floor for every answer to it.
+    at_the_wire_ms = min(LATE_ANSWER_FLOOR_MS, time_limit_ms / 2)
+    if response_time_ms >= time_limit_ms - at_the_wire_ms:
+        return round(MAX_QUESTION_POINTS * credit * MIN_SPEED_FACTOR)
     remaining_fraction = max(0.0, (time_limit_ms - response_time_ms) / time_limit_ms)
     speed_factor = MIN_SPEED_FACTOR + (1 - MIN_SPEED_FACTOR) * remaining_fraction
     return round(MAX_QUESTION_POINTS * credit * speed_factor)
