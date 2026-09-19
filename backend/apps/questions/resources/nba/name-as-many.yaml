@@ -78,3 +78,65 @@ questions:
     # the question is harder: there are no easy names left to pad it with once
     # the obvious half-dozen are down.
     target_score: 14
+
+  - type: name-as-many
+    slug: nba-1250-career-threes
+    description: >-
+      Name as many players as you can who have made 1,250 or more
+      three-pointers in their career.
+    level: 5
+    tags: {topic: records, skill: shooting}
+    time_limit_seconds: 30
+    stat: fg3m
+    comparison: at-least
+    threshold: 1250
+    # 97 players clear this line and 440 points sit on the board. 28 is roughly
+    # nine names, so the 2010s volume shooters everybody remembers will get you
+    # there — but only if you keep going past the first five.
+    target_score: 28
+
+  - type: name-as-many
+    slug: nba-1500-career-threes
+    description: >-
+      Name as many players as you can who have made 1,500 or more
+      three-pointers in their career.
+    level: 6
+    tags: {topic: records, skill: shooting}
+    time_limit_seconds: 30
+    stat: fg3m
+    comparison: at-least
+    threshold: 1500
+    # 58 players, 232 points. The obvious half-dozen is about 15 points, so a
+    # target of 20 asks for the names one rung below them.
+    target_score: 20
+
+  - type: name-as-many
+    slug: nba-1750-career-threes
+    description: >-
+      Name as many players as you can who have made 1,750 or more
+      three-pointers in their career.
+    level: 7
+    tags: {topic: records, skill: shooting}
+    time_limit_seconds: 30
+    stat: fg3m
+    comparison: at-least
+    threshold: 1750
+    # 34 players and 124 points — the list is short enough that a wrong guess
+    # costs real time, so 16 is a demanding but reachable target.
+    target_score: 16
+
+  - type: name-as-many
+    slug: nba-2500-career-threes
+    description: >-
+      Name as many players as you can who have made 2,500 or more
+      three-pointers in their career.
+    level: 9
+    tags: {topic: records, skill: shooting}
+    time_limit_seconds: 30
+    stat: fg3m
+    comparison: at-least
+    threshold: 2500
+    # Only 7 players clear this, worth 18 points in total, and most of them are
+    # household names — so 8 is nearly half the board and there is nothing
+    # obscure left to pad it with.
+    target_score: 8

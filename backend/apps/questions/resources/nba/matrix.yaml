@@ -499,3 +499,250 @@ questions:
     time_limit_seconds: 45
     rows: [Washington Wizards, Oklahoma City Thunder]
     columns: [Denver Nuggets, Sacramento Kings]
+
+  - type: matrix
+    slug: nba-matrix-franchise-decade-titles-heat-warriors-cavaliers
+    description: >-
+      For each franchise and decade, name a season in which they won the
+      championship.
+    level: 6
+    tags: {topic: finals, era: 2010s}
+    time_limit_seconds: 35
+    rows: [Miami Heat, Golden State Warriors, Cleveland Cavaliers]
+    columns: ["2000s", "2010s"]
+    cells:
+      - row: Miami Heat
+        column: "2000s"
+        answers:
+          - {answer: "2006", probability_score: 3}
+      - row: Miami Heat
+        column: "2010s"
+        answers:
+          - {answer: "2012", probability_score: 3}
+          - {answer: "2013", probability_score: 3}
+      - row: Golden State Warriors
+        column: "2010s"
+        answers:
+          - {answer: "2015", probability_score: 3}
+          - {answer: "2017", probability_score: 3}
+          - {answer: "2018", probability_score: 3}
+      - row: Cleveland Cavaliers
+        column: "2010s"
+        answers:
+          - {answer: "2016", probability_score: 2}
+
+  - type: matrix
+    slug: nba-matrix-2010s-mvp-and-finals-mvp-by-year
+    description: For each award and year, name the player who won it.
+    level: 6
+    tags: {topic: awards, era: 2010s}
+    time_limit_seconds: 40
+    rows: [Regular-season MVP, Finals MVP]
+    columns: ["2011", "2015", "2019"]
+    cells:
+      - row: Regular-season MVP
+        column: "2011"
+        answers:
+          - {answer: Derrick Rose, probability_score: 4}
+      - row: Regular-season MVP
+        column: "2015"
+        answers:
+          - {answer: Stephen Curry, probability_score: 3}
+      - row: Regular-season MVP
+        column: "2019"
+        answers:
+          - {answer: Giannis Antetokounmpo, probability_score: 3}
+      - row: Finals MVP
+        column: "2011"
+        answers:
+          - {answer: Dirk Nowitzki, probability_score: 3}
+      - row: Finals MVP
+        column: "2015"
+        answers:
+          - {answer: Andre Iguodala, probability_score: 5}
+      - row: Finals MVP
+        column: "2019"
+        answers:
+          - {answer: Kawhi Leonard, probability_score: 3}
+
+  - type: matrix
+    slug: nba-matrix-2010s-first-overall-picks-and-teams
+    description: For each draft, name the player taken first overall and the team that took him.
+    level: 7
+    tags: {topic: draft, era: 2010s}
+    time_limit_seconds: 40
+    rows: [First overall pick, Team that picked first]
+    columns: ["2012", "2014", "2018"]
+    cells:
+      - row: First overall pick
+        column: "2012"
+        answers:
+          - {answer: Anthony Davis, probability_score: 3}
+      - row: First overall pick
+        column: "2014"
+        answers:
+          - {answer: Andrew Wiggins, probability_score: 5}
+      - row: First overall pick
+        column: "2018"
+        answers:
+          - {answer: Deandre Ayton, probability_score: 5}
+      - row: Team that picked first
+        column: "2012"
+        answers:
+          - {answer: New Orleans Hornets, probability_score: 7}
+          - {answer: Hornets, probability_score: 7}
+          - {answer: New Orleans, probability_score: 7}
+      - row: Team that picked first
+        column: "2014"
+        answers:
+          - {answer: Cleveland Cavaliers, probability_score: 6}
+          - {answer: Cavaliers, probability_score: 6}
+          - {answer: Cleveland, probability_score: 6}
+      - row: Team that picked first
+        column: "2018"
+        answers:
+          - {answer: Phoenix Suns, probability_score: 5}
+          - {answer: Suns, probability_score: 5}
+          - {answer: Phoenix, probability_score: 5}
+
+  - type: matrix
+    slug: nba-matrix-2010s-finals-champions-and-runners-up
+    description: For each year, name the team that won the Finals and the team that lost them.
+    level: 5
+    tags: {topic: finals, era: 2010s}
+    time_limit_seconds: 40
+    rows: ["2011", "2016", "2019"]
+    columns: [Champion, Runner-up]
+    cells:
+      - row: "2011"
+        column: Champion
+        answers:
+          - {answer: Dallas Mavericks, probability_score: 3}
+          - {answer: Mavericks, probability_score: 3}
+          - {answer: Dallas, probability_score: 3}
+      - row: "2011"
+        column: Runner-up
+        answers:
+          - {answer: Miami Heat, probability_score: 3}
+          - {answer: Heat, probability_score: 3}
+          - {answer: Miami, probability_score: 3}
+      - row: "2016"
+        column: Champion
+        answers:
+          - {answer: Cleveland Cavaliers, probability_score: 2}
+          - {answer: Cavaliers, probability_score: 2}
+          - {answer: Cleveland, probability_score: 2}
+      - row: "2016"
+        column: Runner-up
+        answers:
+          - {answer: Golden State Warriors, probability_score: 2}
+          - {answer: Warriors, probability_score: 2}
+          - {answer: Golden State, probability_score: 2}
+      - row: "2019"
+        column: Champion
+        answers:
+          - {answer: Toronto Raptors, probability_score: 3}
+          - {answer: Raptors, probability_score: 3}
+          - {answer: Toronto, probability_score: 3}
+      - row: "2019"
+        column: Runner-up
+        answers:
+          - {answer: Golden State Warriors, probability_score: 3}
+          - {answer: Warriors, probability_score: 3}
+          - {answer: Golden State, probability_score: 3}
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-cavaliers-raptors
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 7
+    tags: {topic: rosters, era: 2010s}
+    time_limit_seconds: 45
+    rows: [Cleveland Cavaliers, Toronto Raptors]
+    columns: [Golden State Warriors, Miami Heat]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-thunder-mavericks
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 7
+    tags: {topic: rosters, era: 2010s}
+    time_limit_seconds: 45
+    rows: [Oklahoma City Thunder, Dallas Mavericks]
+    columns: [Golden State Warriors, Cleveland Cavaliers]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-rockets-clippers
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 8
+    tags: {topic: rosters, era: 2010s}
+    time_limit_seconds: 45
+    rows: [Houston Rockets, Los Angeles Clippers]
+    columns: [Milwaukee Bucks, Toronto Raptors]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-nets-hornets
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 8
+    tags: {topic: rosters, era: 2010s}
+    time_limit_seconds: 45
+    rows: [Brooklyn Nets, Charlotte Hornets]
+    columns: [Boston Celtics, Philadelphia 76ers]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-timberwolves-blazers
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 9
+    tags: {topic: rosters, era: 2010s}
+    time_limit_seconds: 45
+    rows: [Minnesota Timberwolves, Portland Trail Blazers]
+    columns: [Denver Nuggets, Utah Jazz]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-pelicans-pacers
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 9
+    tags: {topic: rosters, era: 2010s}
+    time_limit_seconds: 45
+    rows: [New Orleans Pelicans, Indiana Pacers]
+    columns: [Atlanta Hawks, Orlando Magic]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-grizzlies-bulls
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 8
+    tags: {topic: rosters, era: 2010s}
+    time_limit_seconds: 45
+    rows: [Memphis Grizzlies, Chicago Bulls]
+    columns: [New York Knicks, Detroit Pistons]
+
+  - type: matrix
+    kind: teams
+    slug: nba-matrix-teams-shared-players-warriors-spurs
+    description: >-
+      For each pair of franchises, name one player who suited up for both of
+      them.
+    level: 7
+    tags: {topic: rosters, era: 2010s}
+    time_limit_seconds: 45
+    rows: [Golden State Warriors, San Antonio Spurs]
+    columns: [Oklahoma City Thunder, Toronto Raptors]

@@ -294,3 +294,180 @@ questions:
       - Lakers vs. Nets (2002)
       - Spurs vs. Nets (2003)
       - Spurs vs. Pistons (2005)
+
+  - type: ordering
+    slug: nba-order-2010s-champions-by-year
+    description: Five different franchises lifted the trophy during the 2010s.
+    instruction: Order these teams by the year they won their 2010s title, earliest first.
+    level: 5
+    tags: {topic: finals, era: 2010s}
+    items:
+      - Los Angeles Lakers
+      - Dallas Mavericks
+      - San Antonio Spurs
+      - Cleveland Cavaliers
+      - Toronto Raptors
+
+  - type: ordering
+    slug: nba-order-2010s-mvp-winners
+    description: Five players who took home the regular-season MVP award in the 2010s.
+    instruction: Order them by the year they won the award, earliest first.
+    level: 6
+    tags: {topic: awards, era: 2010s}
+    items:
+      - Derrick Rose
+      - Kevin Durant
+      - Stephen Curry
+      - Russell Westbrook
+      - Giannis Antetokounmpo
+
+  - type: ordering
+    slug: nba-order-2010s-finals-mvp-winners
+    description: Four Finals MVP winners from the 2010s.
+    instruction: Order them by the year they won Finals MVP, earliest first.
+    level: 7
+    tags: {topic: finals, era: 2010s}
+    items:
+      - Dirk Nowitzki
+      - Kawhi Leonard
+      - Andre Iguodala
+      - Kevin Durant
+
+  - type: ordering
+    slug: nba-order-2010s-number-one-draft-picks
+    description: Five players taken first overall in 2010s drafts.
+    instruction: Order them by their draft year, earliest first.
+    level: 5
+    tags: {topic: draft, era: 2010s}
+    items:
+      - John Wall
+      - Kyrie Irving
+      - Anthony Davis
+      - Andrew Wiggins
+      - Zion Williamson
+
+  - type: ordering
+    slug: nba-order-2010s-rookie-of-the-year
+    description: Five Rookie of the Year winners from the 2010s.
+    instruction: Order them by the season they won the award, earliest first.
+    level: 6
+    tags: {topic: awards, era: 2010s}
+    items:
+      - Blake Griffin
+      - Damian Lillard
+      - Karl-Anthony Towns
+      - Ben Simmons
+      - Luka Doncic
+
+  - type: ordering
+    slug: nba-order-2010s-title-winning-coaches
+    description: Five head coaches who won a championship during the 2010s.
+    instruction: Order them by the year of their 2010s title, earliest first.
+    level: 6
+    tags: {topic: teams, era: 2010s}
+    items:
+      - Phil Jackson
+      - Rick Carlisle
+      - Gregg Popovich
+      - Tyronn Lue
+      - Nick Nurse
+
+  - type: ordering
+    slug: nba-order-2010s-scoring-champions
+    description: Five players who led the league in scoring during the 2010s.
+    instruction: Order them by the season they won the scoring title, earliest first.
+    level: 7
+    tags: {topic: awards, era: 2010s}
+    items:
+      - Kevin Durant
+      - Carmelo Anthony
+      - Russell Westbrook
+      - Stephen Curry
+      - James Harden
+
+  - type: ordering
+    slug: nba-order-2010s-defensive-players-of-the-year
+    description: Five Defensive Player of the Year winners from the 2010s.
+    instruction: Order them by the season they won the award, earliest first.
+    level: 7
+    tags: {topic: awards, era: 2010s}
+    items:
+      - Dwight Howard
+      - Tyson Chandler
+      - Marc Gasol
+      - Draymond Green
+      - Rudy Gobert
+
+  - type: ordering
+    slug: nba-order-2010s-retired-stars-career-points
+    description: Five stars of the 2010s who have since retired, by career regular-season points.
+    instruction: Order them from most career points to fewest.
+    level: 8
+    tags: {topic: records, era: 2010s}
+    items:
+      - Kobe Bryant
+      - Dirk Nowitzki
+      - Tim Duncan
+      - Paul Pierce
+      - Vince Carter
+
+  - type: ordering
+    slug: nba-order-2010s-milestones
+    description: Five moments that defined the NBA's 2010s.
+    instruction: Order these events by when they happened, earliest first.
+    level: 6
+    tags: {topic: history, era: 2010s}
+    items:
+      - LeBron James announces "The Decision" on live television
+      - A lockout delays the start of the season and cuts it to 66 games
+      - Ray Allen's corner three forces Game 7 of the Finals
+      - The Warriors win 73 regular-season games
+      - The Raptors win the first championship in franchise history
+
+  - type: ordering
+    slug: nba-order-2010s-relocations-renames
+    description: Three franchise identity changes from the first half of the 2010s.
+    instruction: Order them by the season they took effect, earliest first.
+    level: 8
+    tags: {topic: history, era: 2010s}
+    items:
+      - The Nets play their first season in Brooklyn
+      - New Orleans drops the Hornets name and becomes the Pelicans
+      - Charlotte reclaims the Hornets name from New Orleans
+
+  - type: ordering
+    slug: nba-order-2010s-dunk-contest-champions
+    description: Five winners of the All-Star Saturday dunk contest during the 2010s.
+    instruction: Order them by the year they won, earliest first.
+    level: 8
+    tags: {topic: awards, era: 2010s}
+    items:
+      - Blake Griffin
+      - Jeremy Evans
+      - Terrence Ross
+      - Zach LaVine
+      - Donovan Mitchell
+
+  - type: ordering
+    slug: nba-order-2010s-finals-series-length
+    description: Three NBA Finals of the 2010s, each decided in a different number of games.
+    instruction: Order these series by how many games they lasted, fewest to most.
+    level: 7
+    tags: {topic: finals, era: 2010s}
+    items:
+      - Spurs vs. Heat (2014)
+      - Mavericks vs. Heat (2011)
+      - Cavaliers vs. Warriors (2016)
+
+  - type: ordering
+    slug: nba-order-2010s-warriors-dynasty-milestones
+    description: Five steps in Golden State's rise from playoff hopeful to dynasty.
+    instruction: Order these moments by when they happened, earliest first.
+    level: 6
+    tags: {topic: teams, era: 2010s}
+    items:
+      - Steve Kerr is hired as head coach
+      - The franchise wins its first championship in 40 years
+      - The team sets the record for regular-season wins
+      - Kevin Durant signs with the club in free agency
+      - Durant collects the first Finals MVP of his career

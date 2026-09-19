@@ -616,3 +616,175 @@ questions:
       - {text: Cleveland Cavaliers}
       - {text: Denver Nuggets}
       - {text: Boston Celtics}
+
+  - type: single-answer
+    slug: nba-2011-finals-mavericks-opponent
+    description: Which team did the Dallas Mavericks beat to win the 2011 NBA Finals?
+    level: 3
+    tags: {topic: finals, era: 2010s}
+    options:
+      - {text: Miami Heat, is_correct: true}
+      - {text: Oklahoma City Thunder}
+      - {text: Boston Celtics}
+      - {text: Chicago Bulls}
+
+  - type: single-answer
+    slug: nba-2011-youngest-mvp-ever
+    description: >-
+      Who became the youngest regular-season MVP in NBA history when he won the
+      award in 2011?
+    level: 4
+    tags: {topic: awards, era: 2010s}
+    options:
+      - {text: Derrick Rose, is_correct: true}
+      - {text: LeBron James}
+      - {text: Kevin Durant}
+      - {text: Dwight Howard}
+
+  - type: single-answer
+    slug: nba-2013-finals-game-six-corner-three
+    description: >-
+      Who hit the corner three-pointer with 5.2 seconds left in Game 6 of the
+      2013 NBA Finals to force overtime?
+    level: 3
+    tags: {topic: finals, era: 2010s}
+    options:
+      - {text: Ray Allen, is_correct: true}
+      - {text: Mario Chalmers}
+      - {text: Shane Battier}
+      - {text: Dwyane Wade}
+
+  - type: single-answer
+    slug: nba-2014-finals-mvp-spurs
+    description: Who was named Finals MVP when the San Antonio Spurs won the 2014 title?
+    level: 4
+    tags: {topic: finals, era: 2010s}
+    options:
+      - {text: Kawhi Leonard, is_correct: true}
+      - {text: Tim Duncan}
+      - {text: Tony Parker}
+      - {text: Manu Ginobili}
+
+  - type: single-answer
+    slug: nba-2015-finals-mvp-warriors
+    description: >-
+      Who won Finals MVP for the Golden State Warriors in 2015 despite not
+      starting a single regular-season game that year?
+    level: 5
+    tags: {topic: finals, era: 2010s}
+    options:
+      - {text: Andre Iguodala, is_correct: true}
+      - {text: Stephen Curry}
+      - {text: Draymond Green}
+      - {text: Klay Thompson}
+
+  - type: single-answer
+    slug: nba-2016-warriors-regular-season-win-record
+    description: >-
+      How many regular-season games did the 2015-16 Golden State Warriors win to
+      set the all-time record?
+    level: 3
+    tags: {topic: records, era: 2010s}
+    options:
+      - {text: "73", is_correct: true}
+      - {text: "72"}
+      - {text: "74"}
+      - {text: "70"}
+
+  - type: single-answer
+    slug: nba-2019-first-championship-franchise
+    description: Which franchise won its first NBA championship in 2019?
+    level: 2
+    tags: {topic: finals, era: 2010s}
+    options:
+      - {text: Toronto Raptors, is_correct: true}
+      - {text: Milwaukee Bucks}
+      - {text: Denver Nuggets}
+      - {text: Portland Trail Blazers}
+
+  - type: single-answer
+    slug: nba-2019-finals-raptors-opponent
+    description: Which team did the Toronto Raptors beat in the 2019 NBA Finals?
+    level: 3
+    tags: {topic: finals, era: 2010s}
+    options:
+      - {text: Golden State Warriors, is_correct: true}
+      - {text: Milwaukee Bucks}
+      - {text: Houston Rockets}
+      - {text: Boston Celtics}
+
+  - type: single-answer
+    slug: nba-2017-westbrook-triple-double-count
+    description: >-
+      How many triple-doubles did Russell Westbrook record in the 2016-17 season,
+      breaking Oscar Robertson's single-season record?
+    level: 6
+    tags: {topic: records, era: 2010s}
+    options:
+      - {text: "42", is_correct: true}
+      - {text: "41"}
+      - {text: "38"}
+      - {text: "45"}
+
+  - type: single-answer
+    slug: nba-2016-curry-threes-single-season-record
+    description: >-
+      How many three-pointers did Stephen Curry make in the 2015-16 season, the
+      single-season record?
+    level: 6
+    tags: {topic: records, era: 2010s}
+    options:
+      - {text: "402", is_correct: true}
+      - {text: "286"}
+      - {text: "324"}
+      - {text: "355"}
+
+  - type: single-answer
+    slug: nba-2010-the-decision-destination
+    description: >-
+      Which team did LeBron James join in the 2010 televised free-agency special
+      known as "The Decision"?
+    level: 2
+    tags: {topic: players, era: 2010s}
+    options:
+      - {text: Miami Heat, is_correct: true}
+      - {text: New York Knicks}
+      - {text: Chicago Bulls}
+      - {text: Los Angeles Clippers}
+
+  - type: single-answer
+    slug: nba-2012-linsanity-franchise
+    description: Which team was Jeremy Lin playing for during his 2012 "Linsanity" run?
+    level: 4
+    tags: {topic: players, era: 2010s}
+    options:
+      - {text: New York Knicks, is_correct: true}
+      - {text: Houston Rockets}
+      - {text: Golden State Warriors}
+      - {text: Brooklyn Nets}
+
+  - type: single-answer
+    slug: nba-2016-durant-free-agency-departure
+    description: >-
+      Which team did Kevin Durant leave when he signed with the Golden State
+      Warriors in the summer of 2016?
+    level: 2
+    tags: {topic: players, era: 2010s}
+    options:
+      - {text: Oklahoma City Thunder, is_correct: true}
+      - {text: Houston Rockets}
+      - {text: Portland Trail Blazers}
+      - {text: Washington Wizards}
+
+  - type: single-answer
+    slug: nba-2010-finals-game-seven-winner
+    description: >-
+      Which team won Game 7 of the 2010 NBA Finals, the last Finals meeting
+      between the league's two most decorated franchises?
+    level: 4
+    tags: {topic: finals, era: 2010s}
+    options:
+      - {text: Los Angeles Lakers, is_correct: true}
+      - {text: Boston Celtics}
+      - {text: Orlando Magic}
+      - {text: Phoenix Suns}

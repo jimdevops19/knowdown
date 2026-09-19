@@ -467,14 +467,270 @@ questions:
     level: 8
     tags: {topic: records, era: 2000s}
     hints:
+      - `And the Rockets, steal the game` - Marv Albert - 12/09/2004
       - His team trailed by 10 points with under 40 seconds on the clock.
       - He scored four straight three-pointers in a span of well under a minute.
       - The stunned opponent was the San Antonio Spurs, on their own home floor.
       - It happened in December 2004, while he played for the Houston Rockets.
-      - He scored 13 points in the final 33 seconds to steal the win.
     answer_fields:
       - label: Player
-        accepted_answers: [Tracy McGrady, McGrady, T-Mac]
+        accepted_answers: [Tracy McGrady, McGrady, T-Mac, tmac, t-mac]
       - label: Points scored in the stretch
         kind: number
         accepted_answers: [13]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-2011-finals-mavericks-upset
+    description: Guess the series.
+    level: 6
+    tags: {topic: finals, era: 2010s}
+    hints:
+      - The losing side had been assembled the previous summer with a famous televised announcement.
+      - The winning team closed it out on the road in Game 6, 105-95.
+      - The champions had a 20-point come back in Game 2 of this series.
+      - Jason Terry and J.J. Barea came off the bench to swing the series.
+      - A 32-year-old German won the only title and Finals MVP of his career.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2011]
+      - label: Champion
+        accepted_answers: [Dallas Mavericks, Mavericks, Dallas, Mavs]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-2013-finals-game-seven
+    description: Guess the game.
+    level: 7
+    tags: {topic: finals, era: 2010s}
+    hints:
+      - The final score was 95-88.
+      - The losing team's aging star grabbed 17 rebounds but missed a bunny in the closing minutes.
+      - It came two nights after one of the most famous comebacks in Finals history.
+      - LeBron James scored 37 and won his second straight Finals MVP.
+      - Miami beat San Antonio to win the deciding game of the series.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2013]
+      - label: Game number
+        accepted_answers: [7, Game 7]
+      - label: Winner
+        accepted_answers: [Miami Heat, Heat, Miami]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-2016-warriors-seventy-three-wins
+    description: Guess the season.
+    level: 6
+    tags: {topic: records, era: 2010s}
+    hints:
+      - The team started the season 24-0.
+      - The record they broke had stood since 1996.
+      - Their point guard was voted MVP unanimously that spring.
+      - They finished 73-9 and then lost the Finals.
+      - Golden State set the all-time regular-season wins record.
+    answer_fields:
+      - label: Season ending year
+        kind: number
+        accepted_answers: [2016]
+      - label: Wins
+        kind: number
+        accepted_answers: [73]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-2019-raptors-first-title
+    description: Guess the series.
+    level: 6
+    tags: {topic: finals, era: 2010s}
+    hints:
+      - The clinching game was played in the opponent's final game at their old arena.
+      - Both of the losing team's All-Star guards went down injured during the series.
+      - Kyle Lowry opened the deciding game with 11 straight points.
+      - A forward acquired the previous summer in a blockbuster trade won Finals MVP.
+      - Toronto beat Golden State in six games for its first championship.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2019]
+      - label: Finals MVP
+        accepted_answers: [Kawhi Leonard, Kawhi, Leonard]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-linsanity-2012
+    description: Guess the player.
+    level: 7
+    tags: {topic: players, era: 2010s}
+    hints:
+      - He had been waived twice and was sleeping on his brother's couch weeks earlier.
+      - He dropped 38 on Kobe Bryant's Lakers at Madison Square Garden.
+      - He hit a game-winning three in Toronto with half a second left.
+      - The Harvard graduate's February run made him a global phenomenon.
+      - "\"Linsanity\" swept New York in 2012."
+    answer_fields:
+      - label: Player
+        accepted_answers: [Jeremy Lin, Lin]
+      - label: Year
+        kind: number
+        accepted_answers: [2012]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-2012-heat-first-lebron-title
+    description: Guess the series.
+    level: 5
+    tags: {topic: finals, era: 2010s}
+    hints:
+      - The losing team won the opening game and then lost four in a row.
+      - Mike Miller came off the bench and hit seven threes in the closer.
+      - The winners had lost the Finals the previous June.
+      - It gave LeBron James the first championship of his career.
+      - Miami beat Oklahoma City in five games.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2012]
+      - label: Losing team
+        accepted_answers: [Oklahoma City Thunder, Thunder, Oklahoma City, OKC]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-westbrook-triple-double-season
+    description: Guess the season.
+    level: 8
+    tags: {topic: records, era: 2010s}
+    hints:
+      - He averaged 31.6 points, 10.7 rebounds and 10.4 assists.
+      - He sealed the record with a 36-footer to beat Denver.
+      - His co-star had left for Golden State the previous summer.
+      - He finished with 42 triple-doubles, one more than Oscar Robertson's record.
+      - Russell Westbrook averaged a triple-double and won MVP with the Thunder.
+    answer_fields:
+      - label: Season ending year
+        kind: number
+        accepted_answers: [2017]
+      - label: Triple-doubles
+        kind: number
+        accepted_answers: [42]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-booker-seventy-points
+    description: Guess the game.
+    level: 9
+    tags: {topic: records, era: 2010s}
+    hints:
+      - His team lost the game by 10 and he still took 40 shots.
+      - The crowd at TD Garden chanted for him to get there.
+      - He was 20 years old, the youngest ever to do it.
+      - He finished with 70 points against the Boston Celtics in March 2017.
+      - Devin Booker put up 70 in a Phoenix Suns loss.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Devin Booker, Booker]
+      - label: Points
+        kind: number
+        accepted_answers: [70]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-lillard-2019-series-winner
+    description: Guess the moment.
+    level: 7
+    tags: {topic: playoffs, era: 2010s}
+    hints:
+      - He had been trash-talked all series by Paul George.
+      - The shot came from 37 feet with the game tied and no time-outs left.
+      - He waved goodbye to the visiting bench as it dropped.
+      - It eliminated the Thunder in Game 5 of the 2019 first round.
+      - Damian Lillard hit the buzzer-beater for Portland.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Damian Lillard, Lillard, Dame]
+      - label: Year
+        kind: number
+        accepted_answers: [2019]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-2014-spurs-revenge-finals
+    description: Guess the series.
+    level: 6
+    tags: {topic: finals, era: 2010s}
+    hints:
+      - Game 1 was played in a building whose air conditioning failed.
+      - The winners shot better than 52% from the field for the series.
+      - It was a rematch of a Finals the same two teams had played the year before.
+      - A 22-year-old forward outplayed LeBron James and took Finals MVP.
+      - San Antonio beat Miami in five games in 2014.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2014]
+      - label: Finals MVP
+        accepted_answers: [Kawhi Leonard, Kawhi, Leonard]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-2010-finals-game-seven
+    description: Guess the game.
+    level: 7
+    tags: {topic: finals, era: 2010s}
+    hints:
+      - The final score was 83-79, the lowest-scoring Game 7 in decades.
+      - The winning star shot 6-for-24 and grabbed 15 rebounds anyway.
+      - Ron Artest hit a huge three-pointer in the final minute.
+      - It was the last Finals meeting between the league's two most decorated franchises.
+      - The Lakers beat the Celtics in Game 7 of the 2010 Finals.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2010]
+      - label: Winner
+        accepted_answers: [Los Angeles Lakers, Lakers, LA Lakers]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-klay-thirty-seven-point-quarter
+    description: Guess the quarter.
+    level: 8
+    tags: {topic: records, era: 2010s}
+    hints:
+      - He was a perfect 13-for-13 from the field in the period.
+      - Nine of the shots were three-pointers.
+      - It happened against the Sacramento Kings in January 2015.
+      - The 37 points broke George Gervin's single-quarter record.
+      - Klay Thompson did it in the third quarter for Golden State.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Klay Thompson, Klay, Thompson]
+      - label: Points in the quarter
+        kind: number
+        accepted_answers: [37]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-2017-durant-first-title
+    description: Guess the series.
+    level: 5
+    tags: {topic: finals, era: 2010s}
+    hints:
+      - The winners went 16-1 in the playoffs that spring.
+      - The deciding game finished 129-120 in a shootout.
+      - It was the third straight Finals between the same two teams.
+      - A forward who had changed teams the previous summer won his first ring and Finals MVP.
+      - Golden State beat Cleveland in five games in 2017.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [2017]
+      - label: Finals MVP
+        accepted_answers: [Kevin Durant, Durant, KD]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-2010-the-decision
+    description: Guess the moment.
+    level: 5
+    tags: {topic: players, era: 2010s}
+    hints:
+      - The broadcast raised millions of dollars for the Boys & Girls Clubs.
+      - Jim Gray asked the question on a stage in Greenwich, Connecticut.
+      - Fans in the city he left burned his jersey in the street.
+      - "\"I'm going to take my talents to South Beach.\""
+      - LeBron James announced he was leaving Cleveland for Miami in 2010.
+    answer_fields:
+      - label: Player
+        accepted_answers: [LeBron James, LeBron, James]
+      - label: Year
+        kind: number
+        accepted_answers: [2010]
