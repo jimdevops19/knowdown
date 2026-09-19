@@ -25,6 +25,11 @@
 
 category: nba
 
+# How long every question in this file stays open, unless an entry names its own
+# time_limit_seconds. Ordering is a board to rearrange, not an option to pick,
+# and every drag is a re-read of the ones either side of it.
+time_limit_seconds: 30
+
 questions:
   - type: ordering
     slug: nba-order-bulls-finals-opponents

@@ -5,35 +5,30 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Iterator
-from contextlib import ExitStack, contextmanager
+from contextlib import contextmanager
 from unittest import mock
 
 from apps.categories.models import Category
-from apps.matches import services
+from apps.matches import constants, services
 from apps.matches.models import Matchup
 from apps.players.models import Player
 from apps.players.tests.factories import make_player
-from apps.questions.models import QUESTION_MODELS
 from apps.questions.tests.factories import make_category, make_single_answer
 
 
 @contextmanager
-def every_default_clock(seconds: int) -> Iterator[None]:
-    """Give every question type the same default time limit for the duration.
+def default_clock(seconds: int) -> Iterator[None]:
+    """Run the block with the fallback question clock set to ``seconds``.
 
-    The clock a question gets with no authored override is its model's
-    ``DEFAULT_TIME_LIMIT_SECONDS`` (resolved by
-    ``apps.matches.constants.time_limit_ms_for``), so a test that needs a
-    question to close *now* has to say so on the classes rather than on one
-    number in the match engine. Patching all of them, rather than the type a
-    fixture happens to build, keeps such a test honest if the fixture ever
-    stocks a category with a second shape.
+    A question built straight through the ORM authors no ``time_limit_seconds``
+    and belongs to no resource file, so the clock it gets is
+    ``constants.FALLBACK_QUESTION_TIME_LIMIT_MS`` — the one tier left once the
+    two authored ones are absent (``constants.time_limit_ms_for``). A test that
+    needs a question to close *now* says so here, and both the watchdog in
+    ``consumers`` and the deadline in ``services`` see it, because both read the
+    constant through the same function at call time.
     """
-    with ExitStack() as stack:
-        for model in QUESTION_MODELS.values():
-            stack.enter_context(
-                mock.patch.object(model, "DEFAULT_TIME_LIMIT_SECONDS", seconds)
-            )
+    with mock.patch.object(constants, "FALLBACK_QUESTION_TIME_LIMIT_MS", seconds * 1000):
         yield
 
 

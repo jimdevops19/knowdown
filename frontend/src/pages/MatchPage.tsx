@@ -97,7 +97,7 @@ export function MatchPage() {
         matchupId={id}
         completed={match.completed}
         myPlayerId={playerId}
-        categorySlug={params.get('from')}
+        roomSlug={params.get('from')}
       />
     )
   }

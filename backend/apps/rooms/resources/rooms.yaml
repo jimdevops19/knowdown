@@ -1,0 +1,73 @@
+# The rooms the platform offers — the lobby, authored.
+#
+# A room is *the settings a match is played under*, named: which categories the
+# board is drawn from, which tags narrow each of them, and how many questions a
+# match here runs. Picking a room is what a player does instead of picking a
+# category, which is why a room that names one category and no tags is exactly
+# the old behaviour with a name on it.
+#
+# `slug` is the identifier everything else uses: the URL a player joins on and
+# the matchmaking pool's key. It is permanent — renaming one orphans every link
+# into that room.
+#
+# `questions_asked_ranges` is the set of match lengths this room runs; one is
+# drawn at random per matchup. A list of the counts themselves, not a low/high
+# pair: [4, 5, 6] means those three numbers.
+#
+# `categories` is drawn from in the order written, and the FIRST one is the
+# room's rating scope — a rating is per category (apps.rankings), and a room
+# that mixes sports still has to move exactly one ladder. `filter_tags` narrows
+# a category to the questions carrying those facets; leave it out and the whole
+# category is in play.
+#
+# `is_active: false` takes a room out of the lobby without deleting it, for one
+# that is seasonal or still being authored. Removing a room from this file does
+# the same thing (it is deactivated, never deleted), because matchups already
+# played in it point at the row.
+#
+# Loaded by: uv run python manage.py sync_rooms   (after sync_questions)
+
+- name: NBA
+  slug: nba-room-general
+  description: >-
+    The whole catalog, no filters — every era, every corner of the league.
+  questions_asked_ranges: [3, 5, 7]
+  display_order: 1
+  categories:
+    - slug: nba
+
+- name: Ring Chasing
+  slug: nba-room-finals
+  description: >-
+    June basketball only: the series, the shots and the runs that decided a
+    title.
+  questions_asked_ranges: [4, 5, 6]
+  display_order: 2
+  categories:
+    - slug: nba
+      filter_tags:
+        topic: finals
+
+- name: The 2000s
+  slug: nba-room-2000s
+  description: >-
+    Kobe, Duncan, the Pistons and everything else from the decade the league
+    argues hardest about.
+  questions_asked_ranges: [4, 5, 6]
+  display_order: 3
+  categories:
+    - slug: nba
+      filter_tags:
+        era: "2000s"
+
+- name: Hardware
+  slug: nba-room-awards
+  description: >-
+    MVPs, Rookies of the Year, Defensive Players — who took home what, and
+    when.
+  questions_asked_ranges: [3, 5]
+  display_order: 4
+  categories:
+    - slug: nba
+      filter_tags:
+        topic: awards

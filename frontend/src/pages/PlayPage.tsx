@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { listCategories } from '../lib/api/endpoints'
+import { getRoom } from '../lib/api/endpoints'
 import { queryKeys } from '../lib/query/queryClient'
 import { useMatchmaking } from '../lib/realtime'
 import { useAuth } from '../features/auth/useAuth'
@@ -10,12 +10,17 @@ import { Button } from '../components/Button'
 import { ErrorState, Loading } from '../components/states'
 
 /*
- * `/play/:category` — join the pool and wait.
+ * `/play/:room` — join a room's pool and wait.
  *
  * The page exists for the length of one search. Mounting it queues the player;
  * leaving it, by any route, takes them out — so there is no state here to keep
- * in step with the server, and no way to end up queued in a category the player
- * has navigated away from.
+ * in step with the server, and no way to end up queued in a room the player has
+ * navigated away from.
+ *
+ * The room itself is fetched for one reason: the screen has to name what it is
+ * searching in, and the slug ("nba-room-finals") is not that name. The search
+ * does not wait on it — the socket opens on the slug from the URL, which is all
+ * the server needs — so a slow lobby request delays the label, never the queue.
  *
  * When a pairing lands it navigates to the match and **replaces** the history
  * entry. Back from a live match should go to where the player came from, not to
@@ -23,25 +28,28 @@ import { ErrorState, Loading } from '../components/states'
  * the first one is still running.
  */
 export function PlayPage() {
-  const { category = '' } = useParams()
+  const { room = '' } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
 
-  const categories = useQuery({
-    queryKey: queryKeys.categories.all,
-    queryFn: listCategories,
+  const lobby = useQuery({
+    queryKey: queryKeys.rooms.detail(room),
+    queryFn: () => getRoom(room),
+    enabled: Boolean(room),
     staleTime: Infinity,
   })
 
-  const search = useMatchmaking(category || null)
+  const search = useMatchmaking(room || null)
 
   useEffect(() => {
     if (search.phase === 'found' && search.matchupId) {
-      navigate(`/match/${search.matchupId}?from=${encodeURIComponent(category)}`, { replace: true })
+      // `?from=` is the room to come back to — the "Play again" button on the
+      // summary screen is the only reader.
+      navigate(`/match/${search.matchupId}?from=${encodeURIComponent(room)}`, { replace: true })
     }
-  }, [search.phase, search.matchupId, navigate, category])
+  }, [search.phase, search.matchupId, navigate, room])
 
-  const name = categories.data?.find((c) => c.slug === category)?.name ?? category
+  const name = lobby.data?.name ?? room
 
   if (search.phase === 'failed') {
     return (
@@ -61,13 +69,13 @@ export function PlayPage() {
   // is a moment away, the second because the redirect above is already in
   // flight and flashing a different screen for one frame would be worse than
   // holding this one.
-  if (search.phase === 'connecting' && categories.isLoading) {
-    return <Loading label="Opening the pool…" />
+  if (search.phase === 'connecting' && lobby.isLoading) {
+    return <Loading label="Opening the room…" />
   }
 
   return (
     <Searching
-      categoryName={name}
+      roomName={name}
       displayName={user?.player_name ?? 'You'}
       avatarUrl={user?.player_avatar_url ?? null}
       playerId={user?.player_id ?? null}

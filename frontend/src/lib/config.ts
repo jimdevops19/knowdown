@@ -32,8 +32,9 @@ export const WS_URL = (import.meta.env.VITE_WS_URL as string | undefined) ?? ''
  * `apps.matches.constants.FALLBACK_QUESTION_TIME_LIMIT_SECONDS`.
  *
  * **Not the limit any live question is drawn against.** Each `question.started`
- * carries the server's own `time_limit_ms` for that question (it varies by type
- * and by the question's authored override), and `useQuestionClock` draws that.
+ * carries the server's own `time_limit_ms` for that question (each answer
+ * shape sets its own clock where it is authored), and `useQuestionClock` draws
+ * that.
  * This number only gives the parked bar between questions a width.
  *
  * **This number is only ever used to draw a bar.** The server stamps the

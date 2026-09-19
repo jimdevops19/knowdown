@@ -38,6 +38,15 @@ def category(value: Any) -> str | None:
     return getattr(value, "slug", None) or str(value)
 
 
+def room(value: Any) -> str | None:
+    """A room's slug — ``nba-room-finals``. The name the lobby, the URL and the
+    matchmaking pool all call it by, so a line naming one is greppable against
+    ``apps/rooms/resources/rooms.yaml``."""
+    if value is None:
+        return None
+    return getattr(value, "slug", None) or str(value)
+
+
 def question(value: Any) -> str | None:
     """A question's slug, which is also the key its YAML entry is authored under."""
     if value is None:

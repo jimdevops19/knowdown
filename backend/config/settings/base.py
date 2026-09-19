@@ -109,6 +109,11 @@ LOCAL_APPS: list[str] = [
     "apps.players",
     "apps.categories",
     "apps.questions",
+    # The lobby: a room is the set of settings a match is played under (which
+    # categories, filtered by which tags, over how many questions). Listed
+    # after questions and before matches because it reads from the first and
+    # is read by the second.
+    "apps.rooms",
     "apps.matches",
     # Tracks how many times each player has been dealt each question, so a
     # matchup's board can be biased away from repeats — see

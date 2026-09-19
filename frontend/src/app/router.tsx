@@ -34,15 +34,15 @@ import { NotFoundPage } from '../pages/NotFoundPage'
  * ── What is public, and why ─────────────────────────────────────────────────
  * The home page, any player's profile and the rules are all open. They are the
  * answer to "what would I be signing up for", and they cannot sit behind
- * signing up. Playing is what needs an account, and the home page's category
- * cards route through the guard rather than hiding.
+ * signing up. Playing is what needs an account, and the home page's room
+ * circles route through the guard rather than hiding.
  *
  * Rankings is signed-in only — the route itself stays reachable rather than
  * guarded, so a guest who lands here directly sees a sign-in prompt in place
  * of the ladder (`RankingsPage`'s own check) instead of being bounced through
  * `/login` and back.
  *
- * `/play/:category` and `/match/:id` are guarded for a harder reason than
+ * `/play/:room` and `/match/:id` are guarded for a harder reason than
  * convention: both open a WebSocket that the server closes with 4401 for an
  * unauthenticated client. Letting an anonymous visitor reach either would trade
  * a redirect for a socket that opens and dies.
@@ -69,14 +69,14 @@ export const router = createBrowserRouter([
       // mid-match, made reachable on its own.
       { path: 'players/:displayName', element: <PlayerProfilePage /> },
       { path: 'how-to-play', element: <HowToPlayPage /> },
-      // Public, like the category cards on Home: the Live nav button routes
-      // here for everyone, and picking a category is what actually needs an
+      // Public, like the room circles on Home: the Live nav button routes
+      // here for everyone, and joining a room is what actually needs an
       // account (guarded just below).
       { path: 'play', element: <PlayIndexPage /> },
       {
         element: <RequireAuth />,
         children: [
-          { path: 'play/:category', element: <PlayPage /> },
+          { path: 'play/:room', element: <PlayPage /> },
           { path: 'match/:id', element: <MatchPage /> },
           { path: 'matches', element: <MatchesPage /> },
           // Deliberately a different segment from the live match above.

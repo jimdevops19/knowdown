@@ -43,6 +43,10 @@ export const queryKeys = {
     all: ['categories'] as const,
     detail: (slug: string) => ['categories', slug] as const,
   },
+  rooms: {
+    all: ['rooms'] as const,
+    detail: (slug: string) => ['rooms', slug] as const,
+  },
   players: {
     me: ['players', 'me'] as const,
     profile: (displayName: string) => ['players', 'profile', displayName] as const,

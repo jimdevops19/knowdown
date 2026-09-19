@@ -83,8 +83,8 @@ export function TesterQuestionPage() {
         </div>
         <code className="break-all font-mono text-xs text-ash">{question.slug}</code>
         {/* The resolved clock, not the authored override — this is what a
-            matchup would actually give it, including the type's default when
-            the author set nothing. */}
+            matchup would actually give it, including the fallback when neither
+            the entry nor its resource file named one. */}
         <p className="nums text-xs text-ash">
           {question.time_limit_ms / 1000}s on the clock, after a{' '}
           {question.read_delay_ms / 1000}s read · board seed{' '}

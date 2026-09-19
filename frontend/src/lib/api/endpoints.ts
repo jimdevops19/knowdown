@@ -9,6 +9,7 @@ import type {
   Pagination,
   PlayerMe,
   PlayerProfile,
+  Room,
 } from './types'
 
 /*
@@ -45,6 +46,23 @@ export async function listCategories(): Promise<Category[]> {
 /** `GET /categories/{slug}/` 🔓 */
 export async function getCategory(slug: string): Promise<Category> {
   const res = await apiClient.get<Category>(`/categories/${slug}/`)
+  return res.data
+}
+
+/* --- rooms ------------------------------------------------------------------ */
+
+/** `GET /rooms/` 🔓 — the lobby: every room a player can join.
+ *
+ *  Open to a signed-out visitor on purpose. What there is to play is the pitch;
+ *  joining is what needs an account, and that gate is on the socket. */
+export async function listRooms(): Promise<Room[]> {
+  const res = await apiClient.get<Room[]>('/rooms/')
+  return res.data
+}
+
+/** `GET /rooms/{slug}/` 🔓 */
+export async function getRoom(slug: string): Promise<Room> {
+  const res = await apiClient.get<Room>(`/rooms/${slug}/`)
   return res.data
 }
 

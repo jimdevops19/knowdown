@@ -24,14 +24,14 @@ import { StatusBadge } from '../../components/StatusBadge'
  * leave a phantom waiting in the queue for the next player to be paired with.
  */
 export function Searching({
-  categoryName,
+  roomName,
   displayName,
   avatarUrl,
   playerId,
   waitingSeconds,
   onCancel,
 }: {
-  categoryName: string
+  roomName: string
   displayName: string
   avatarUrl: string | null
   playerId: string | null
@@ -63,7 +63,7 @@ export function Searching({
       </div>
 
       <div className="flex flex-col gap-1">
-        <h1 className="font-display text-2xl font-bold text-chalk">{categoryName}</h1>
+        <h1 className="font-display text-2xl font-bold text-chalk">{roomName}</h1>
         <p className="flex items-center justify-center gap-2 text-sm text-ash">
           <Radar size={15} className="text-volt" aria-hidden />
           {/* `nums` so the count doesn't shift the line's width every second —

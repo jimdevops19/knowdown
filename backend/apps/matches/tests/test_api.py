@@ -6,9 +6,10 @@ from rest_framework.test import APIClient, APITestCase
 
 from apps.matches import services
 from apps.matches.api.serializers import MatchupQuestionSerializer
-from apps.matches.tests.factories import make_matchup
+from apps.matches.tests.factories import make_matchup, stock_category
 from apps.players.tests.factories import make_player
 from apps.questions.selectors import QuestionRef, get_question
+from apps.rooms.tests.factories import make_room
 
 
 def _authed_client(player) -> APIClient:
@@ -176,6 +177,40 @@ class MatchHistoryDetailTests(APITestCase):
         response = _authed_client(alice).get(f"/api/v1/matches/{matchup.pk}/")
 
         self.assertEqual(response.status_code, 200)
+
+    def test_the_box_score_names_the_room_the_match_was_played_in(self):
+        """Which is not the same question as which ladder it moved.
+
+        A client offering "play again" has to send the player back into the
+        settings they actually played under, and `category` only names the
+        rating scope — a room mixing three sports has one of those and three
+        categories on the board.
+        """
+        alice = make_player(email="alice@example.com")
+        bob = make_player(email="bob@example.com")
+        room = make_room(slug="nba-room-finals", categories=[(stock_category(), {})])
+        matchup = services.create_matchup(
+            room=room, player_one=alice, player_two=bob, question_count=3
+        )
+        services.start_matchup(matchup=matchup)
+        services.abandon_matchup(matchup=matchup, leaving_player=bob)
+
+        response = _authed_client(alice).get(f"/api/v1/matches/{matchup.pk}/")
+
+        self.assertEqual(response.json()["data"]["room"], "nba-room-finals")
+
+    def test_a_match_played_without_a_room_reports_none(self):
+        """Bots, fixtures and everything predating `apps.rooms` — the field is
+        null rather than absent, so a client has one shape to read."""
+        alice = make_player(email="alice@example.com")
+        bob = make_player(email="bob@example.com")
+        matchup = make_matchup(player_one=alice, player_two=bob, question_count=3)
+        services.start_matchup(matchup=matchup)
+        services.abandon_matchup(matchup=matchup, leaving_player=bob)
+
+        response = _authed_client(alice).get(f"/api/v1/matches/{matchup.pk}/")
+
+        self.assertIsNone(response.json()["data"]["room"])
 
 
 class AnswerKeyTests(APITestCase):

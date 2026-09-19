@@ -95,10 +95,11 @@ calls `submit_answer` **is** its response time, not a number it reports.
 `BotProfile` stores `min_response_fraction`/`max_response_fraction` — a band
 in `[0.0, 1.0]` — instead of a fixed millisecond band. This matters because
 not every question gets the same amount of time: `apps.matches.constants
-.time_limit_ms_for` already gives a matrix question 20 seconds against the
-10-second default every other type gets
-(each model's `DEFAULT_TIME_LIMIT_SECONDS`), and any future question type or authored
-`time_limit_seconds` override can hand out a different number again. A fixed
+.time_limit_ms_for` already gives a matrix question 60 seconds against the
+10 a true/false gets (every answer shape sets its own clock in the resource
+file it is authored in — `backend/apps/questions/resources/<category>/<type>
+.yaml`), and any future type or per-question `time_limit_seconds` override can
+hand out a different number again. A fixed
 "answers in 2–9 seconds" band only reads as fast-to-slow against *one*
 specific clock; against a 20-second question, even the slowest bot (9s) would
 still be answering with more than half the time left — recognisably faster
@@ -106,7 +107,7 @@ than intended, on that question only. A **percentage** of whatever the
 question's own limit turns out to be keeps a bot's *relative* speed constant
 across every question type, present or future — bot 1 always answers having
 spent about 90% of the time it was given, bot 50 always about 20%, whether
-that's 9s of a 10s question or 18s of a 20s one.
+that's 9s of a 10s question or 54s of a 60s one.
 
 `apps.matches.bots.controller._next_state` is where this is realized: it
 looks up the *current* question's own `time_limit_ms` (the same

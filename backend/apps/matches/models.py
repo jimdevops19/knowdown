@@ -35,14 +35,42 @@ class Matchup(BaseModel):
         PLAYED = "played", "Played to completion"
         ABANDONED = "abandoned", "A player left mid-match"
 
+    #: The room this match was played in — the settings both players agreed to
+    #: by joining it (``apps.rooms``): which categories the board was drawn
+    #: from, filtered by which tags, over how many questions.
+    #:
+    #: Nullable, and that is not a migration convenience: a matchup created
+    #: straight from a category — the rehearsal fixtures, the bot seeding, any
+    #: caller holding a ``Category`` and no room — is still a legitimate match,
+    #: and ``category`` below remains the thing every rule in this app reads.
+    #: ``PROTECT`` like the category, for the same reason: a room is
+    #: deactivated, never deleted, and a finished match pointing at a hole is a
+    #: match nobody can explain.
+    room = models.ForeignKey(
+        "rooms.Room",
+        on_delete=models.PROTECT,
+        related_name="matchups",
+        null=True,
+        blank=True,
+    )
+
+    #: The **rating scope** of this match, and — when a room was chosen — its
+    #: ``primary_category``. A rating is per category (``apps.rankings``) while
+    #: a room may mix several, so one of them has to be the ladder the result
+    #: moves; the room says which by listing it first. Kept as its own column
+    #: rather than followed through ``room`` on every read because it is what a
+    #: match *was rated under*, which must not change later because somebody
+    #: reordered a room's categories.
     category = models.ForeignKey(
         "categories.Category",
         on_delete=models.PROTECT,
         related_name="matchups",
     )
 
-    #: Drawn once from ``constants.MATCH_QUESTION_COUNTS`` when the matchup is
-    #: created, and never changed after — the number of ``MatchupQuestion``
+    #: Drawn once when the matchup is created — from the room's authored
+    #: ``question_count_choices`` when there is a room, and from
+    #: ``constants.MATCH_QUESTION_COUNTS`` when there is not — and never
+    #: changed after — the number of ``MatchupQuestion``
     #: rows a completed matchup must have.
     question_count = models.PositiveSmallIntegerField()
 
@@ -280,8 +308,8 @@ class BotProfile(BaseModel):
     #: **fraction of the question's own time limit** (0.0–1.0) rather than a
     #: fixed number of milliseconds. A fixed millisecond band (the original
     #: shape of this field) reads as "fast" or "slow" only against the
-    #: fallback ten-second question — a matrix question's own 20-second limit
-    #: (``ColumnsRowsQuestion.DEFAULT_TIME_LIMIT_SECONDS``) would make even the
+    #: fallback ten-second question — a matrix question's own 60-second limit
+    #: (``resources/nba/matrix.yaml``'s file clock) would make even the
     #: slowest bot look instant, because it would still be answering in under
     #: half the time given. Storing a fraction and multiplying by
     #: ``apps.matches.constants.time_limit_ms_for(...)`` at answer time (see

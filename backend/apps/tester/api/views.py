@@ -247,8 +247,7 @@ class RehearsalView(_QuestionView):
                 # authored `time_limit_seconds` is wrong should be wrong here in
                 # the same way it would be in a match.
                 "time_limit_ms": time_limit_ms_for(
-                    question_type=question.question_type,
-                    override_seconds=question.time_limit_seconds,
+                    override_seconds=question.time_limit_seconds
                 ),
                 "read_delay_ms": QUESTION_READ_DELAY_MS,
                 "board": serialize_for_play(question=question, matchup_id=seed),
@@ -290,10 +289,7 @@ class AnswerAttemptView(_QuestionView):
         attempt.is_valid(raise_exception=True)
         submitted = attempt.validated_data["submitted"]
 
-        time_limit_ms = time_limit_ms_for(
-            question_type=question.question_type,
-            override_seconds=question.time_limit_seconds,
-        )
+        time_limit_ms = time_limit_ms_for(override_seconds=question.time_limit_seconds)
         # Clamped the way `services.submit_answer` clamps its own measurement,
         # so the curve is asked the same question it is asked in a match. An
         # absent `elapsed_ms` is treated as an instant answer: the common case

@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import time
+from dataclasses import dataclass
 from uuid import UUID, uuid4
 
 from channels.db import database_sync_to_async
@@ -47,6 +48,7 @@ from apps.questions.api.serializers import serialize_for_play
 from apps.questions.selectors import QuestionRef
 from apps.questions.selectors import get_question as get_concrete_question
 from apps.questions.selectors import reveal_schedule
+from apps.rooms import selectors as room_selectors
 from shared.logging import get_logger
 
 logger = get_logger(__name__)
@@ -194,10 +196,44 @@ class _HintRevealMixin:
             )
 
 
+@dataclass(frozen=True)
+class _PoolTarget:
+    """What a socket queued *for*, resolved once at connect.
+
+    Two URLs reach ``MatchmakingConsumer`` — a **room** (``apps.rooms``, what
+    the lobby offers and what a player actually picks) and a bare **category**
+    (the original route, still how the rehearsal fixtures and any category-only
+    client queue). Everything after the lookup is identical, so the difference
+    is held here rather than smeared through the consumer as two code paths.
+
+    ``pool_key`` is namespaced by design: a room slug and a category slug live
+    in the same string space, and ``room:nba`` vs ``category:nba`` is what
+    stops a player waiting in a room from being paired with one waiting in a
+    same-named category (see ``apps.matches.pool``).
+    """
+
+    pool_key: str
+    #: The room, when one was joined. ``create_matchup`` takes it and derives
+    #: the rating scope from it.
+    room: object | None
+    #: The rating scope either way — the room's ``primary_category``, or the
+    #: category that was joined directly.
+    category: object
+
+    @property
+    def room_slug(self) -> str | None:
+        return getattr(self.room, "slug", None)
+
+    @property
+    def category_slug(self) -> str | None:
+        return getattr(self.category, "slug", None)
+
+
 class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
-    """One category's queue. A socket here does nothing but wait for
-    ``events.MATCH_FOUND`` — the pairing itself is ``apps.matches.pool``, and
-    the matchup that comes out of it is played over ``MatchupConsumer``.
+    """One room's (or one category's) queue. A socket here does nothing but
+    wait for ``events.MATCH_FOUND`` — the pairing itself is
+    ``apps.matches.pool``, and the matchup that comes out of it is played over
+    ``MatchupConsumer``.
 
     Also inherits ``_WatchdogMixin`` for its ``_spawn`` bookkeeping alone —
     the bot-fallback timer below is the one loose task this consumer starts,
@@ -207,11 +243,13 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.player_id: str | None = None
-        self.category_slug: str | None = None
-        self._category = None
+        #: What this socket queued for — see ``_PoolTarget``. ``None`` until
+        #: ``connect`` has resolved the URL, and still ``None`` on a socket
+        #: refused before it got that far.
+        self._target: _PoolTarget | None = None
         self._matched = False
         self._registered = False
-        #: Identifies *this socket's* claim on the category's waiting slot, for
+        #: Identifies *this socket's* claim on the pool's waiting slot, for
         #: as long as it holds one. Every ``apps.matches.pool`` call this
         #: consumer makes carries it, so that a socket the player has already
         #: replaced — a refresh, a reconnect after a tunnel — cannot withdraw
@@ -225,17 +263,20 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
             await self.close(code=CLOSE_UNAUTHENTICATED)
             return
 
-        category_slug = self.scope["url_route"]["kwargs"]["category_slug"]
-        category = await database_sync_to_async(_get_category_or_none)(slug=category_slug)
-        if category is None:
+        target = await database_sync_to_async(_resolve_pool_target)(
+            **self.scope["url_route"]["kwargs"]
+        )
+        if target is None:
+            # An unknown room reads exactly like an unknown category: the
+            # socket is for something that is not there, whether it was
+            # deactivated since the lobby was loaded or never existed.
             await self.accept()
             await self.close(code=CLOSE_NOT_FOUND)
             return
 
         player = await database_sync_to_async(ensure_player_for_user)(user=user)
         self.player_id = str(player.id)
-        self.category_slug = category_slug
-        self._category = category
+        self._target = target
 
         try:
             await database_sync_to_async(_admit_matchmaking_socket)(player_id=self.player_id)
@@ -253,12 +294,16 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
 
         try:
             pairing = await database_sync_to_async(join_pool)(
-                category_slug=category_slug,
+                pool_key=target.pool_key,
                 player_id=self.player_id,
                 join_token=self.join_token,
             )
         except PoolTimeout:
-            logger.warning("Matchmaking pool busy — join refused", category=category_slug)
+            logger.warning(
+                "Matchmaking pool busy — join refused",
+                room=target.room_slug,
+                category=target.category_slug,
+            )
             await self.close(code=1013)  # "try again later"
             return
 
@@ -269,7 +314,8 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
             # queued today"); the sentence is for a human tailing the log.
             logger.info(
                 "Player queued for a match",
-                category=category_slug,
+                room=target.room_slug,
+                category=target.category_slug,
                 caller="user",
                 action="queued",
             )
@@ -278,16 +324,15 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
             return
 
         await self._pair(
-            category=category,
             opponent_id=pairing.opponent_id,
             opponent_queued_at=pairing.opponent_queued_at,
         )
 
     async def _pair(
-        self, *, category, opponent_id: str, opponent_queued_at: float | None = None
+        self, *, opponent_id: str, opponent_queued_at: float | None = None
     ) -> None:
         matchup_id = await database_sync_to_async(_start_matchup_for)(
-            category=category, player_one_id=self.player_id, player_two_id=opponent_id
+            target=self._target, player_one_id=self.player_id, player_two_id=opponent_id
         )
         self._matched = True
         for player_id in (self.player_id, opponent_id):
@@ -308,7 +353,8 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
         )
         logger.info(
             "Two players were matched",
-            category=self.category_slug,
+            room=self._target.room_slug,
+            category=self._target.category_slug,
             caller="user",
             action="matched",
             duration_ms=wait_ms,
@@ -330,7 +376,7 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
             return
 
         claimed = await database_sync_to_async(claim_for_bot)(
-            category_slug=self.category_slug,
+            pool_key=self._target.pool_key,
             player_id=self.player_id,
             join_token=self.join_token,
         )
@@ -342,10 +388,12 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
             # No bots seeded (`manage.py seed_bots`) — put the player back
             # rather than stranding them silently out of the pool.
             logger.warning(
-                "Bot fallback fired with no bots seeded", category=self.category_slug
+                "Bot fallback fired with no bots seeded",
+                room=self._target.room_slug,
+                category=self._target.category_slug,
             )
             await database_sync_to_async(join_pool)(
-                category_slug=self.category_slug,
+                pool_key=self._target.pool_key,
                 player_id=self.player_id,
                 join_token=self.join_token,
             )
@@ -359,17 +407,24 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
         ``apps.matches.bots.controller`` task instead to play its side."""
         try:
             matchup_id = await database_sync_to_async(_start_matchup_for)(
-                category=self._category, player_one_id=self.player_id, player_two_id=bot_player_id
+                target=self._target,
+                player_one_id=self.player_id,
+                player_two_id=bot_player_id,
             )
         except DomainError as exc:
-            # A thin category (create_matchup drew a question_count the
-            # catalog cannot fill — see questions_report) is the one way this
-            # can fail once a bot has already been chosen. Logged rather than
+            # A thin room or category (create_matchup drew a question_count
+            # the catalog cannot fill — see questions_report, and a room's
+            # filters can narrow a well-stocked category to nothing) is the one
+            # way this can fail once a bot has already been chosen. Logged rather than
             # raised: the player is still connected and waiting, and this is
             # exactly the case ``join_pool`` handles for a human pairing too
             # — surface it, do not leave them stranded with no explanation.
             logger.warning(
-                "Bot pairing failed", category=self.category_slug, code=exc.code, reason=exc.message
+                "Bot pairing failed",
+                room=self._target.room_slug,
+                category=self._target.category_slug,
+                code=exc.code,
+                reason=exc.message,
             )
             await self.send_json(
                 {"type": events.ERROR, "code": exc.code, "message": exc.message}
@@ -391,7 +446,8 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
         # than as a suspiciously instant match.
         logger.info(
             "A player was matched against a CPU opponent",
-            category=self.category_slug,
+            room=self._target.room_slug,
+            category=self._target.category_slug,
             caller="user",
             action="matched",
             duration_ms=settings.MATCHMAKING_BOT_TIMEOUT_SECONDS * 1000,
@@ -409,7 +465,10 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
         if self.player_id is None:
             return
         await self.channel_layer.group_discard(groups.player_group(self.player_id), self.channel_name)
-        if not self._matched:
+        # `_target` is set in the same breath as `player_id`, so a socket with
+        # a player id has one — but a socket refused before either is never in
+        # a pool to leave.
+        if not self._matched and self._target is not None:
             # Presence is cleared only if this socket really was the one still
             # queued. A player who reconnected while this socket was dying is
             # searching right now on their *new* socket, and signing them off
@@ -417,7 +476,7 @@ class MatchmakingConsumer(_WatchdogMixin, AsyncJsonWebsocketConsumer):
             # and the presence entry have to agree about which socket speaks
             # for the player, so both hang off the same answer.
             left = await database_sync_to_async(leave_pool)(
-                category_slug=self.category_slug,
+                pool_key=self._target.pool_key,
                 player_id=self.player_id,
                 join_token=self.join_token,
             )
@@ -751,19 +810,52 @@ def _admit_matchmaking_socket(*, player_id: str) -> None:
     abuse.register_socket(player_id=player_id)
 
 
-def _get_category_or_none(*, slug: str):
+def _resolve_pool_target(
+    *, room_slug: str | None = None, category_slug: str | None = None
+) -> "_PoolTarget | None":
+    """Turn the URL's one kwarg into what this socket queues for.
+
+    Answers ``None`` — not an exception — for a room or category that is not
+    there or is no longer active, because that is a close code
+    (``CLOSE_NOT_FOUND``) rather than an error to report: a lobby loaded ten
+    minutes ago can legitimately still offer a room that has since been
+    switched off.
+
+    A room with no categories behind it is refused the same way. It cannot draw
+    a board, so queuing in it is waiting for a match that could never start —
+    better to find out at connect than at pairing, with another player already
+    committed.
+    """
+    if room_slug is not None:
+        try:
+            room = room_selectors.get_room_by_slug(slug=room_slug)
+        except DomainError:
+            return None
+        category = room.primary_category
+        if category is None:
+            return None
+        return _PoolTarget(pool_key=f"room:{room.slug}", room=room, category=category)
+
     try:
-        return category_selectors.get_category_by_slug(slug=slug)
+        category = category_selectors.get_category_by_slug(slug=category_slug)
     except DomainError:
         return None
+    return _PoolTarget(
+        pool_key=f"category:{category.slug}", room=None, category=category
+    )
 
 
-def _start_matchup_for(*, category, player_one_id: str, player_two_id: str) -> str:
+def _start_matchup_for(*, target: "_PoolTarget", player_one_id: str, player_two_id: str) -> str:
     from apps.players.selectors import get_player
 
     player_one = get_player(player_id=player_one_id)
     player_two = get_player(player_id=player_two_id)
-    matchup = match_services.create_matchup(category=category, player_one=player_one, player_two=player_two)
+    matchup = match_services.create_matchup(
+        room=target.room,
+        category=target.category,
+        player_one=player_one,
+        player_two=player_two,
+    )
     match_services.start_matchup(matchup=matchup)
     return str(matchup.id)
 
@@ -788,9 +880,7 @@ def _current_state(*, matchup) -> dict | None:
     return {
         "order": question.order,
         "question": board,
-        "time_limit_ms": time_limit_ms_for(
-            question_type=question.question_type, override_seconds=concrete.time_limit_seconds
-        ),
+        "time_limit_ms": time_limit_ms_for(override_seconds=concrete.time_limit_seconds),
         "started_at_ms": _epoch_ms(question.started_at),
         "is_tiebreaker": question.is_tiebreaker,
     }
@@ -964,8 +1054,7 @@ def _try_close_question(*, matchup_id: str, order: int) -> dict | None:
                 "order": upcoming.order,
                 "question": board,
                 "time_limit_ms": time_limit_ms_for(
-                    question_type=upcoming.question_type,
-                    override_seconds=upcoming_concrete.time_limit_seconds,
+                    override_seconds=upcoming_concrete.time_limit_seconds
                 ),
                 "started_at_ms": _epoch_ms(upcoming.started_at),
                 "is_tiebreaker": upcoming.is_tiebreaker,

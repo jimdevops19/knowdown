@@ -10,7 +10,8 @@ server-measured response time into points.
 
 from __future__ import annotations
 
-from apps.questions.models import QUESTION_MODELS, BaseQuestion, QuestionType
+from apps.questions.constants import DEFAULT_TIME_LIMIT_SECONDS
+from apps.questions.models import QuestionType
 
 __all__ = [
     "DEFAULT_PLAYER_RATING",
@@ -59,18 +60,20 @@ MAX_TIEBREAKER_QUESTIONS = 3
 DEFAULT_PLAYER_RATING = 1000
 
 #: How long a question stays open once ``start_question`` stamps it, in
-#: server time, when *nothing more specific* says otherwise. The client
-#: displays a countdown from this number; it is never read back from the
-#: client. "Fallback" because a question may outrank it with a
-#: ``time_limit_seconds`` of its own — see ``time_limit_ms_for``.
+#: server time, when *nothing* says otherwise. The client displays a countdown
+#: from this number; it is never read back from the client. "Fallback" because
+#: a question ordinarily outranks it with a ``time_limit_seconds`` of its own
+#: — written by its author, or handed down by the resource file its whole
+#: answer shape is authored in (``apps.questions.schemas.QuestionFileSpec``).
+#: See ``time_limit_ms_for``.
 #:
-#: The number itself belongs to the question models
-#: (``BaseQuestion.DEFAULT_TIME_LIMIT_SECONDS``): what an ordinary question is
-#: worth on the clock is a property of its answer shape, and each shape states
-#: its own beside the fields that justify it. This is the alias the engine and
-#: its tests name it by, so nothing here has to reach for a model class to say
-#: "the ordinary clock".
-FALLBACK_QUESTION_TIME_LIMIT_SECONDS = BaseQuestion.DEFAULT_TIME_LIMIT_SECONDS
+#: The number itself belongs to the questions domain
+#: (``apps.questions.constants.DEFAULT_TIME_LIMIT_SECONDS``), which is where
+#: the loader validates hint schedules against it; this is the alias the
+#: engine and its tests name it by, and an alias rather than a second ten so
+#: the clock a file is checked against and the clock a match counts down
+#: cannot drift apart.
+FALLBACK_QUESTION_TIME_LIMIT_SECONDS = DEFAULT_TIME_LIMIT_SECONDS
 FALLBACK_QUESTION_TIME_LIMIT_MS = FALLBACK_QUESTION_TIME_LIMIT_SECONDS * 1000
 
 #: How long a question is on screen before its clock starts running — time to
@@ -93,31 +96,26 @@ QUESTION_READ_DELAY_SECONDS = 3
 QUESTION_READ_DELAY_MS = QUESTION_READ_DELAY_SECONDS * 1000
 
 
-def time_limit_ms_for(*, question_type: QuestionType, override_seconds: int | None = None) -> int:
+def time_limit_ms_for(*, override_seconds: int | None = None) -> int:
     """How long one question stays open, in server time.
 
-    Two tiers, most specific first: ``override_seconds`` — the question's own
-    authored ``time_limit_seconds``, straight off its row, ``None`` when the
-    author left it unset; and the default for its *kind*, the
-    ``DEFAULT_TIME_LIMIT_SECONDS`` on the model that shape is stored in, which
-    is ten seconds for every type that does not say otherwise
-    (:data:`FALLBACK_QUESTION_TIME_LIMIT_SECONDS`).
+    ``override_seconds`` is the question's own ``time_limit_seconds``, straight
+    off its row — which is where every tier above this one has already been
+    resolved: an entry's authored number, or the clock its resource file sets
+    for the whole answer shape, written into the row by the loader
+    (``apps.questions.schemas.QuestionFileSpec``). ``None`` means no file and
+    no author ever named one, and the question plays at the ordinary
+    :data:`FALLBACK_QUESTION_TIME_LIMIT_SECONDS`.
 
-    Looked up through ``QUESTION_MODELS`` rather than through a table here, so
-    a new question type arrives with its own clock already decided — a type
-    that is added to the registry and forgotten here is not a type quietly
-    playing at somebody else's tempo. This app still owns the *tiers*: it is
-    the one place both ``services`` (measuring an answer against the clock) and
-    the realtime transport (telling a client how long to count down from, and
-    how long its own watchdog should sleep) ask the question, so the two can
-    never quietly disagree about when a question closes.
+    A function rather than an inlined ``or`` at each call site because this app
+    owns *when a question closes*: ``services`` (measuring an answer against
+    the clock), the realtime transport (telling a client how long to count down
+    from, and how long its own watchdog should sleep) and the bots all ask here,
+    so the four can never quietly disagree.
     """
     if override_seconds is not None:
         return override_seconds * 1000
-    model = QUESTION_MODELS.get(question_type)
-    if model is None:
-        return FALLBACK_QUESTION_TIME_LIMIT_MS
-    return model.DEFAULT_TIME_LIMIT_SECONDS * 1000
+    return FALLBACK_QUESTION_TIME_LIMIT_MS
 
 
 #: What a fully correct, instant answer is worth.

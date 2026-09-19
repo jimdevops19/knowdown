@@ -133,7 +133,14 @@ function Scoreline({ match, myPlayerId }: { match: MatchupDetail; myPlayerId: st
         <span className="font-display text-sm uppercase tracking-wide text-ash">
           {match.category}
         </span>
-        {drew ? (
+        {/* Unrated outranks the rest: "abandoned but it still counted" and a
+            question count both assume the thing a reader of an old match most
+            needs to know is settled. A match played in a multi-category room
+            moved nobody (`Room.is_rated`), and nothing else on this page says
+            so. */}
+        {!match.is_ranked ? (
+          <StatusBadge tone="neutral">Unrated</StatusBadge>
+        ) : drew ? (
           <StatusBadge tone="draw">Draw</StatusBadge>
         ) : match.outcome === 'abandoned' ? (
           <StatusBadge tone="warn">Abandoned · still ranked</StatusBadge>

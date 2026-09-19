@@ -19,6 +19,12 @@
 
 category: nba
 
+# How long every question in this file stays open, unless an entry names its own
+# time_limit_seconds. A typed answer is slower than a tapped one: the clock has
+# to cover reading the question, recalling the name and spelling it. Twenty
+# seconds.
+time_limit_seconds: 20
+
 questions:
   - type: free-text
     slug: nba-81-point-game-scorer

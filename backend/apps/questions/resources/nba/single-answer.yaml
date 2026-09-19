@@ -27,6 +27,10 @@
 
 category: nba
 
+# How long every question in this file stays open, unless an entry names its own
+# time_limit_seconds. Four options, one tap — the glance-and-answer clock.
+time_limit_seconds: 10
+
 questions:
   - type: single-answer
     slug: nba-most-championships-franchise

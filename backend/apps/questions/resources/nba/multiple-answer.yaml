@@ -16,6 +16,11 @@
 
 category: nba
 
+# How long every question in this file stays open, unless an entry names its own
+# time_limit_seconds. Several taps, but one board read once — the ordinary
+# glance-and-answer clock.
+time_limit_seconds: 10
+
 questions:
   - type: multiple-answer
     slug: nba-players-with-mvp-and-finals-mvp

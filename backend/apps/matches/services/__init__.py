@@ -57,6 +57,8 @@ from apps.questions.selectors import QuestionRef
 from apps.questions.selectors import get_question as get_concrete_question
 from apps.questions.selectors import select_questions
 from apps.questions.services.evaluation import evaluate_answer
+from apps.rooms.models import Room
+from apps.rooms.selectors import select_room_questions
 from apps.rankings.services import update_ratings_for_matchup
 from shared.logging import get_logger, labels
 
@@ -79,7 +81,8 @@ __all__ = [
 @transaction.atomic
 def create_matchup(
     *,
-    category: Category,
+    category: Category | None = None,
+    room: Room | None = None,
     player_one: Player,
     player_two: Player,
     question_count: int | None = None,
@@ -87,28 +90,71 @@ def create_matchup(
 ) -> Matchup:
     """A new, unstarted matchup with its questions already drawn.
 
+    Takes a **room** or a **category**, and a room is what a player actually
+    joins (``apps.rooms``): it is the set of settings both sides agreed to by
+    being in the same lobby — which categories, narrowed by which tags, over
+    how many questions. Given a room, the category is its ``primary_category``,
+    because a rating is per category and a mixed room still moves exactly one
+    ladder. Given a bare category — the rehearsal fixtures, bot seeding, a test
+    — everything behaves exactly as it did before rooms existed.
+
     The question count is chosen **once**, here, for both players — never per
     question — and so is the question list (``select_match_questions``): a
     matchup is a race through one fixed board, not two independent quizzes.
+    The numbers it is chosen from are the room's when there is one, so "this
+    room plays 4, 5 or 6 questions" is a property of the room rather than of
+    the engine.
 
-    ``is_ranked`` is decided here too, the same way: a matchup with a CPU
-    opponent on either side (``apps.matches.bots``) never moves a rating, so
-    a bot stays pinned at ``DEFAULT_PLAYER_RATING`` and a human's ladder
-    position only ever reflects games against other humans.
+    ``is_ranked`` is decided here too, and frozen, from two rules:
+
+    - A matchup with a CPU opponent on either side (``apps.matches.bots``)
+      never moves a rating, so a bot stays pinned at
+      ``DEFAULT_PLAYER_RATING`` and a human's ladder position only ever
+      reflects games against other humans.
+    - A **multi-category room** never moves one either
+      (``apps.rooms.models.Room.is_rated``). A rating is per category and a
+      result can only move one ladder, so a room mixing two sports would
+      score the first of them for questions drawn from the second. Such a
+      room is played unrated rather than scored dishonestly.
+
+    Both are settled once, here, and never re-derived: an edit to
+    ``rooms.yaml`` must not change what kind of game an already-played match
+    was.
     """
     if player_one.pk == player_two.pk:
         raise ValidationFailed("A player cannot be matched against themselves.")
 
-    if question_count is None:
-        question_count = (rng or random).choice(MATCH_QUESTION_COUNTS)
-    elif question_count not in MATCH_QUESTION_COUNTS:
+    if room is not None:
+        # The room decides the rating scope; a caller passing both is telling
+        # this function two things, and the room is the one the players chose.
+        category = room.primary_category
+        if category is None:
+            raise ValidationFailed(
+                f"Room '{room.slug}' draws from no categories and cannot be played."
+            )
+    elif category is None:
+        raise ValidationFailed("A matchup needs a room or a category.")
+
+    allowed = tuple(room.question_count_choices) if room else MATCH_QUESTION_COUNTS
+    if not allowed:
         raise ValidationFailed(
-            f"question_count must be one of {MATCH_QUESTION_COUNTS}, got {question_count}."
+            f"Room '{room.slug}' states no match lengths and cannot be played."
+        )
+    if question_count is None:
+        question_count = (rng or random).choice(allowed)
+    elif question_count not in allowed:
+        raise ValidationFailed(
+            f"question_count must be one of {allowed}, got {question_count}."
         )
 
-    is_ranked = not (player_one.is_bot or player_two.is_bot)
+    is_ranked = not (player_one.is_bot or player_two.is_bot) and (
+        room is None or room.is_rated
+    )
     matchup = Matchup.objects.create(
-        category=category, question_count=question_count, is_ranked=is_ranked
+        room=room,
+        category=category,
+        question_count=question_count,
+        is_ranked=is_ranked,
     )
     MatchupPlayer.objects.bulk_create(
         [
@@ -139,8 +185,16 @@ def select_match_questions(
         raise Conflict("Questions have already been selected for this matchup.")
 
     player_ids = [side.player_id for side in matchup.players.all()]
-    refs = select_questions(
-        category=matchup.category,
+    # A room's board is drawn from every category the room names, each
+    # narrowed by its own tags; a room-less matchup draws from its category the
+    # way it always has. Both go through the same `choose` strategy, so the
+    # bias away from repeats is the room's too.
+    draw = (
+        partial(select_room_questions, room=matchup.room)
+        if matchup.room_id
+        else partial(select_questions, category=matchup.category)
+    )
+    refs = draw(
         count=matchup.question_count,
         rng=rng,
         choose=partial(pick_least_exposed, player_ids=player_ids),
@@ -237,7 +291,7 @@ def submit_answer(
         ref=QuestionRef(question.question_type, question.question_id)
     )
     time_limit_ms = time_limit_ms_for(
-        question_type=question.question_type, override_seconds=concrete_question.time_limit_seconds
+        override_seconds=concrete_question.time_limit_seconds
     )
     now = timezone.now()
     elapsed_ms = int((now - question.started_at).total_seconds() * 1000)
@@ -326,7 +380,7 @@ def complete_question(*, matchup: Matchup, order: int) -> MatchupQuestion:
         ref=QuestionRef(question.question_type, question.question_id)
     )
     time_limit_ms = time_limit_ms_for(
-        question_type=question.question_type, override_seconds=concrete_question.time_limit_seconds
+        override_seconds=concrete_question.time_limit_seconds
     )
     deadline_passed = (
         question.started_at is not None

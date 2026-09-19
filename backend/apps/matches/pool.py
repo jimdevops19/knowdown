@@ -1,4 +1,13 @@
-"""The global matchmaking pool — one logical queue per category, in the cache.
+"""The global matchmaking pool — one logical queue per **pool key**, in the cache.
+
+A pool key is whatever a player queued *for*: a room's slug today
+(``apps.rooms``, what the lobby offers), a category's slug for the older
+category route. This module does not care which — it never looks a key up, only
+holds a waiting slot under it — which is exactly why the key is a string rather
+than a model: a second kind of thing to queue for is a caller's decision, not a
+change here. The one rule is that keys from different namespaces must not
+collide, which ``consumers`` guarantees by prefixing (``room:nba-room-finals``
+vs ``category:nba``).
 
 **No database row per waiting player.** ``PostgreSQL`` stores what happened;
 this stores who is, right now, looking for a game — the same split
@@ -11,7 +20,7 @@ keep in sync with it. ``LocMemCache`` in dev and the test suite, a real Redis
 in every container deployment — the pool does not know or care which.
 
 **Pairing is atomic by construction, not by locking two keys.** At any moment
-a category's pool holds *at most one* waiting player: the moment a second
+a pool holds *at most one* waiting player: the moment a second
 player joins, they are paired with the first and both leave the pool in the
 same critical section. So there is only ever one slot to protect, not a queue
 to pop from — ``cache.add`` (an atomic "set only if absent", the one primitive
@@ -75,12 +84,12 @@ class Pairing:
     opponent_queued_at: float
 
 
-def _waiting_key(*, category_slug: str) -> str:
-    return f"matchmaking:waiting:{category_slug}"
+def _waiting_key(*, pool_key: str) -> str:
+    return f"matchmaking:waiting:{pool_key}"
 
 
-def _lock_key(*, category_slug: str) -> str:
-    return f"matchmaking:lock:{category_slug}"
+def _lock_key(*, pool_key: str) -> str:
+    return f"matchmaking:lock:{pool_key}"
 
 
 def _waiting_player_id(waiting: tuple | None) -> str | None:
@@ -126,9 +135,9 @@ def _claims(waiting: tuple | None, *, player_id: str, join_token: str | None) ->
 
 
 def join_pool(
-    *, category_slug: str, player_id: UUID | str, join_token: str | None = None
+    *, pool_key: str, player_id: UUID | str, join_token: str | None = None
 ) -> Pairing | None:
-    """Add one player to a category's pool, pairing immediately if someone was
+    """Add one player to a pool, pairing immediately if someone was
     already waiting there.
 
     Returns the opponent as a ``Pairing`` the instant a pairing exists —
@@ -141,8 +150,8 @@ def join_pool(
     it; see ``_claims``.
     """
     player_id = str(player_id)
-    with _mutex(category_slug=category_slug):
-        waiting_key = _waiting_key(category_slug=category_slug)
+    with _mutex(pool_key=pool_key):
+        waiting_key = _waiting_key(pool_key=pool_key)
         waiting = cache.get(waiting_key)
         waiting_id = _waiting_player_id(waiting)
         if waiting_id is None:
@@ -173,7 +182,7 @@ def join_pool(
 
 
 def leave_pool(
-    *, category_slug: str, player_id: UUID | str, join_token: str | None = None
+    *, pool_key: str, player_id: UUID | str, join_token: str | None = None
 ) -> bool:
     """Withdraw one player, if and only if the slot is still *this caller's*.
 
@@ -189,8 +198,8 @@ def leave_pool(
     this caller's own.
     """
     player_id = str(player_id)
-    with _mutex(category_slug=category_slug):
-        waiting_key = _waiting_key(category_slug=category_slug)
+    with _mutex(pool_key=pool_key):
+        waiting_key = _waiting_key(pool_key=pool_key)
         if not _claims(cache.get(waiting_key), player_id=player_id, join_token=join_token):
             return False
         cache.delete(waiting_key)
@@ -198,7 +207,7 @@ def leave_pool(
 
 
 def claim_for_bot(
-    *, category_slug: str, player_id: UUID | str, join_token: str | None = None
+    *, pool_key: str, player_id: UUID | str, join_token: str | None = None
 ) -> bool:
     """Atomically withdraw ``player_id`` so ``apps.matches.bots`` may pair
     them against a CPU opponent instead of a human.
@@ -217,27 +226,27 @@ def claim_for_bot(
     queue slot on a bot.
     """
     player_id = str(player_id)
-    with _mutex(category_slug=category_slug):
-        waiting_key = _waiting_key(category_slug=category_slug)
+    with _mutex(pool_key=pool_key):
+        waiting_key = _waiting_key(pool_key=pool_key)
         if not _claims(cache.get(waiting_key), player_id=player_id, join_token=join_token):
             return False
         cache.delete(waiting_key)
         return True
 
 
-def pool_size(*, category_slug: str) -> int:
-    """0 or 1 — the pool never holds more, by construction. For tests and
+def pool_size(*, pool_key: str) -> int:
+    """0 or 1 — a pool never holds more, by construction. For tests and
     introspection, not a hot path."""
-    return 0 if cache.get(_waiting_key(category_slug=category_slug)) is None else 1
+    return 0 if cache.get(_waiting_key(pool_key=pool_key)) is None else 1
 
 
 class _mutex:
-    """A short-lived, ``cache.add``-backed critical section around one
-    category's waiting slot. Retries rather than blocking, since the cache
+    """A short-lived, ``cache.add``-backed critical section around one pool's
+    waiting slot. Retries rather than blocking, since the cache
     backend offers nothing to block on."""
 
-    def __init__(self, *, category_slug: str) -> None:
-        self._key = _lock_key(category_slug=category_slug)
+    def __init__(self, *, pool_key: str) -> None:
+        self._key = _lock_key(pool_key=pool_key)
         self._acquired = False
 
     def __enter__(self) -> "_mutex":

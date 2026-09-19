@@ -143,14 +143,6 @@ class NameAsManyQuestion(BaseQuestion):
         ),
     )
 
-    #: The case where the clock *is* the question: "name as many as you can in
-    #: thirty seconds" is authored with the number in the prompt, so this and
-    #: the words a player reads have to agree. Long enough to be worth typing
-    #: into, short enough to stay a race — and a question of this type that
-    #: wants a different clock has to say so in its own wording and its own
-    #: ``time_limit_seconds`` together.
-    DEFAULT_TIME_LIMIT_SECONDS = 30
-
     class Meta(BaseQuestion.Meta):
         pass
 

@@ -108,6 +108,39 @@ export interface Category {
   description: string
 }
 
+/** One category a room draws from, and the tags narrowing it. Empty
+ *  `filter_tags` means the whole category is in play. */
+export interface RoomCategory {
+  slug: string
+  name: string
+  filter_tags: Record<string, string>
+}
+
+/** A **room** — the settings a match is played under, named and joinable.
+ *
+ *  What a player picks, in place of a category: which categories the board is
+ *  drawn from, filtered by which tags, over how many questions. `id` is absent
+ *  for the same reason it is on `Category` — the slug is the identifier the API
+ *  takes and answers with. */
+export interface Room {
+  slug: string
+  name: string
+  description: string
+  /** The match lengths this room runs; one is drawn per match, server-side. */
+  question_counts: number[]
+  categories: RoomCategory[]
+  /** How many questions the room can currently draw from — below the shortest
+   *  match it offers, the room cannot be played and the lobby says so rather
+   *  than sending somebody into a queue that will refuse them. */
+  question_pool_size: number
+  /** Whether a match here moves a ladder. False for a room drawing from more
+   *  than one category: a rating is per category and a result can only move
+   *  one, so a mixed room would credit the first for questions that came from
+   *  the second. Server-decided — the rule lives in `Room.is_rated` and is
+   *  frozen onto the matchup as `is_ranked` when the match is created. */
+  is_rated: boolean
+}
+
 /** One player's standing in one category. Embedded in a profile, one per
  *  category they have played. */
 export interface Ranking {
@@ -166,9 +199,19 @@ export interface MatchupParticipant {
 export interface MatchupSummary {
   id: string
   category: string
+  /** The room it was played in — the settings both players joined under, as
+   *  opposed to `category`, which is only the ladder the result moved. Null for
+   *  a match created from a bare category (bots, fixtures, anything predating
+   *  rooms), so anything offering "play again" has to cope with its absence. */
+  room: string | null
   question_count: number
   status: MatchupStatus
   outcome: MatchupOutcome
+  /** Whether this result moved the ladder. False for a match against a CPU
+   *  opponent, and for one played in a multi-category room (`Room.is_rated`).
+   *  Decided once at creation and never re-derived, so a later edit to a room
+   *  cannot change what kind of game an already-played match was. */
+  is_ranked: boolean
   started_at: string | null
   completed_at: string | null
   players: MatchupPlayer[]
@@ -661,8 +704,11 @@ export interface TesterQuestionCard {
   /** False means matchmaking will never draw it. The catalog lists these by
    *  default: "why does this never come up" is a question this page answers. */
   is_active: boolean
-  /** The author's override in seconds, or null for "the type's default". The
-   *  resolved figure is `time_limit_ms` on a rehearsal. */
+  /** How long this question stays open, in seconds — authored on the entry or
+   *  handed down by the resource file its whole type lives in, which is why
+   *  almost every question has one. Null means neither said, and it plays at
+   *  the backend's ordinary ten. The resolved figure in milliseconds is
+   *  `time_limit_ms` on a rehearsal. */
   time_limit_seconds: number | null
   image: string | null
 }

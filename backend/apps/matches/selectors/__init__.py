@@ -30,7 +30,7 @@ __all__ = [
 
 def get_matchup(*, matchup_id) -> Matchup:
     try:
-        return Matchup.objects.select_related("category").get(id=matchup_id)
+        return Matchup.objects.select_related("category", "room").get(id=matchup_id)
     except (Matchup.DoesNotExist, ValueError, TypeError) as exc:
         raise NotFound(f"No matchup with id {matchup_id}.") from exc
 
@@ -86,7 +86,7 @@ def list_matchups_for_player(*, player: Player) -> QuerySet[Matchup]:
     """
     return (
         Matchup.objects.filter(players__player=player, status__in=FINISHED_STATUSES)
-        .select_related("category")
+        .select_related("category", "room")
         .order_by("-created_at")
         .distinct()
     )

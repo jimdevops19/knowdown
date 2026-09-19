@@ -92,33 +92,24 @@ class BaseQuestion(BaseModel):
     #: pointing at the row: deleting it would edit a game that has been played.
     is_active = models.BooleanField(default=True)
 
-    #: Overrides how long a matchup leaves this question open, in seconds.
-    #: ``None`` — the common case — means "no override": the question is worth
-    #: whatever its *type* says one of its shape is worth,
-    #: :attr:`DEFAULT_TIME_LIMIT_SECONDS`. Authored per question, in YAML, the
-    #: same as ``level`` or ``tags`` — this app only carries the number;
-    #: deciding what it is *worth* is ``apps.matches``' the same way scoring is
-    #: (``backend/CLAUDE.md``).
+    #: How long a matchup leaves *this* question open, in seconds.
+    #:
+    #: The most specific of the two tiers a clock is resolved from, and the
+    #: only one the database holds. Almost every row carries a number anyway,
+    #: because the loader writes the *file's* ``time_limit_seconds`` into every
+    #: question the file did not give one of its own
+    #: (``schemas.QuestionFileSpec``) — which is how a whole answer shape
+    #: states its tempo, one line at the top of ``free-text.yaml`` rather than
+    #: a constant on a class here. ``None`` means nobody has said: neither the
+    #: question nor its file, which leaves
+    #: ``apps.questions.constants.DEFAULT_TIME_LIMIT_SECONDS``.
+    #:
+    #: This app only carries the number; deciding what it is *worth* is
+    #: ``apps.matches``' the same way scoring is (``backend/CLAUDE.md``). Read
+    #: it through ``apps.matches.constants.time_limit_ms_for``, which is where
+    #: the tiers are resolved once for the engine, the bots and the tester
+    #: alike.
     time_limit_seconds = models.PositiveSmallIntegerField(null=True, blank=True)
-
-    #: How long a question of this shape stays open when it authors no
-    #: ``time_limit_seconds`` of its own, in seconds.
-    #:
-    #: A class attribute rather than a table in the match engine, because "how
-    #: long does it take to answer one of these" is a property of the *answer
-    #: shape* — the same thing the class is — and a type whose default lived
-    #: elsewhere could be added without one. Subclassing is what states the
-    #: exception: a type that says nothing inherits the number below, which is
-    #: the ordinary glance-and-answer question, and a type that needs longer
-    #: overrides it beside the fields that make it need longer.
-    #:
-    #: Not a field default, because the column has to keep telling "authored"
-    #: apart from "not authored": a default would write ten into every row and
-    #: the day this number changes, every question already loaded would keep
-    #: the old one. Read through ``apps.matches.constants.time_limit_ms_for``,
-    #: which is where the tiers (authored override, then this) are resolved
-    #: once for the engine, the bots and the tester alike.
-    DEFAULT_TIME_LIMIT_SECONDS = 10
 
     class Meta:
         abstract = True

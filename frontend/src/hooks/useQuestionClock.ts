@@ -48,7 +48,7 @@ const URGENT_AT_MS = 3_000
  *        rather than at zero, so nothing between questions reads as "expired".
  * @param limitMs How long the *server* said this question stays open
  *        (`question.started`'s `time_limit_ms`). Per question, not a constant:
- *        a matrix board is authored with far more clock than the default, and
+ *        a matrix board is authored with six times a true/false's clock, and
  *        drawing the default over it would count down to zero while the server
  *        still held the question open — the player would sit watching an empty
  *        bar, apparently waiting on their opponent. Null (no question open)

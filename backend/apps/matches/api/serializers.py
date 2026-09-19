@@ -184,6 +184,12 @@ class MatchupListSerializer(serializers.Serializer):
 
     id = serializers.UUIDField()
     category = serializers.CharField(source="category.slug")
+    # The room this was played in, when there was one — the settings both
+    # players joined under, as opposed to `category`, which is only the ladder
+    # the result moved. Null for a matchup created from a bare category (bots,
+    # fixtures, anything predating `apps.rooms`), which is why a client reading
+    # this to offer "play again" has to cope with its absence.
+    room = serializers.CharField(source="room.slug", allow_null=True)
     question_count = serializers.IntegerField()
     status = serializers.CharField()
     outcome = serializers.CharField()

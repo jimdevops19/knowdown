@@ -21,7 +21,10 @@ from typing import Annotated, Literal, Union
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from apps.questions.career_stats import load_career_stats
-from apps.questions.constants import HINT_ANSWER_WINDOW_SECONDS
+from apps.questions.constants import (
+    DEFAULT_TIME_LIMIT_SECONDS,
+    HINT_ANSWER_WINDOW_SECONDS,
+)
 from apps.questions.models import (
     DEFAULT_HINT_INTERVAL_SECONDS,
     AnswerFieldKind,
@@ -33,7 +36,6 @@ from apps.questions.models import (
     MAX_PROBABILITY_SCORE,
     MIN_PROBABILITY_SCORE,
     MIN_TARGET_SCORE,
-    GradualHintsQuestion,
     MatrixKind,
     NameAsManyDataset,
     QuestionType,
@@ -78,10 +80,11 @@ class _QuestionSpec(_Strict):
     #: ``images/`` folder. Not the answer options; see ImageOptionSpec for those.
     image: str | None = None
     #: Overrides how long a matchup leaves this question open, in seconds.
-    #: Rare — most questions take their model's
-    #: ``DEFAULT_TIME_LIMIT_SECONDS`` — but an unusually
-    #: fiddly question can ask for more without every question of its type
-    #: getting it too. Unset (``None``) is the ordinary case.
+    #: Rare — a question ordinarily takes the clock its *file* sets
+    #: (``QuestionFileSpec.time_limit_seconds``) — but an unusually fiddly
+    #: entry can ask for more without every question beside it getting it too.
+    #: Unset (``None``) is the ordinary case, and the loader fills it in from
+    #: the file before anything is written.
     time_limit_seconds: int | None = Field(default=None, ge=1, le=600)
 
 
@@ -316,22 +319,23 @@ class GradualHintsSpec(_QuestionSpec):
             )
         return self
 
-    @model_validator(mode="after")
-    def _the_clock_outlasts_the_schedule(self) -> GradualHintsSpec:
+    def check_the_clock_outlasts_the_schedule(self) -> None:
         """The last hint must land with time left to use it.
 
-        The schedule and the clock are authored in two different places — the
-        hints here, the clock in ``time_limit_seconds`` or (far more often) in
-        ``GradualHintsQuestion.DEFAULT_TIME_LIMIT_SECONDS`` — and nothing at
-        play time would
-        notice them disagreeing: the question would simply close on a player
-        who was still waiting for a clue that was never going to arrive. So it
-        is checked here, against whichever of the two clocks this question will
-        actually get, and the fix is one line in the file either way: fewer
+        Not a validator of its own, because the answer depends on a number
+        this entry may not carry: the clock is authored here
+        (``time_limit_seconds``) or, far more often, once at the top of the
+        file — so the check can only run after ``QuestionFileSpec`` has handed
+        the file's clock down, and that is where it is called from.
+
+        Nothing at play time would notice the two disagreeing: the question
+        would simply close on a player still waiting for a clue that was never
+        going to arrive. So it is checked at load, against whichever clock this
+        question will actually get, and the fix is one line either way — fewer
         hints, a tighter interval, or a ``time_limit_seconds`` that covers it.
         """
         last_hint_at = (len(self.hints) - 1) * self.hint_interval_seconds
-        clock = self.time_limit_seconds or GradualHintsQuestion.DEFAULT_TIME_LIMIT_SECONDS
+        clock = self.time_limit_seconds or DEFAULT_TIME_LIMIT_SECONDS
         if clock - last_hint_at < HINT_ANSWER_WINDOW_SECONDS:
             raise ValueError(
                 f"gradual-hints question {self.slug!r}: the last of its "
@@ -339,7 +343,6 @@ class GradualHintsSpec(_QuestionSpec):
                 f"question, leaving under {HINT_ANSWER_WINDOW_SECONDS}s to answer "
                 f"— shorten the schedule or raise time_limit_seconds"
             )
-        return self
 
 
 class MatrixAnswerSpec(_Strict):
@@ -625,15 +628,54 @@ QuestionSpec = Annotated[
 
 
 class QuestionFileSpec(_Strict):
-    """One resource file: the category it is for, and its questions.
+    """One resource file: the category it is for, its clock, and its questions.
 
     The category is stated once per file rather than on every entry — it is a
     property of the folder the file sits in, and repeating it a hundred times is
     a hundred chances to typo it.
+
+    So is the clock, and for a stronger reason. A resource file is a file of
+    *one answer shape* (``free-text.yaml``, ``matrix.yaml``), and how long it
+    takes to answer one of these is a property of the shape — twenty seconds to
+    type a name, sixty to read a grid, ten to glance at four buttons. Authored
+    here rather than as a constant on the model, because it is a judgement
+    about the questions, revisable by whoever is writing them, in the file they
+    are already editing — and a number that lived in Python could not be tuned
+    without a deploy.
     """
 
     category: str = Field(pattern=r"^[a-z0-9]+(-[a-z0-9]+)*$")
+    #: How long every question in this file stays open, unless the entry names
+    #: its own. Optional: a file that says nothing leaves its questions on
+    #: ``constants.DEFAULT_TIME_LIMIT_SECONDS``, the ordinary
+    #: glance-and-answer clock.
+    time_limit_seconds: int | None = Field(default=None, ge=1, le=600)
     questions: list[QuestionSpec] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _hand_the_file_clock_down(self) -> QuestionFileSpec:
+        """Fill the file's clock into every entry that named none, here rather
+        than at write time, so everything downstream — the loader, the
+        schedule check below, an error message quoting the number — reads one
+        resolved value instead of each re-deciding the fallback.
+        """
+        if self.time_limit_seconds is not None:
+            for question in self.questions:
+                if question.time_limit_seconds is None:
+                    question.time_limit_seconds = self.time_limit_seconds
+        return self
+
+    @model_validator(mode="after")
+    def _hint_schedules_fit_their_clocks(self) -> QuestionFileSpec:
+        """Checked after the clock is handed down, never before: a
+        gradual-hints entry that authors no ``time_limit_seconds`` is answered
+        by its file, and validating it against the floor first would refuse a
+        schedule the file has already paid for.
+        """
+        for question in self.questions:
+            if isinstance(question, GradualHintsSpec):
+                question.check_the_clock_outlasts_the_schedule()
+        return self
 
 
 __all__ = [

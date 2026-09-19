@@ -29,6 +29,12 @@ The question authoring pipeline and the scaffolding under it:
   serializers** that must never leak an answer (`api/serializers.py`).
   `questions_report` says whether the catalog is deep enough to play.
 - **`apps/categories`** — the `Category` model and a read-only endpoint pair.
+- **`apps/rooms`** — the **lobby**: a `Room` is the set of settings a match is
+  played under (which categories, narrowed by which tags, over how many
+  questions), authored in `resources/rooms.yaml` and loaded by
+  `manage.py sync_rooms`. It is what a player picks now, in place of a bare
+  category — `GET /rooms/`, `GET /rooms/{slug}/`, and the matchmaking socket
+  `ws/v1/matchmaking/room/{slug}/`.
 - **`apps/accounts`** — **identity**: registration, email/password sign-in,
   JWT lifecycle, the sign-in lockout, password reset, Google sign-in, and
   `/auth/me/` — the one endpoint in the API that may emit an email address.
@@ -98,6 +104,7 @@ uv run python manage.py test apps.questions --settings=config.settings.test
 uv run python manage.py test apps.questions.tests.test_evaluation --settings=config.settings.test
 uv run python manage.py test apps.accounts apps.players --settings=config.settings.test
 uv run python manage.py test apps.matches --settings=config.settings.test
+uv run python manage.py test apps.rooms --settings=config.settings.test
 ```
 
 `apps/questions/tests/` is a **package**, not a `tests.py` — the loader's
@@ -107,7 +114,7 @@ surface, which is worth being findable. `tests/factories.py` builds question row
 straight through the ORM; only `test_sync` goes the long way round through a
 resources tree, because the loader is what it is testing.
 
-### `sync_questions` — the one custom command
+### `sync_questions` — the question catalog, from its resource files
 
 ```bash
 uv run python manage.py sync_questions              # load everything
@@ -141,6 +148,24 @@ than a one-time seed. Four rules hold it together:
 
 The command cannot be spelled `sync-questions` — Django finds a command by
 importing the module named after it, and a hyphen is not a legal module name.
+
+### `sync_rooms` — the lobby, from its resource file
+
+```bash
+uv run python manage.py sync_rooms
+uv run python manage.py sync_rooms --dry-run
+```
+
+Loads `apps/rooms/resources/rooms.yaml` — the rooms a player may join — with
+exactly the rules `sync_questions` follows: **upserted on `slug`**, nothing
+deleted (a room dropped from the file is *deactivated*, because a matchup
+already played in it points at that row), everything validated before anything
+is written, and child rows (a room's categories) replaced rather than diffed.
+
+Run it **after** `sync_questions`: a room names the categories it draws from,
+and one with no row behind it fails the load rather than being invented. A
+category that exists but is *inactive* is allowed — the room simply draws
+nothing from it until it is back.
 
 ### `questions_report` — is the catalog deep enough to play?
 
@@ -267,28 +292,41 @@ is why no resource file can have a gap or a duplicate position.
 
 #### How long a question stays open
 
-A question's clock has two tiers, and `apps.matches.constants.time_limit_ms_for`
-is the only place they are resolved: the question's own authored
-`time_limit_seconds` (rare, `None` for almost every row), and otherwise the
-`DEFAULT_TIME_LIMIT_SECONDS` **class constant on the model that answer shape is
-stored in**.
+A question's clock is **authored, not coded**. Two tiers, both resolved at
+*load* time and both ending up in one column, `time_limit_seconds` on the row:
 
-The default lives on the class because "how long does it take to answer one of
-these" is a property of the answer shape, which is the thing the class *is*:
-`BaseQuestion` sets ten seconds, and a type that needs longer overrides it beside
-the fields that explain why — `ColumnsRowsQuestion` 20 (a grid is several sparse
-claims, not one), `GradualHintsQuestion` 40 (its clues are still arriving),
-`NameAsManyQuestion` 30 (the clock *is* the question, and its prompt says the
-number out loud). A per-type table in the match engine could be added to the
-registry and forgotten; a subclass cannot exist without inheriting or stating
-its own. `apps.matches.tests.test_constants` walks `QUESTION_MODELS` to prove
-every registered type resolves to its own class's number.
+1. the entry's own `time_limit_seconds`, rare and reserved for the one
+   unusually fiddly question;
+2. the **file's** `time_limit_seconds`, one line beside `category:` at the top
+   of every resource file, which the loader writes onto every question in that
+   file that named none of its own (`schemas.QuestionFileSpec`).
 
-It is **not** a field default: the column has to keep telling "the author asked
-for 45 seconds" apart from "the author said nothing", and a default written into
-every row would freeze today's number into the whole catalog. `apps.matches`
-still owns what a clock is *worth* — `FALLBACK_QUESTION_TIME_LIMIT_SECONDS`
-there is an alias for the ordinary ten, and the speed curve is entirely its own.
+A resource file is a file of *one answer shape* (`free-text.yaml`,
+`matrix.yaml`), so tier 2 is how an answer shape states its tempo: free-text
+20 (a typed name is slower than a tapped option), ordering 30, gradual-hints
+30 (its clues are still arriving), name-as-many 30 (the clock *is* the
+question, and its prompt says the number out loud), matrix 60 (a grid is
+several sparse claims, not one), and 10 for the four glance-and-answer shapes.
+
+The file rather than a constant on the model, even though a file and a model
+are the same answer shape: "how long does it take to answer one of these" is a
+judgement about the *questions*, made by whoever is writing them, and the file
+is where they already are — revisable there rather than in Python behind a
+deploy, and sitting beside the prompts it has to agree with, which for
+`name-as-many` ("name as many as you can in thirty seconds") is not a figure of
+speech. The cost is that a new type file which sets nothing gets the ordinary
+ten silently, where a subclass could not exist without inheriting or stating a
+number; `prepare-questions/SKILL.md` says to set it, and `gradual-hints` is the
+one type where forgetting is a load error rather than a quiet default.
+
+`apps.matches.constants.time_limit_ms_for` is still the one place the engine,
+the bots and the tester ask what a clock is, so the four cannot disagree about
+when a question closes — but it now reads one resolved number and falls back to
+`FALLBACK_QUESTION_TIME_LIMIT_SECONDS` (an alias for
+`apps.questions.constants.DEFAULT_TIME_LIMIT_SECONDS`, the ordinary ten) only
+when nothing anywhere named one: a row built straight through the ORM in a
+test, or a file written before file clocks existed. `apps.matches` still owns
+what a clock is *worth*; the speed curve is entirely its own.
 
 #### Answering: three outcomes, not two
 
@@ -393,12 +431,12 @@ what makes a reconnect free: the socket recomputes the same instants and sends
 the clues already due.
 
 **The clock has to outlast the schedule**, or a question closes on a player
-still waiting for a clue. Checked at load (`schemas.GradualHintsSpec`) against
-whichever clock the question will get — its own `time_limit_seconds`, or its
-type's default, `GradualHintsQuestion.DEFAULT_TIME_LIMIT_SECONDS` (40s). The
-loader reads that constant directly, off the model, rather than a copy: the
-default belongs to the question class (see "How long a question stays open"),
-so checking it here imports nothing from the match engine.
+still waiting for a clue. Checked at load, against whichever clock the question
+will actually get — which is why the check runs from `QuestionFileSpec` rather
+than on the entry itself: `gradual-hints.yaml` sets 30 seconds for every
+question in it, and measuring a schedule before that number is handed down
+would refuse the ordinary, correct file. Nothing here imports the match engine;
+the clock a schedule is measured against is the catalog's own.
 
 #### name-as-many — the answer is a list, and a rarer name is worth more
 
@@ -430,8 +468,9 @@ reaches into `apps.matches`: `constants.SPEED_SCORED_TYPES` is every type *but*
 this one, so `score_answer` does not multiply it by speed. A curve paying 100
 for a complete answer at one second and 50 for the same answer at twenty-nine
 would be paying players to stop typing. The race is still a race — both sides
-spend the same thirty seconds (`NameAsManyQuestion
-.DEFAULT_TIME_LIMIT_SECONDS`), and the winner is whoever went deeper in them.
+spend the same thirty seconds (`resources/<category>/name-as-many.yaml`'s own
+`time_limit_seconds`, which every prompt in that file says out loud), and the
+winner is whoever went deeper in them.
 
 **The whole list is submitted once.** There is no per-name verdict on the wire
 and there must not be one: a board that asked the server about each name as it
@@ -471,6 +510,57 @@ where the shuffle *is* the anti-cheat — their options are stored in answer ord
 `serialize_for_play(question=…, matchup_id=…)` is the entry point, and
 `matchup_id` is required so the play path cannot produce an unshuffled board by
 omission.
+
+### rooms — the settings a game is played under
+
+A **category** says what a question is about and a **question type** says how it
+is answered (above); a **room** says *under what settings a match is played* —
+and it is the only one of the three a player picks. `Room` holds the name, the
+slug and `question_count_choices` (authored as `questions_asked_ranges`: the
+match lengths this room runs, one drawn per matchup); `RoomCategory` holds one
+category the room draws from plus the `filter_tags` narrowing it. A room with
+one untagged category is exactly the old "pick a category" behaviour, said out
+loud; a room with three is a board that mixes three sports.
+
+Three things are worth knowing:
+
+- **The pool a room implies is computed, never stored.**
+  `selectors.room_question_pool` runs `questions.selectors.question_pool` once
+  per entry and concatenates. A frozen pool would go stale the moment a question
+  was authored into one of the room's categories, and the catalog is edited far
+  more often than a room is. Nothing about tag matching, activity or levels is
+  re-implemented here — the dependency runs one way: rooms read questions,
+  questions have never heard of a room.
+- **A room's first category is what its matches are filed under.** Every matchup
+  carries exactly one category, and the room says which by listing it first
+  (`Room.primary_category`). `Matchup.category` keeps holding it as its own
+  column: it is what a match *was* filed under, which must not change because
+  somebody later reordered a room.
+- **Only a single-category room is rated** (`Room.is_rated`). A rating is per
+  category (`apps.rankings`) and a result can only move one ladder, so a room
+  drawing from two sports would credit the first for questions that came from
+  the second. Such a room is played unrated instead. Decided once, in
+  `create_matchup`, and frozen onto `Matchup.is_ranked` beside the CPU-opponent
+  rule — never re-derived, so an edit to `rooms.yaml` cannot change what kind of
+  game an already-played match was. The API sends it as `is_rated` on the room
+  so the lobby can say so before anybody joins.
+- **Rooms are additive, not a replacement, in `apps.matches`.** `Matchup.room` is
+  nullable and `create_matchup` takes a room **or** a category; given a room it
+  draws the length from the room's own numbers and the board (and any
+  tie-breaker) from the room's categories and filters. The rehearsal fixtures,
+  bot seeding and every older caller pass a category and behave exactly as they
+  did. The same holds for the transport: `ws/v1/matchmaking/room/{slug}/` and the
+  original `ws/v1/matchmaking/{category_slug}/` reach the same consumer, which
+  resolves one `consumers._PoolTarget` and is identical afterwards. The pool's
+  keys are namespaced (`room:` / `category:`) so a room and a same-named category
+  are never the same queue.
+
+An inactive category inside a room is **skipped at draw time, not refused**: one
+sport out of season must not take a four-category room offline. A room whose
+filters currently match too few questions to fill its own shortest match cannot
+be played at all (`select_room_questions` refuses rather than playing a shorter
+match), which is why the API publishes `question_pool_size` and the lobby dims
+such a room instead of hiding it.
 
 ### accounts + players — one person, two rows
 
@@ -551,6 +641,11 @@ for the truth — which is what makes a rename to your own capitalisation legal
 and a lost race a `Conflict` rather than a 500.
 
 ### matches — the whole game, without a socket in sight
+
+A matchup now records the **room** it was played in as well as the category it
+was rated under (`apps.rooms`, above): the room is the settings both players
+agreed to by joining it, and it is what `select_match_questions` and the
+tie-breaker draw from when it is set.
 
 `Matchup` → `MatchupQuestion` → `PlayerAnswer` is what happened; `MatchupQuestion`
 stores `(question_type, question_id)` — the `QuestionRef` pair

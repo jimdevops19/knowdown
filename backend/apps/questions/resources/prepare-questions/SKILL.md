@@ -51,6 +51,28 @@ resources:
   - true-false.yaml
 ```
 
+### The file's own clock
+
+Every type file carries one `time_limit_seconds` of its own, beside
+`category:`, and it is how long every question in it stays open:
+
+```yaml
+category: nba
+time_limit_seconds: 20     # a typed answer is slower than a tapped one
+```
+
+That is where a type's tempo is decided — twenty seconds to type a name, sixty
+to read a grid, ten to glance at four buttons — because it is a judgement about
+the questions, made by whoever is writing them, in the file they already have
+open. A new type file should set it. One that says nothing leaves its questions
+on the platform's ordinary ten seconds
+(`apps/questions/constants.py`, `DEFAULT_TIME_LIMIT_SECONDS`), which is a
+choice worth making on purpose rather than by omission.
+
+Today's numbers: `free-text` 20, `ordering` 30, `gradual-hints` 30,
+`name-as-many` 30, `matrix` 60, and 10 for `single-answer`, `image-answer`,
+`multiple-answer` and `true-false`.
+
 **A new type file must be added to it, or nothing in it is loaded.** Commenting
 a line out is how a batch of questions is parked without deleting it — those
 questions are deactivated on the next sync and reactivated when the line comes
@@ -76,7 +98,7 @@ back. Naming a file that isn't in the folder fails the load.
 | `level` | integer 1–10. See "picking a level" below. |
 | `tags` | `dict[str, str]`, free-form. Keep keys consistent within a category (`topic`, `era` are what `nba` already uses) or a themed-round filter finds nothing. |
 | `image` | optional filename (not a path) in `<category>/images/`. Illustrates what's being asked — **not** the answer; that's `image-answer`'s `options`. Missing file fails the load. |
-| `time_limit_seconds` | optional, 1–600. Overrides the type's default time limit for just this question. Leave unset unless a question is unusually fiddly. |
+| `time_limit_seconds` | optional, 1–600. Overrides the clock the **file** sets for just this question. Leave unset unless a question is unusually fiddly — and if you do set it, say why in a comment beside it. |
 
 Unknown keys are a load error, not a silent default — don't invent field
 names, and don't leave a typo'd key behind.
@@ -313,11 +335,12 @@ load — "Game number" above stays text precisely because `Game 7` fills it too.
 Nothing about the answer reaches the board either way: the width comes from the
 kind, never from how long the accepted answers happen to be.
 
-**The clock has to outlast the schedule.** A gradual-hints question gets 40
-seconds unless it authors `time_limit_seconds`, and the load fails if the
-last clue would land with under 10 seconds left to type. Five clues at the
-default five seconds puts the last at 20s, which fits with room to spare —
-slow the reveal down and you must raise `time_limit_seconds` to match.
+**The clock has to outlast the schedule.** A gradual-hints question gets the
+30 seconds `gradual-hints.yaml` sets unless it authors its own
+`time_limit_seconds`, and the load fails if the last clue would land with
+under 10 seconds left to type. Five clues at the default five seconds puts the
+last at 20s, which fits exactly — slow the reveal down and you must raise
+`time_limit_seconds` to match.
 
 ## Workflow
 

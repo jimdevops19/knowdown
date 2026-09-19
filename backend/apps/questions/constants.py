@@ -15,6 +15,7 @@ from apps.questions.models import MAX_LEVEL
 
 __all__ = [
     "CATALOG_DEPTH_TARGET",
+    "DEFAULT_TIME_LIMIT_SECONDS",
     "HINT_ANSWER_WINDOW_SECONDS",
     "LEVEL_BANDS",
     "LONGEST_MATCH_QUESTION_COUNT",
@@ -78,14 +79,30 @@ LONGEST_MATCH_QUESTION_COUNT = 7
 CATALOG_DEPTH_TARGET = 50
 
 
+#: The clock a question gets when *nothing* has named one — neither the
+#: question (``time_limit_seconds`` on the entry) nor the resource file it was
+#: authored in (``time_limit_seconds`` at the top of the file, which is how a
+#: whole type states its own tempo — see ``schemas.QuestionFileSpec``).
+#:
+#: The floor of the two tiers rather than a third opinion about any particular
+#: shape: it is what an ordinary glance-and-answer question is worth, and the
+#: only questions that reach it are ones built straight through the ORM (the
+#: test factories) or loaded from a file written before file clocks existed.
+#: ``apps.matches.constants.FALLBACK_QUESTION_TIME_LIMIT_SECONDS`` is the
+#: match engine's name for this same number — an alias, never a second copy,
+#: because a clock the loader validates against and a clock the engine counts
+#: down cannot be allowed to drift apart.
+DEFAULT_TIME_LIMIT_SECONDS = 10
+
+
 #: The least clock a gradual-hints question must have left *after* its final
 #: hint lands.
 #:
 #: A hint schedule that runs to the edge of the time limit is a question whose
 #: last clue is decorative — it appears with no time to use it, and the player
 #: who was going to get it right anyway has already answered. Ten seconds is
-#: the ordinary question's clock (``BaseQuestion.DEFAULT_TIME_LIMIT_SECONDS``),
-#: which is what this is: once the hints have stopped, what is left is a typed
+#: the ordinary question's clock (:data:`DEFAULT_TIME_LIMIT_SECONDS`), which is
+#: what this is: once the hints have stopped, what is left is a typed
 #: answer against a clock.
 #:
 #: Checked when the file is loaded (``schemas.GradualHintsSpec``), where an

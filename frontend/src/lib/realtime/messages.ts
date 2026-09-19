@@ -130,9 +130,10 @@ export interface QuestionStartedMessage {
   order: number
   question: PlayQuestion
   /** How long *this* question stays open, in milliseconds — the server's own
-   *  `time_limit_ms_for`, which varies by question type and by the question's
-   *  authored override (a matrix board gets far more than the default ten
-   *  seconds). Carried per question because there is no single match-wide
+   *  `time_limit_ms_for`. It varies per question: every answer shape sets its
+   *  own clock in the file it is authored in (a matrix board gets 60 seconds
+   *  to a true/false's 10), and an entry may override that again. Carried per
+   *  question because there is no single match-wide
    *  number to fall back on: drawing the default here would run the countdown
    *  to zero while the server still held the question open. */
   time_limit_ms: number

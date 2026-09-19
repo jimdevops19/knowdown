@@ -12,7 +12,7 @@ import {
 import { subscribe, type ConnectionState } from './socket'
 
 /*
- * Sitting in a category's matchmaking pool until somebody else does too.
+ * Sitting in a room's matchmaking pool until somebody else does too.
  *
  * The whole feature is "hold a socket open and wait", which is exactly why it
  * is worth a hook of its own: the *lifetime* of that socket is the feature.
@@ -34,7 +34,7 @@ export type MatchmakingPhase =
   | 'searching'
   /** Paired. `matchupId` is set and the caller should navigate to the match. */
   | 'found'
-  /** Not signed in, no such category, or the pool refused the join. */
+  /** Not signed in, no such room, or the pool refused the join. */
   | 'failed'
 
 export interface Matchmaking {
@@ -56,24 +56,24 @@ export interface Matchmaking {
 const CLOSE_REASONS: Record<number, string> = {
   [CLOSE_UNAUTHENTICATED]: 'Sign in to play a ranked match.',
   [CLOSE_POOL_BUSY]: 'Matchmaking is busy right now. Try again in a moment.',
-  // The category slug in the URL isn't one the server knows — a stale link, a
-  // typo, or a category that has since been deactivated. Left out of this table
-  // it fell through to "ended unexpectedly", which is the one thing it is not:
+  // The room slug in the URL isn't one the server knows — a stale link, a
+  // typo, or a room that has since been deactivated. Left out of this table it
+  // fell through to "ended unexpectedly", which is the one thing it is not:
   // it will fail identically forever, so the copy has to point somewhere else.
-  [CLOSE_NOT_FOUND]: "That category isn't available. Pick another from the home screen.",
+  [CLOSE_NOT_FOUND]: "That room isn't available. Pick another from the home screen.",
   // Not "slow down" — the limit counts sockets held open as well as joins, and
   // the usual way to hit it is a second tab still sitting in the queue.
   [CLOSE_RATE_LIMITED]: 'Too many searches at once. Close any other tab you have open and retry.',
 }
 
 /**
- * Join `category`'s pool and wait to be paired.
+ * Join `room`'s pool and wait to be paired.
  *
- * @param categorySlug the category to queue in, or null to queue in nothing —
- *        which is how a caller keeps this hook mounted (rules of hooks) while
- *        the player is still choosing.
+ * @param roomSlug the room to queue in, or null to queue in nothing — which is
+ *        how a caller keeps this hook mounted (rules of hooks) while the player
+ *        is still choosing.
  */
-export function useMatchmaking(categorySlug: string | null): Matchmaking {
+export function useMatchmaking(roomSlug: string | null): Matchmaking {
   const [phase, setPhase] = useState<MatchmakingPhase>('connecting')
   const [matchupId, setMatchupId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -81,7 +81,7 @@ export function useMatchmaking(categorySlug: string | null): Matchmaking {
   const cancelRef = useRef<() => void>(() => {})
 
   useEffect(() => {
-    if (!categorySlug) return
+    if (!roomSlug) return
     setPhase('connecting')
     setMatchupId(null)
     setError(null)
@@ -119,7 +119,10 @@ export function useMatchmaking(categorySlug: string | null): Matchmaking {
     }
 
     const subscription = subscribe(
-      `/ws/v1/matchmaking/${categorySlug}/`,
+      // The room route. Its own `room/` segment rather than a bare slug: the
+      // server also serves `/ws/v1/matchmaking/{category}/`, and one namespace
+      // for both would make a room and a same-named category the same queue.
+      `/ws/v1/matchmaking/room/${roomSlug}/`,
       isHandshake,
       onMessage,
       onState,
@@ -137,7 +140,7 @@ export function useMatchmaking(categorySlug: string | null): Matchmaking {
       cancelRef.current = () => {}
       subscription.unsubscribe()
     }
-  }, [categorySlug])
+  }, [roomSlug])
 
   // The visible wait. Counted from when this hook started searching rather than
   // from a server timestamp, because nothing about it is scored — it is here to

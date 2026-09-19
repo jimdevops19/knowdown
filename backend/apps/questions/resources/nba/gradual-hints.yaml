@@ -41,17 +41,23 @@
 # `7`, not `Game 7`. Listing the same spelling twice in different cases is a
 # load error, as it is for free-text.
 #
-# THE CLOCK MUST OUTLAST THE SCHEDULE. A gradual-hints question gets 40 seconds
-# unless it sets `time_limit_seconds`, and the loader refuses any question whose
-# last clue would land with under 10 seconds left to type — five clues at five
-# seconds puts the last at 20s, which fits with room to spare. Slow the reveal
-# down and you must raise the clock to match.
+# THE CLOCK MUST OUTLAST THE SCHEDULE. A question here gets the 30 seconds this
+# file sets below unless it authors its own `time_limit_seconds`, and the loader
+# refuses any question whose last clue would land with under 10 seconds left to
+# type — five clues at five seconds puts the last at 20s, which fits exactly.
+# Slow the reveal down and you must raise the clock to match.
 #
 # See single-answer.yaml for the fields every question carries.
 #
 # Loaded by: uv run python manage.py sync_questions
 
 category: nba
+
+# How long every question in this file stays open, unless an entry names its own
+# time_limit_seconds. The question is still being asked while you answer it: the
+# clock has to outlast the hint schedule and still leave time to type
+# (HINT_ANSWER_WINDOW_SECONDS, checked at load).
+time_limit_seconds: 30
 
 questions:
   - type: gradual-hints
@@ -467,14 +473,14 @@ questions:
     level: 8
     tags: {topic: records, era: 2000s}
     hints:
-      - `And the Rockets, steal the game` - Marv Albert - 12/09/2004
+      - "`And the Rockets, steal the game` - Marv Albert - 12/09/2004"
       - His team trailed by 10 points with under 40 seconds on the clock.
       - He scored four straight three-pointers in a span of well under a minute.
       - The stunned opponent was the San Antonio Spurs, on their own home floor.
       - It happened in December 2004, while he played for the Houston Rockets.
     answer_fields:
       - label: Player
-        accepted_answers: [Tracy McGrady, McGrady, T-Mac, tmac, t-mac]
+        accepted_answers: [Tracy McGrady, McGrady, T-Mac, tmac]
       - label: Points scored in the stretch
         kind: number
         accepted_answers: [13]

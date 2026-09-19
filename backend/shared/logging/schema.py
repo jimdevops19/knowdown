@@ -40,6 +40,7 @@ SUPPORTED_LOG_FIELDS: frozenset[str] = frozenset(
         "user",            # the account's email
         "player",          # the player's display name
         "category",        # a category's slug, e.g. "nba"
+        "room",            # a room's slug, e.g. "nba-room-finals"
         "question",        # a question's slug
         "question_type",   # a QuestionType value, e.g. "single-answer"
         # --- Resource sync ----------------------------------------------------

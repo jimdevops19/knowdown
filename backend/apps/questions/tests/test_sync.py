@@ -73,12 +73,20 @@ def gradual_hints(slug: str = "guess-the-game", **overrides) -> dict:
     Deliberately *smaller* than anything worth shipping — a refusal test wants
     the one thing it is about and nothing else on the line beside it, so the
     override is always the subject of the test.
+
+    It carries a clock, unlike the other helpers here, because a gradual-hints
+    question is refused unless one covers its hint schedule — and that is a
+    rule of its own with tests of its own below. Every entry that is *not*
+    about the clock takes this one so the refusal it triggers is the one the
+    test names; the ones that are about it pass ``time_limit_seconds=None`` to
+    author none, exactly as a shipped entry does, and let the file answer.
     """
     entry = {
         "type": "gradual-hints",
         "slug": slug,
         "description": "Guess the game.",
         "level": 5,
+        "time_limit_seconds": 30,
         "hints": ["The score was 93-89.", "It went seven games."],
         "answer_fields": [{"label": "Year", "accepted_answers": ["2016"]}],
     }
@@ -118,11 +126,22 @@ class ResourceTreeTestCase(TestCase):
     def write_categories(self, entries: list[dict]) -> None:
         (self.root / "categories.yaml").write_text(yaml.safe_dump(entries))
 
-    def write_file(self, name: str, questions: list[dict], *, category: str = "nba") -> Path:
+    def write_file(
+        self,
+        name: str,
+        questions: list[dict],
+        *,
+        category: str = "nba",
+        time_limit_seconds: int | None = None,
+    ) -> Path:
         folder = self.root / category
         folder.mkdir(exist_ok=True)
         path = folder / name
-        path.write_text(yaml.safe_dump({"category": category, "questions": questions}))
+        document: dict = {"category": category}
+        if time_limit_seconds is not None:
+            document["time_limit_seconds"] = time_limit_seconds
+        document["questions"] = questions
+        path.write_text(yaml.safe_dump(document))
         return path
 
     def add_image(self, name: str, *, category: str = "nba") -> None:
@@ -225,6 +244,11 @@ class LoadEveryTypeTests(ResourceTreeTestCase):
                     "slug": "hinted",
                     "description": "Guess the game.",
                     "level": 6,
+                    # The one entry here that must name a clock: this file sets
+                    # none (which is what lets "single" below prove a row with
+                    # no clock anywhere stores ``None``), and a hint schedule is
+                    # refused unless something covers it.
+                    "time_limit_seconds": 30,
                     "hints": ["The score was 93-89.", "It went seven games."],
                     "answer_fields": [
                         {"label": "Year", "accepted_answers": ["2016", "'16"]},
@@ -337,9 +361,47 @@ class LoadEveryTypeTests(ResourceTreeTestCase):
 
 
 class TimeLimitSecondsTests(ResourceTreeTestCase):
-    """A question may author its own ``time_limit_seconds`` — the override
-    ``apps.matches.constants.time_limit_ms_for`` reads ahead of every
-    fallback."""
+    """Where a question's clock comes from: its own entry, or its file.
+
+    Both tiers are resolved *here*, at load, and written onto the row — so
+    ``apps.matches.constants.time_limit_ms_for`` reads one number rather than
+    re-deciding the order of precedence on every call.
+    """
+
+    def test_a_file_clock_reaches_every_question_in_it(self) -> None:
+        """How an answer shape states its tempo: one line at the top of the
+        file the whole shape is authored in."""
+        self.write_file(
+            "typed.yaml",
+            [single_answer("one"), single_answer("two")],
+            time_limit_seconds=20,
+        )
+        self.load()
+        for slug in ("one", "two"):
+            self.assertEqual(
+                SingleAnswerQuestion.objects.get(slug=slug).time_limit_seconds, 20
+            )
+
+    def test_a_question_s_own_clock_outranks_its_file_s(self) -> None:
+        """The narrower scope wins, so one fiddly question can ask for longer
+        without every question beside it getting it too."""
+        self.write_file(
+            "mixed.yaml",
+            [single_answer("ordinary"), single_answer("fiddly", time_limit_seconds=45)],
+            time_limit_seconds=20,
+        )
+        self.load()
+        self.assertEqual(
+            SingleAnswerQuestion.objects.get(slug="ordinary").time_limit_seconds, 20
+        )
+        self.assertEqual(
+            SingleAnswerQuestion.objects.get(slug="fiddly").time_limit_seconds, 45
+        )
+
+    def test_a_file_clock_outside_the_allowed_range_is_refused(self) -> None:
+        self.write_file("wide.yaml", [single_answer("wide")], time_limit_seconds=0)
+        with self.assertRaises(ValidationFailed):
+            self.load()
 
     def test_an_authored_time_limit_reaches_the_row(self) -> None:
         self.write_file("timed.yaml", [single_answer("timed", time_limit_seconds=45)])
@@ -809,8 +871,8 @@ class RefusalTests(ResourceTreeTestCase):
         Nothing at play time would notice: the question would simply close on a
         player still waiting for a hint that was never going to arrive. So it is
         refused here, against whichever clock the question will actually get —
-        this one authors none, so it is its type's own
-        ``GradualHintsQuestion.DEFAULT_TIME_LIMIT_SECONDS``.
+        this one authors none and its file sets none, so it is the ordinary
+        ``constants.DEFAULT_TIME_LIMIT_SECONDS``.
         """
         self.write_file(
             "q.yaml",
@@ -819,10 +881,51 @@ class RefusalTests(ResourceTreeTestCase):
                     "too-slow",
                     hints=["One", "Two", "Three", "Four", "Five"],
                     hint_interval_seconds=15,
+                    time_limit_seconds=None,
                 )
             ],
         )
         self.assertRefused("too-slow", "to answer", "time_limit_seconds")
+
+    def test_a_file_clock_is_what_the_schedule_is_measured_against(self) -> None:
+        """The check runs *after* the file's clock is handed down, not before.
+
+        A gradual-hints file states the type's tempo once at the top —
+        ``resources/nba/gradual-hints.yaml`` is 30 seconds — and every entry
+        under it authors no clock at all. Measuring those schedules against
+        the bare fallback would refuse the ordinary, correct file.
+        """
+        self.write_file(
+            "q.yaml",
+            [
+                gradual_hints(
+                    "paid-for-by-the-file",
+                    hints=["One", "Two", "Three", "Four", "Five"],
+                    time_limit_seconds=None,
+                )
+            ],
+            time_limit_seconds=30,
+        )
+        self.load()
+        self.assertTrue(
+            GradualHintsQuestion.objects.filter(slug="paid-for-by-the-file").exists()
+        )
+
+    def test_a_schedule_too_long_for_its_file_s_clock_is_still_refused(self) -> None:
+        """A file clock raises the bar; it does not remove it."""
+        self.write_file(
+            "q.yaml",
+            [
+                gradual_hints(
+                    "too-slow-even-so",
+                    hints=["One", "Two", "Three", "Four", "Five"],
+                    hint_interval_seconds=15,
+                    time_limit_seconds=None,
+                )
+            ],
+            time_limit_seconds=30,
+        )
+        self.assertRefused("too-slow-even-so", "30s question")
 
     def test_a_long_schedule_is_allowed_a_clock_that_covers_it(self) -> None:
         """The other side of the same rule: the fix is one line in the file, and

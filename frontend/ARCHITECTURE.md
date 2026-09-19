@@ -146,6 +146,7 @@ the bootstrap refresh behind itself would deadlock.
 | GET 🔓 | `auth/config/` | `{password_enabled, google_enabled}` — **asked before the sign-in screen draws**. |
 | GET/PATCH 🔒 | `auth/me/` | **The only endpoint in the API that may emit an email address.** |
 | GET 🔓 | `categories/`, `categories/{slug}/` | |
+| GET 🔓 | `rooms/`, `rooms/{slug}/` | **The lobby.** A room is the settings a match is played under — its categories, their tag filters, the lengths it runs, and `question_pool_size` (below its shortest match, it cannot be played). `is_rated` is false for a room drawing from more than one category — a result can only move one ladder, so a mixed room is played unrated and the lobby says so. |
 | GET/PATCH 🔒 | `players/me/` | Name and avatar. PATCH routes to services, not to a serializer `update`. |
 | GET 🔒 | `players/display-name-available/` | Authenticated, so it isn't a name-enumeration oracle. |
 | GET 🔓 | `players/{display_name}/` | Public profile: ratings + badges, one round trip. Case-insensitive. |
@@ -209,7 +210,12 @@ Three consequences the socket layer has to carry, none of which REST does:
 `socket.test.ts` pins all four behaviours, because losing the token from the
 URL is a one-line regression that nothing else would notice.
 
-### 4.1 `matchmaking/{category}/`
+### 4.1 `matchmaking/room/{room_slug}/`
+
+The queue a player actually joins: one pool per **room**. The server also
+serves `matchmaking/{category_slug}/` — the original route, still live and used
+by the rehearsal fixtures — and the two are separate queues even when the slugs
+match, because the pool keys are namespaced (`room:` / `category:`) server-side.
 
 Connecting joins the pool; **disconnecting leaves it**. There is no leave
 request — the server's `disconnect` handler frees the slot, so a closed laptop,
@@ -326,11 +332,11 @@ What that means on this side:
 
 | Route | Access | Screen |
 |---|---|---|
-| `/` | 🔓 | Category picker + the way in. Signed in, your standings below it. |
+| `/` | 🔓 | Room picker (the circles) + the way in. Signed in, your standings below it. |
 | `/how-to-play` | 🔓 | The rules. |
 | `/rankings`, `/rankings/:category` | 🔓 | The ladder. |
 | `/players/:displayName` | 🔓 | Public profile: ratings, badges. |
-| `/play/:category` | 🔒 | Matchmaking. Mount = queue; leave = cancel. |
+| `/play/:room` | 🔒 | Matchmaking in one room. Mount = queue; leave = cancel. |
 | `/match/:id` | 🔒 | **The live game.** |
 | `/matches` | 🔒 | Your history. |
 | `/matches/:id` | 🔒 | The box score. |
@@ -339,7 +345,7 @@ What that means on this side:
 
 **Public where it can be.** The home page, the ladder, any profile and the rules
 are all open: they are the answer to "what would I be signing up for", and they
-cannot sit behind signing up. The category cards route *through* the guard
+cannot sit behind signing up. The room circles route *through* the guard
 rather than hiding, and `RequireAuth` carries the destination in `?next=` so a
 link into a live match survives the detour.
 
@@ -464,7 +470,7 @@ set squeezed under a URL bar.
 
 **When a banner may appear.** Never over a live match. `PwaPrompts` polls
 `window.location` (it is mounted outside the router, so it cannot subscribe to
-it) and holds both prompts back on `/play/:category` and `/match/:id`; the
+it) and holds both prompts back on `/play/:room` and `/match/:id`; the
 install invitation additionally waits 45s into a visit. A dismissal is
 remembered in `localStorage` (`knowdown:install-dismissed`).
 

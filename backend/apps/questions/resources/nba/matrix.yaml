@@ -62,6 +62,11 @@
 
 category: nba
 
+# How long every question in this file stays open, unless an entry names its own
+# time_limit_seconds. A grid is not one question: it is a cell's worth of recall
+# per intersection, and the player has to find the intersection first. A minute.
+time_limit_seconds: 60
+
 questions:
   - type: matrix
     slug: nba-matrix-franchise-by-decade-titles
@@ -70,7 +75,6 @@ questions:
       championship.
     level: 8
     tags: {topic: finals, era: all-time}
-    time_limit_seconds: 35
     rows: [Chicago Bulls, Los Angeles Lakers, San Antonio Spurs]
     columns: ["1990s", "2000s"]
     cells:
@@ -109,7 +113,6 @@ questions:
       them.
     level: 7
     tags: {topic: rosters, era: all-time}
-    time_limit_seconds: 45
     rows: [Chicago Bulls, Boston Celtics]
     columns: [Los Angeles Lakers, Miami Heat]
 
@@ -121,7 +124,6 @@ questions:
       them.
     level: 9
     tags: {topic: rosters, era: all-time}
-    time_limit_seconds: 45
     rows: [Sacramento Kings, Utah Jazz]
     columns: [Portland Trail Blazers, San Antonio Spurs]
 
@@ -133,7 +135,6 @@ questions:
       them.
     level: 7
     tags: {topic: rosters, era: 2000s}
-    time_limit_seconds: 45
     rows: [Los Angeles Lakers, Miami Heat]
     columns: [Cleveland Cavaliers, Dallas Mavericks]
 
@@ -145,7 +146,6 @@ questions:
       them.
     level: 8
     tags: {topic: rosters, era: 2000s}
-    time_limit_seconds: 45
     rows: [Boston Celtics, San Antonio Spurs]
     columns: [Phoenix Suns, Houston Rockets]
 
@@ -157,7 +157,6 @@ questions:
       them.
     level: 7
     tags: {topic: rosters, era: 2000s}
-    time_limit_seconds: 45
     rows: [Detroit Pistons, Chicago Bulls]
     columns: [New York Knicks, Indiana Pacers]
 
@@ -169,7 +168,6 @@ questions:
       them.
     level: 8
     tags: {topic: rosters, era: 2000s}
-    time_limit_seconds: 45
     rows: [Toronto Raptors, Orlando Magic]
     columns: [Los Angeles Lakers, Brooklyn Nets]
 
@@ -181,7 +179,6 @@ questions:
       them.
     level: 8
     tags: {topic: rosters, era: 2000s}
-    time_limit_seconds: 45
     rows: [Philadelphia 76ers, Denver Nuggets]
     columns: [Golden State Warriors, Washington Wizards]
 
@@ -193,7 +190,6 @@ questions:
       them.
     level: 9
     tags: {topic: rosters, era: 2000s}
-    time_limit_seconds: 45
     rows: [Sacramento Kings, Portland Trail Blazers]
     columns: [Utah Jazz, Minnesota Timberwolves]
 
@@ -205,7 +201,6 @@ questions:
       them.
     level: 9
     tags: {topic: rosters, era: 2000s}
-    time_limit_seconds: 45
     rows: [Memphis Grizzlies, New Orleans Pelicans]
     columns: [Charlotte Hornets, Oklahoma City Thunder]
 
@@ -217,7 +212,6 @@ questions:
       them.
     level: 8
     tags: {topic: rosters, era: 2000s}
-    time_limit_seconds: 45
     rows: [Milwaukee Bucks, Atlanta Hawks]
     columns: [Cleveland Cavaliers, Indiana Pacers]
 
@@ -229,7 +223,6 @@ questions:
       them.
     level: 8
     tags: {topic: rosters, era: 2000s}
-    time_limit_seconds: 45
     rows: [San Antonio Spurs, Dallas Mavericks]
     columns: [Miami Heat, Boston Celtics]
 
@@ -241,7 +234,6 @@ questions:
       them.
     level: 8
     tags: {topic: rosters, era: 2000s}
-    time_limit_seconds: 45
     rows: [LA Clippers, New York Knicks]
     columns: [Chicago Bulls, Houston Rockets]
 
@@ -253,7 +245,6 @@ questions:
       them.
     level: 8
     tags: {topic: rosters, era: 2000s}
-    time_limit_seconds: 45
     rows: [Phoenix Suns, Brooklyn Nets]
     columns: [Dallas Mavericks, Golden State Warriors]
 
@@ -264,7 +255,6 @@ questions:
       championship.
     level: 7
     tags: {topic: finals, era: 2000s}
-    time_limit_seconds: 35
     rows: [Detroit Pistons, Boston Celtics]
     columns: ["1980s", "2000s"]
     cells:
@@ -295,7 +285,6 @@ questions:
       championship.
     level: 7
     tags: {topic: finals, era: 2000s}
-    time_limit_seconds: 35
     rows: [San Antonio Spurs, Los Angeles Lakers, Miami Heat]
     columns: ["1990s", "2000s"]
     cells:
@@ -328,7 +317,6 @@ questions:
       championship.
     level: 5
     tags: {topic: finals, era: 2000s}
-    time_limit_seconds: 35
     rows: [Chicago Bulls, Houston Rockets]
     columns: ["1980s", "1990s"]
     cells:
@@ -354,7 +342,6 @@ questions:
       championship.
     level: 8
     tags: {topic: finals, era: all-time}
-    time_limit_seconds: 40
     rows: [Boston Celtics, Los Angeles Lakers]
     columns: ["1960s", "2000s"]
     cells:
@@ -385,7 +372,6 @@ questions:
       championship.
     level: 6
     tags: {topic: finals, era: 2000s}
-    time_limit_seconds: 35
     rows: [Chicago Bulls, San Antonio Spurs]
     columns: ["1990s", "2000s"]
     cells:
@@ -416,7 +402,6 @@ questions:
       championship.
     level: 7
     tags: {topic: finals, era: all-time}
-    time_limit_seconds: 35
     rows: [Los Angeles Lakers, Houston Rockets]
     columns: ["1980s", "1990s"]
     cells:
@@ -441,7 +426,6 @@ questions:
       championship.
     level: 6
     tags: {topic: finals, era: 2000s}
-    time_limit_seconds: 35
     rows: [Miami Heat, Dallas Mavericks]
     columns: ["2000s", "2010s"]
     cells:
@@ -466,7 +450,6 @@ questions:
       championship.
     level: 6
     tags: {topic: finals, era: 2000s}
-    time_limit_seconds: 35
     rows: [Boston Celtics, Detroit Pistons, Chicago Bulls]
     columns: ["1990s", "2000s"]
     cells:
@@ -496,7 +479,6 @@ questions:
       them.
     level: 8
     tags: {topic: rosters, era: 2000s}
-    time_limit_seconds: 45
     rows: [Washington Wizards, Oklahoma City Thunder]
     columns: [Denver Nuggets, Sacramento Kings]
 
@@ -507,7 +489,6 @@ questions:
       championship.
     level: 6
     tags: {topic: finals, era: 2010s}
-    time_limit_seconds: 35
     rows: [Miami Heat, Golden State Warriors, Cleveland Cavaliers]
     columns: ["2000s", "2010s"]
     cells:
@@ -536,7 +517,6 @@ questions:
     description: For each award and year, name the player who won it.
     level: 6
     tags: {topic: awards, era: 2010s}
-    time_limit_seconds: 40
     rows: [Regular-season MVP, Finals MVP]
     columns: ["2011", "2015", "2019"]
     cells:
@@ -570,7 +550,6 @@ questions:
     description: For each draft, name the player taken first overall and the team that took him.
     level: 7
     tags: {topic: draft, era: 2010s}
-    time_limit_seconds: 40
     rows: [First overall pick, Team that picked first]
     columns: ["2012", "2014", "2018"]
     cells:
@@ -610,7 +589,6 @@ questions:
     description: For each year, name the team that won the Finals and the team that lost them.
     level: 5
     tags: {topic: finals, era: 2010s}
-    time_limit_seconds: 40
     rows: ["2011", "2016", "2019"]
     columns: [Champion, Runner-up]
     cells:
@@ -659,7 +637,6 @@ questions:
       them.
     level: 7
     tags: {topic: rosters, era: 2010s}
-    time_limit_seconds: 45
     rows: [Cleveland Cavaliers, Toronto Raptors]
     columns: [Golden State Warriors, Miami Heat]
 
@@ -671,7 +648,6 @@ questions:
       them.
     level: 7
     tags: {topic: rosters, era: 2010s}
-    time_limit_seconds: 45
     rows: [Oklahoma City Thunder, Dallas Mavericks]
     columns: [Golden State Warriors, Cleveland Cavaliers]
 
@@ -683,7 +659,6 @@ questions:
       them.
     level: 8
     tags: {topic: rosters, era: 2010s}
-    time_limit_seconds: 45
     rows: [Houston Rockets, Los Angeles Clippers]
     columns: [Milwaukee Bucks, Toronto Raptors]
 
@@ -695,7 +670,6 @@ questions:
       them.
     level: 8
     tags: {topic: rosters, era: 2010s}
-    time_limit_seconds: 45
     rows: [Brooklyn Nets, Charlotte Hornets]
     columns: [Boston Celtics, Philadelphia 76ers]
 
@@ -707,7 +681,6 @@ questions:
       them.
     level: 9
     tags: {topic: rosters, era: 2010s}
-    time_limit_seconds: 45
     rows: [Minnesota Timberwolves, Portland Trail Blazers]
     columns: [Denver Nuggets, Utah Jazz]
 
@@ -719,7 +692,6 @@ questions:
       them.
     level: 9
     tags: {topic: rosters, era: 2010s}
-    time_limit_seconds: 45
     rows: [New Orleans Pelicans, Indiana Pacers]
     columns: [Atlanta Hawks, Orlando Magic]
 
@@ -731,7 +703,6 @@ questions:
       them.
     level: 8
     tags: {topic: rosters, era: 2010s}
-    time_limit_seconds: 45
     rows: [Memphis Grizzlies, Chicago Bulls]
     columns: [New York Knicks, Detroit Pistons]
 
@@ -743,6 +714,5 @@ questions:
       them.
     level: 7
     tags: {topic: rosters, era: 2010s}
-    time_limit_seconds: 45
     rows: [Golden State Warriors, San Antonio Spurs]
     columns: [Oklahoma City Thunder, Toronto Raptors]

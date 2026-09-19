@@ -72,13 +72,6 @@ class ColumnsRowsQuestion(BaseQuestion):
         help_text="Where this grid's accepted answers come from.",
     )
 
-    #: Twice the ordinary clock, because a grid is not one question. It is
-    #: several sparse, independent claims read off a board — ``evaluation``
-    #: pays it "per authored cell" for the same reason — and a player who has
-    #: to find the intersection before they can even start recalling has spent
-    #: the glance-and-answer question's whole budget on reading.
-    DEFAULT_TIME_LIMIT_SECONDS = 20
-
     class Meta(BaseQuestion.Meta):
         pass
 

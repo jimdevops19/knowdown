@@ -166,9 +166,7 @@ def _next_state(
         return _Skip(question.order)
 
     concrete = get_concrete_question(ref=QuestionRef(question.question_type, question.question_id))
-    time_limit_ms = time_limit_ms_for(
-        question_type=question.question_type, override_seconds=concrete.time_limit_seconds
-    )
+    time_limit_ms = time_limit_ms_for(override_seconds=concrete.time_limit_seconds)
     elapsed_ms = (timezone.now() - question.started_at).total_seconds() * 1000
     deadline_ms = time_limit_ms - _DEADLINE_MARGIN_MS
     if elapsed_ms >= deadline_ms:

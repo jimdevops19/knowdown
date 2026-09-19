@@ -24,8 +24,8 @@ Two things bound the overtime, and either one hands the match back to
 
 * :data:`~apps.matches.constants.MAX_TIEBREAKER_QUESTIONS`, so two evenly
   matched players cannot keep a match open forever; and
-* the catalog — a category with nothing left that this matchup has not already
-  played has no question to ask, and a repeat would be a tie-breaker one side
+* the catalog — a room (or category) with nothing left that this matchup has
+  not already played has no question to ask, and a repeat would be a tie-breaker one side
   may have seen minutes ago.
 """
 
@@ -41,6 +41,7 @@ from apps.matches import selectors
 from apps.matches.constants import MAX_TIEBREAKER_QUESTIONS, PLAYERS_PER_MATCHUP
 from apps.matches.models import Matchup, MatchupQuestion
 from apps.questions.selectors import QuestionRef, question_pool
+from apps.rooms.selectors import room_question_pool
 from shared.logging import get_logger, labels
 
 logger = get_logger(__name__)
@@ -92,18 +93,24 @@ def add_tiebreaker_question(
         return None
 
     played = set(matchup.questions.values_list("question_type", "question_id"))
-    pool = [
-        ref
-        for ref in question_pool(category=matchup.category)
-        if ref.as_tuple() not in played
-    ]
+    # Sudden death is drawn from the same place the board was: the room's
+    # categories and filters when the match was joined through a room, the
+    # plain category otherwise. Drawing the tie-breaker from the whole category
+    # would let a themed room end on a question from outside its own theme.
+    everything = (
+        room_question_pool(room=matchup.room)
+        if matchup.room_id
+        else question_pool(category=matchup.category)
+    )
+    pool = [ref for ref in everything if ref.as_tuple() not in played]
     if not pool:
         # Nothing left to ask that this matchup has not already asked. The
         # match still ends — on total answer time, or as a draw — rather than
         # replaying a question either player has just seen.
         logger.warning(
-            "No tie-breaker available — category exhausted for this matchup",
+            "No tie-breaker available — nothing unplayed left for this matchup",
             category=labels.category(matchup.category),
+            room=labels.room(matchup.room),
             action="tiebreak",
         )
         return None
@@ -124,6 +131,7 @@ def add_tiebreaker_question(
     logger.info(
         "Scores level — playing a tie-breaker question",
         category=labels.category(matchup.category),
+        room=labels.room(matchup.room),
         question_type=ref.question_type,
         action="tiebreak",
     )

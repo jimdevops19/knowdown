@@ -4,7 +4,7 @@ import { Flame, Timer, Zap } from 'lucide-react'
 import { getPlayerProfile, listMyMatches } from '../lib/api/endpoints'
 import { queryKeys } from '../lib/query/queryClient'
 import { useAuth } from '../features/auth/useAuth'
-import { CategoryGrid } from '../features/play/CategoryGrid'
+import { RoomCircles } from '../features/play/RoomCircles'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
@@ -19,10 +19,11 @@ import type { MatchupSummary } from '../lib/api/types'
  * `/` — the way into a match, whether or not you're signed in.
  *
  * There is exactly one thing to do on this app, so the page is built around it:
- * pick a category, and the button under it starts a match. Everything else on
- * the screen — the rating, the record — is *why you would*, and sits below.
+ * pick a room — the settings a match is played under — and tapping it starts
+ * the search. Everything else on the screen — the rating, the record — is *why
+ * you would*, and sits below.
  *
- * Signed out it is the same page with the same category cards, and tapping one
+ * Signed out it is the same page with the same room circles, and tapping one
  * routes through sign-in and back (see `RequireAuth`, which carries the
  * destination in `?next=`). A landing page that hides the product behind a
  * sign-up wall is a landing page nobody signs up from.
@@ -31,12 +32,12 @@ export function HomePage() {
   const { isAuthenticated, user } = useAuth()
 
   return (
-    <div className="flex flex-col gap-8 pb-4">
+    <div className="flex flex-col gap-6 pb-4 sm:gap-8">
       {isAuthenticated ? <PlayerHero /> : <GuestHero />}
 
-      <section className="flex flex-col gap-3">
-        <SectionHeading>Pick your category</SectionHeading>
-        <CategoryGrid />
+      <section className="flex flex-col gap-5">
+        <SectionHeading>Pick a room</SectionHeading>
+        <RoomCircles />
       </section>
 
       {!isAuthenticated && <HowItWorks />}
@@ -67,7 +68,7 @@ export function HomePage() {
  */
 function GuestHero() {
   return (
-    <section className="flex flex-col gap-5 py-4">
+    <section className="flex flex-col gap-4 py-1 sm:gap-5 sm:py-4">
       {/* Wraps rather than squeezes: on a narrow phone the strap drops onto its
           own line under the wordmark instead of the two fighting over the row.
           `whitespace-nowrap` keeps it from breaking *within* itself — a strap

@@ -228,29 +228,32 @@ class SelectMatchQuestionsTests(TestCase):
             services.select_match_questions(matchup=matchup)
 
 
+#: What ``matrix.yaml`` sets for every grid it holds, and so what the loader
+#: writes onto a grid's row. Spelled out here rather than imported, because the
+#: engine has no opinion about it: the point of these tests is that a longer
+#: clock arrives from the *row*, whatever the file happens to say today.
+_MATRIX_CLOCK_SECONDS = 60
+
+
 class MatrixTimeLimitTests(TestCase):
-    """A matrix question gets more clock than the default
-    (``ColumnsRowsQuestion.DEFAULT_TIME_LIMIT_SECONDS``) — several sparse,
-    independent cells read off a grid take longer to work through than one
-    glance-and-answer claim."""
+    """A grid gets more clock than a glance-and-answer question — several
+    sparse, independent cells read off a board take longer to work through than
+    one claim — and it gets it the way every clock now arrives: off the row,
+    written there by the loader from the file the whole type is authored in."""
 
-    def test_matrix_is_given_more_time_than_the_default(self):
+    def test_a_row_s_clock_outranks_the_fallback(self):
         self.assertGreater(
-            time_limit_ms_for(question_type=QuestionType.MATRIX),
-            time_limit_ms_for(question_type=QuestionType.SINGLE_ANSWER),
+            time_limit_ms_for(override_seconds=_MATRIX_CLOCK_SECONDS),
+            time_limit_ms_for(),
         )
-        self.assertEqual(
-            time_limit_ms_for(question_type=QuestionType.SINGLE_ANSWER),
-            FALLBACK_QUESTION_TIME_LIMIT_MS,
-        )
+        self.assertEqual(time_limit_ms_for(), FALLBACK_QUESTION_TIME_LIMIT_MS)
 
-    def test_a_question_s_own_time_limit_outranks_its_type_s_default(self):
+    def test_a_question_with_no_clock_of_its_own_gets_the_fallback(self):
+        """Neither the question nor a file named one — the only tier left."""
         self.assertEqual(
-            time_limit_ms_for(question_type=QuestionType.MATRIX, override_seconds=5), 5_000
+            time_limit_ms_for(override_seconds=None), FALLBACK_QUESTION_TIME_LIMIT_MS
         )
-        self.assertEqual(
-            time_limit_ms_for(question_type=QuestionType.SINGLE_ANSWER, override_seconds=5), 5_000
-        )
+        self.assertEqual(time_limit_ms_for(override_seconds=5), 5_000)
 
     def test_an_answer_past_the_default_limit_but_within_the_matrix_limit_still_counts(self):
         matchup = make_matchup(question_count=3)
@@ -258,6 +261,8 @@ class MatrixTimeLimitTests(TestCase):
         question = selectors.get_matchup_question(matchup=matchup, order=1)
 
         matrix = make_matrix(slug="grid-time-limit-test", category=matchup.category)
+        matrix.time_limit_seconds = _MATRIX_CLOCK_SECONDS  # as matrix.yaml loads it
+        matrix.save(update_fields=["time_limit_seconds"])
         question.question_type = QuestionType.MATRIX
         question.question_id = matrix.id
         question.started_at = timezone.now() - timedelta(
@@ -291,10 +296,12 @@ class MatrixTimeLimitTests(TestCase):
         question = selectors.get_matchup_question(matchup=matchup, order=1)
 
         matrix = make_matrix(slug="grid-time-limit-test-2", category=matchup.category)
+        matrix.time_limit_seconds = _MATRIX_CLOCK_SECONDS  # as matrix.yaml loads it
+        matrix.save(update_fields=["time_limit_seconds"])
         question.question_type = QuestionType.MATRIX
         question.question_id = matrix.id
         question.started_at = timezone.now() - timedelta(
-            milliseconds=time_limit_ms_for(question_type=QuestionType.MATRIX) + 1
+            milliseconds=time_limit_ms_for(override_seconds=_MATRIX_CLOCK_SECONDS) + 1
         )
         question.save(update_fields=["question_type", "question_id", "started_at"])
 
@@ -320,8 +327,8 @@ class MatrixTimeLimitTests(TestCase):
 
     def test_a_question_s_own_time_limit_is_honoured_end_to_end(self):
         """A single-answer question authored with ``time_limit_seconds: 1``
-        gets one second, not the type's ten — the row's own value outranks
-        every fallback."""
+        gets one second, not the ordinary ten — the row's own value outranks
+        the fallback."""
         matchup = make_matchup(question_count=3)
         services.start_matchup(matchup=matchup)
         question = selectors.get_matchup_question(matchup=matchup, order=1)

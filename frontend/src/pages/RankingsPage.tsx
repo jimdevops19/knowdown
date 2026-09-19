@@ -74,7 +74,13 @@ export function RankingsPage() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-3">
         <h1 className="font-display text-2xl font-bold text-chalk">Rankings</h1>
-        {categories.data && categories.data.length > 1 && (
+        {/* Shown from the first category rather than from the second. A picker
+            that appears only once a second ladder exists is a control nobody
+            has seen before the day it matters, and it hides the fact that a
+            rating is *per category* — which is the one thing a player has to
+            understand to read this page at all. With one category it is a
+            single tab saying what you are looking at. */}
+        {categories.data && categories.data.length > 0 && (
           <div className="flex gap-2 overflow-x-auto scrollbar-none">
             {categories.data.map((option) => (
               <Link
@@ -99,12 +105,15 @@ export function RankingsPage() {
       {ladder.data && rows.length === 0 && (
         <EmptyState
           message="Nobody has finished a ranked match here yet."
+          // The lobby, not `/play/{category}`: that route's slug is a *room*
+          // (see `useMatchmaking`, which opens `/ws/v1/matchmaking/room/…`),
+          // so a category slug there is a queue the server refuses. Which of
+          // this category's rooms to enter is a choice the lobby already
+          // presents.
           action={
-            category && (
-              <Button as={Link} to={`/play/${category}`}>
-                Be the first
-              </Button>
-            )
+            <Button as={Link} to="/play">
+              Be the first
+            </Button>
           }
         />
       )}

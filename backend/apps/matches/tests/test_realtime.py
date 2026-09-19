@@ -34,7 +34,7 @@ from apps.matches import selectors as match_selectors
 from apps.matches.authentication import JWTAuthMiddlewareStack
 from apps.matches.models import Matchup
 from apps.matches.routing import websocket_urlpatterns
-from apps.matches.tests.factories import every_default_clock, stock_category
+from apps.matches.tests.factories import default_clock, stock_category
 from apps.players.tests.factories import make_player
 from apps.questions.api.serializers import FORBIDDEN_FIELD_NAMES
 from apps.questions.models import SingleAnswerQuestion
@@ -200,7 +200,7 @@ class MatchupPlayTests(TransactionTestCase):
 
     async def test_a_question_carries_its_own_authored_time_limit(self):
         """A question authored with ``time_limit_seconds`` is broadcast with
-        *that* limit, not the type's default.
+        *that* limit, not the fallback.
 
         The number the client counts down from arrives in this frame and
         nowhere else — there is no per-match constant it could fall back on,
@@ -252,10 +252,10 @@ class MatchupPlayTests(TransactionTestCase):
     async def test_a_question_nobody_answers_still_closes(self):
         # Both the watchdog's own clock (consumers) and the deadline the
         # service checks against (services) read ``time_limit_ms_for`` at call
-        # time, and it reads each question model's own
-        # ``DEFAULT_TIME_LIMIT_SECONDS``, so zeroing those is enough to make
-        # both agree time has run out immediately.
-        with every_default_clock(0):
+        # time, and a fixture question authors no clock of its own, so zeroing
+        # the fallback is enough to make both agree time has run out
+        # immediately.
+        with default_clock(0):
             matchup_id, sock_one, sock_two = await self._paired_players()
             await sock_one.receive_json_from(timeout=5)
             await sock_two.receive_json_from(timeout=5)
@@ -455,7 +455,7 @@ class SupersededSocketTests(TransactionTestCase):
 
         from apps.matches import pool
 
-        assert await database_sync_to_async(pool.pool_size)(category_slug=category.slug) == 1, (
+        assert await database_sync_to_async(pool.pool_size)(pool_key=f"category:{category.slug}") == 1, (
             "the replaced socket's leave_pool withdrew the live socket's claim"
         )
 
@@ -485,12 +485,12 @@ class MatchmakingPoolTests(TransactionTestCase):
 
         from apps.matches import pool
 
-        category_slug = "concurrency-test"
+        pool_key = "concurrency-test"
         cache.clear()
         player_ids = [f"player-{i}" for i in range(20)]
 
         def join(player_id):
-            return pool.join_pool(category_slug=category_slug, player_id=player_id)
+            return pool.join_pool(pool_key=pool_key, player_id=player_id)
 
         with ThreadPoolExecutor(max_workers=10) as executor:
             results = list(executor.map(join, player_ids))
@@ -512,7 +512,7 @@ class MatchmakingPoolTests(TransactionTestCase):
         assert opponents_named <= became_the_waiter
         assert len(opponents_named) == len(paired)
         assert opponents_named == became_the_waiter  # 20 players, 0 left over
-        assert pool.pool_size(category_slug=category_slug) == 0
+        assert pool.pool_size(pool_key=pool_key) == 0
         cache.clear()
 
     def test_only_the_socket_that_holds_the_slot_may_give_it_back(self):
@@ -524,25 +524,25 @@ class MatchmakingPoolTests(TransactionTestCase):
         rather than in a player's Searching screen."""
         from apps.matches import pool
 
-        category_slug = "token-test"
+        pool_key = "token-test"
         cache.clear()
 
-        assert pool.join_pool(category_slug=category_slug, player_id="p", join_token="old") is None
+        assert pool.join_pool(pool_key=pool_key, player_id="p", join_token="old") is None
         # The reconnect: same player, new socket, taking the claim over.
-        assert pool.join_pool(category_slug=category_slug, player_id="p", join_token="new") is None
+        assert pool.join_pool(pool_key=pool_key, player_id="p", join_token="new") is None
 
-        pool.leave_pool(category_slug=category_slug, player_id="p", join_token="old")
-        assert pool.pool_size(category_slug=category_slug) == 1
+        pool.leave_pool(pool_key=pool_key, player_id="p", join_token="old")
+        assert pool.pool_size(pool_key=pool_key) == 1
 
         # The bot fallback belongs to the replaced socket too, and must not be
         # able to spend a slot that is no longer its socket's.
         assert not pool.claim_for_bot(
-            category_slug=category_slug, player_id="p", join_token="old"
+            pool_key=pool_key, player_id="p", join_token="old"
         )
-        assert pool.pool_size(category_slug=category_slug) == 1
+        assert pool.pool_size(pool_key=pool_key) == 1
 
-        assert pool.leave_pool(category_slug=category_slug, player_id="p", join_token="new")
-        assert pool.pool_size(category_slug=category_slug) == 0
+        assert pool.leave_pool(pool_key=pool_key, player_id="p", join_token="new")
+        assert pool.pool_size(pool_key=pool_key) == 0
         cache.clear()
 
     def test_a_tokenless_caller_still_matches_on_the_player_id_alone(self):
@@ -552,17 +552,17 @@ class MatchmakingPoolTests(TransactionTestCase):
         cache."""
         from apps.matches import pool
 
-        category_slug = "legacy-test"
+        pool_key = "legacy-test"
         cache.clear()
 
-        assert pool.join_pool(category_slug=category_slug, player_id="p") is None
-        assert pool.leave_pool(category_slug=category_slug, player_id="p")
-        assert pool.pool_size(category_slug=category_slug) == 0
+        assert pool.join_pool(pool_key=pool_key, player_id="p") is None
+        assert pool.leave_pool(pool_key=pool_key, player_id="p")
+        assert pool.pool_size(pool_key=pool_key) == 0
 
         # A legacy two-element slot, exactly as an older build wrote it.
-        cache.set(pool._waiting_key(category_slug=category_slug), ("p", 1.0), timeout=60)
-        assert pool.leave_pool(category_slug=category_slug, player_id="p", join_token="anything")
-        assert pool.pool_size(category_slug=category_slug) == 0
+        cache.set(pool._waiting_key(pool_key=pool_key), ("p", 1.0), timeout=60)
+        assert pool.leave_pool(pool_key=pool_key, player_id="p", join_token="anything")
+        assert pool.pool_size(pool_key=pool_key) == 0
         cache.clear()
 
 
