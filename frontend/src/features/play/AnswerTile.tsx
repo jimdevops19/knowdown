@@ -37,23 +37,96 @@ export type TileState =
   | 'dimmed'
 
 /*
- * A tile carries its state on its *left edge* as a 4px bar, not as a wash of
- * tint across the whole surface.
+ * A tile's state is the *whole tile*, not a bar on the edge of it.
  *
- * This is the one place the layout changed rather than just the colours. A
- * tinted fill has to stay faint to keep the option text legible, so at a metre
- * away under a clock, "picked" and "not picked" were two shades of the same
- * dark rectangle. A solid bar of full-strength colour down one edge reads as a
- * marked tile from across the room, costs the text nothing, and is exactly how
- * a broadcast scoreboard marks a row. The fill stays as a whisper behind it.
+ * This went through two versions before this one, and both of the earlier ones
+ * were solving the same real problem from the wrong end. A tinted fill
+ * (`bg-court/12`) has to stay faint to keep the option text legible, so under a
+ * clock at arm's length "picked" and "not picked" were two shades of the same
+ * dark rectangle. The fix at the time was a 4px bar of full-strength colour down
+ * the left edge — which is legible, and is also precisely how a monitoring
+ * dashboard marks the severity of a log row. It read as reporting, because that
+ * is what the device is for.
+ *
+ * A game does the opposite: the colour *is* the object. Kahoot's answer grid is
+ * four full-bleed coloured quadrants; Duolingo fills whole cards. Large
+ * saturated areas are what the eye reads as play, and edge accents are what it
+ * reads as status. So a picked tile is an orange tile, a right one is a mint
+ * tile, a wrong one is a coral tile, and the legibility problem the tint had is
+ * gone rather than worked around: at full strength the fill can carry dark ink,
+ * which is both the highest-contrast pairing available and the rule every other
+ * bright plate in this app already follows.
+ *
+ * What does *not* change is the reason the bar existed. The verdict is still
+ * never carried by colour alone — the tick, the cross and the shake are all
+ * still here, and they matter more now, not less, because a filled tile is a
+ * bigger commitment to a hue.
+ *
+ * Each state also casts its own lip, so a tile is a pressable object like every
+ * button, and the 4px of travel is the immediate confirmation that a tap landed
+ * — which on a ten-second question is the difference between a player waiting
+ * and a player tapping again.
  */
 const STATE_CLASSES: Record<TileState, string> = {
-  idle: 'border-l-chalk/15 bg-panel text-chalk hover:border-l-court hover:bg-raised active:scale-[0.985]',
-  picked: 'border-l-court bg-court/12 text-chalk',
-  correct: 'border-l-correct bg-correct/12 text-chalk motion-safe:animate-verdict-correct',
-  wrong: 'border-l-wrong bg-wrong/10 text-chalk motion-safe:animate-verdict-wrong',
-  dimmed: 'border-l-chalk/8 bg-panel/60 text-ash opacity-55',
+  idle: 'pressable border-chalk/16 bg-raised text-chalk shadow-lip-plate hover:border-court hover:bg-panel',
+  picked: 'border-transparent bg-court text-void shadow-lip-court',
+  correct:
+    'border-transparent bg-correct text-void shadow-lip-correct motion-safe:animate-verdict-correct',
+  wrong: 'border-transparent bg-wrong text-void shadow-lip-wrong motion-safe:animate-verdict-wrong',
+  dimmed: 'border-chalk/8 bg-panel/60 text-ash opacity-55',
 }
+
+/*
+ * The option's letter. On a filled tile the key inverts to dark-on-dark-wash,
+ * because the tile is now the bright surface and the badge has to sit *in* it
+ * rather than glow on top of it.
+ *
+ * `idle` is the light key on a dark plate, and it is only used when a board
+ * does not tell the tile which lane it is (see LANE_CLASSES).
+ */
+const LEAD_CLASSES: Record<TileState, string> = {
+  idle: 'bg-chalk/12 text-chalk',
+  picked: 'bg-void/20 text-void',
+  correct: 'bg-void/20 text-void',
+  wrong: 'bg-void/20 text-void',
+  dimmed: 'bg-chalk/8 text-ash',
+}
+
+/*
+ * The lanes: A is orange, B violet, C pink, D cyan.
+ *
+ * ── Why the key and not the whole tile ──────────────────────────────────────
+ * Kahoot's answer grid is four full-bleed coloured quadrants, and that is the
+ * obvious thing to copy here. It does not survive contact with this game: in
+ * Knowdown a tile's *fill* is its state — orange means you picked it, mint that
+ * you were right, coral that you were wrong — so painting the fill by position
+ * would mean the same surface is saying two things at once, and a lime lane
+ * sitting next to a mint verdict is the pair a player can least afford to
+ * confuse under a ten-second clock.
+ *
+ * Kahoot can do it because Kahoot never has to show "picked, ruled on later":
+ * it dims everything else the instant you tap. This board has to hold `picked`
+ * on screen while the server rules.
+ *
+ * So the colour goes to the key instead — which is where the eye lands first on
+ * a list of options anyway, and which the filled states already overwrite, so
+ * nothing has to be given up. Four saturated chips on the grid, and the fill is
+ * left to mean exactly one thing.
+ *
+ * Cycled by position rather than derived from the option, for the same reason
+ * the rooms are (see RoomCircles): position is stable within a question, and a
+ * question with five or eight options gets the same treatment as one with four
+ * rather than running out of colours.
+ *
+ * Mint and coral are deliberately not in the set — they are the verdict, and a
+ * lane that happened to be mint would be a tile wearing a right answer.
+ */
+const LANE_CLASSES = [
+  'bg-court text-void',
+  'bg-room-a text-void',
+  'bg-room-b text-void',
+  'bg-rival text-void',
+] as const
 
 export function AnswerTile({
   state = 'idle',
@@ -62,6 +135,9 @@ export function AnswerTile({
   children,
   /** A leading glyph or index — "A", "B", a number in an ordering list. */
   lead,
+  /** Which lane this option is, zero-based, for the key's colour. Omitted by
+   *  callers whose tiles are not a numbered set of choices. */
+  lane,
   className = '',
 }: {
   state?: TileState
@@ -69,22 +145,32 @@ export function AnswerTile({
   onClick?: () => void
   children: ReactNode
   lead?: ReactNode
+  lane?: number
   className?: string
 }) {
+  // The lane colour is an `idle` decoration only: every other state paints the
+  // whole tile, and a bright chip on a bright fill would be the one place in
+  // the app where two saturated colours touch.
+  const leadClass =
+    state === 'idle' && lane !== undefined
+      ? LANE_CLASSES[lane % LANE_CLASSES.length]
+      : LEAD_CLASSES[state]
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
       aria-pressed={state === 'picked' || state === 'correct' || state === 'wrong'}
-      className={`flex min-h-14 w-full items-center gap-3 rounded-tile border border-chalk/8 border-l-4 px-4 py-3 text-left font-medium transition-all duration-150 disabled:pointer-events-none ${STATE_CLASSES[state]} ${className}`.trim()}
+      className={`flex min-h-14 w-full items-center gap-3 rounded-tile border-2 px-4 py-3 text-left font-semibold disabled:pointer-events-none ${STATE_CLASSES[state]} ${className}`.trim()}
     >
       {lead !== undefined && (
-        // The option's letter, set as a hard square in widened display type —
-        // the lane number on a start block. Square rather than rounded because
-        // it is the smallest element on the board, and at 28px a rounded
-        // rectangle is indistinguishable from a circle.
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[3px] bg-chalk/10 font-display text-sm font-bold [font-stretch:var(--display-wide)] text-ash">
+        // The option's letter in widened display type — the lane number on a
+        // start block. A generously rounded square rather than the hard 3px one
+        // it was: at 28px that read as a cut corner from the broadcast scale,
+        // and this is a chunky key on a chunky tile.
+        <span
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] font-display text-sm font-bold [font-stretch:var(--display-wide)] ${leadClass}`}
+        >
           {lead}
         </span>
       )}
@@ -93,8 +179,8 @@ export function AnswerTile({
           the state is already announced through `aria-pressed` plus the live
           region the board owns — two screen-reader announcements of the same
           fact is worse than one. */}
-      {state === 'correct' && <Check size={20} className="shrink-0 text-correct" aria-hidden />}
-      {state === 'wrong' && <X size={20} className="shrink-0 text-wrong" aria-hidden />}
+      {state === 'correct' && <Check size={22} strokeWidth={3} className="shrink-0" aria-hidden />}
+      {state === 'wrong' && <X size={22} strokeWidth={3} className="shrink-0" aria-hidden />}
     </button>
   )
 }

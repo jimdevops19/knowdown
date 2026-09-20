@@ -27,10 +27,13 @@ export function Input({ size = 'md', invalid = false, className = '', ...rest }:
   return (
     <input
       aria-invalid={invalid || undefined}
-      className={`w-full rounded-input border bg-raised px-3.5 text-chalk outline-none transition-all duration-150 placeholder:text-ash/50 focus:ring-2 disabled:opacity-60 ${
+      // Two-pixel border, matching every other plate in the app: a field has to
+      // read as a slot you can type into from across the screen, and at 1px on a
+      // blue ground the edge of one was a guess.
+      className={`w-full rounded-input border-2 bg-raised px-3.5 text-chalk outline-none transition-all duration-150 placeholder:text-ash/50 focus:ring-2 disabled:opacity-60 ${
         invalid
-          ? 'border-wrong/60 focus:border-wrong focus:ring-wrong/25'
-          : 'border-chalk/8 focus:border-volt focus:ring-volt/25'
+          ? 'border-wrong/70 focus:border-wrong focus:ring-wrong/25'
+          : 'border-chalk/14 focus:border-volt focus:ring-volt/25'
       } ${SIZE_HEIGHT[size]} ${className}`.trim()}
       {...rest}
     />

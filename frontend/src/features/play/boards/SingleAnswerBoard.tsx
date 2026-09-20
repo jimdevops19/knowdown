@@ -43,6 +43,7 @@ export function SingleAnswerBoard({
             key={option.id}
             state={state}
             lead={OPTION_LETTERS[index] ?? index + 1}
+            lane={index}
             disabled={locked}
             onClick={() => onAnswer({ type: 'single-answer', option_id: option.id })}
           >

@@ -24,27 +24,36 @@ export function hashHue(value: string): number {
 }
 
 /*
- * The hue is confined to one arc of the wheel: roughly 140°–265°, green through
- * teal to deep blue.
+ * The hue is confined to one arc of the wheel: roughly 258°–348°, violet through
+ * magenta to pink.
  *
- * Two constraints put it there. Unconstrained, this returned any of 360 hues,
- * which made the avatars the one place in the app still issuing violets and
- * magentas — and a dozen of them down a ladder undoes a deliberate palette on
- * its own, because the eye reads a page's colour from the repeated elements
- * rather than from the one accent.
+ * Three constraints put it there, and the arc has moved once already.
  *
- * The band then deliberately *excludes* the warm quarter the brand lives in.
- * An avatar is decoration attached to a name; the orange in this app means "you
- * can act on this" or "this is happening now", and a player whose initials
- * happen to hash to orange would be wearing an affordance. Cool identity tints
- * against a warm UI keeps the two vocabularies apart — and it is the same
- * separation the scoreboard already makes between your side and theirs.
+ * Unconstrained, this returned any of 360 hues, which made the avatars the one
+ * place in the app still issuing arbitrary colours — and a dozen of them down a
+ * ladder undoes a deliberate palette on its own, because the eye reads a page's
+ * colour from the repeated elements rather than from the one accent.
  *
- * These are rendered dark and well desaturated (see `Avatar`), so the teal end
- * of the band is a deep slate rather than anything like a bright cyan accent.
+ * The band then has to exclude the warm quarter the brand lives in. An avatar is
+ * decoration attached to a name; the orange in this app means "you can act on
+ * this" or "this is happening now", and a player whose initials happen to hash
+ * to orange would be wearing an affordance.
  *
- * 125° is still far more separation than the ~12 identities visible on any one
+ * The third constraint is what moved it. The arc used to be 140°–265° — green
+ * through teal to deep blue — chosen when the app's ground was a neutral grey
+ * that no hue could disappear into. The ground is now deep ocean blue, so that
+ * band pointed the avatars directly *at* the surface behind them: every second
+ * player would have been a slightly different shade of the page. Violet through
+ * pink is the arc that is clear of both the pitch and the brand, which leaves it
+ * the only place an identity colour can sit and still be an identity.
+ *
+ * It does overlap the room hues (`--color-room-a`/`b`, violet and pink), but not
+ * in practice: those are bright discs at full saturation and these are rendered
+ * dark and well desaturated (see `Avatar`), so the violet end of this band is a
+ * deep plum rather than anything like a bright accent.
+ *
+ * 90° is still far more separation than the ~12 identities visible on any one
  * screen need — two players are distinguishable long before their hues are.
  */
-const HUE_BAND_START = 140
-const HUE_BAND_WIDTH = 125
+const HUE_BAND_START = 258
+const HUE_BAND_WIDTH = 90

@@ -58,17 +58,32 @@ function Choice({
   onPick: () => void
 }) {
   const isPicked = picked === value
+
+  /*
+   * The same grammar as <AnswerTile>: the state is the whole button, it casts
+   * its own lip, and it travels through that lip when pressed.
+   *
+   * ── Why the two choices are not mint and coral ──────────────────────────────
+   * They were: True hovered green, False hovered red, and the tick and cross
+   * were painted in the verdict colours. It reads well right up until somebody
+   * answers False and is right — at which point they are looking at a mint
+   * panel with a red cross on it, and the two halves of the screen are making
+   * opposite claims. In this app mint and coral mean *the server ruled*, and
+   * nothing a player can choose before that is allowed to borrow them.
+   *
+   * So both choices are the same neutral plate, the word carries the meaning in
+   * display caps, and the tick and cross stay as shape alone — which is the job
+   * they were actually doing.
+   */
   const tone = isPicked
     ? verdict === 'correct'
-      ? 'border-correct bg-correct/20 shadow-edge-correct motion-safe:animate-verdict-correct'
+      ? 'border-transparent bg-correct text-void shadow-lip-correct motion-safe:animate-verdict-correct'
       : verdict === 'wrong'
-        ? 'border-wrong bg-wrong/15 shadow-edge-wrong motion-safe:animate-verdict-wrong'
-        : 'border-court bg-court/25 shadow-edge-court'
+        ? 'border-transparent bg-wrong text-void shadow-lip-wrong motion-safe:animate-verdict-wrong'
+        : 'border-transparent bg-court text-void shadow-lip-court'
     : locked
-      ? 'border-chalk/8 bg-panel/50 opacity-55'
-      : value
-        ? 'border-chalk/10 bg-panel/80 hover:border-correct/50 hover:bg-correct/10 active:scale-[0.985]'
-        : 'border-chalk/10 bg-panel/80 hover:border-wrong/50 hover:bg-wrong/10 active:scale-[0.985]'
+      ? 'border-chalk/8 bg-panel/60 text-ash opacity-55'
+      : 'pressable border-chalk/16 bg-raised text-chalk shadow-lip-plate hover:border-court hover:bg-panel'
 
   const Icon = value ? Check : X
 
@@ -78,10 +93,12 @@ function Choice({
       disabled={locked}
       aria-pressed={isPicked}
       onClick={onPick}
-      className={`flex min-h-28 flex-col items-center justify-center gap-2 rounded-tile border-2 transition-all duration-150 disabled:pointer-events-none ${tone}`}
+      className={`flex min-h-28 flex-col items-center justify-center gap-2 rounded-tile border-2 disabled:pointer-events-none ${tone}`}
     >
-      <Icon size={30} className={value ? 'text-correct' : 'text-wrong'} aria-hidden />
-      <span className="font-display text-lg font-bold uppercase tracking-wide text-chalk">
+      {/* Both glyphs inherit the button's ink, so they invert onto the dark ink
+          of a filled state along with the label rather than staying bright. */}
+      <Icon size={30} strokeWidth={3} aria-hidden />
+      <span className="font-display text-lg font-bold uppercase tracking-wide">
         {value ? 'True' : 'False'}
       </span>
     </button>

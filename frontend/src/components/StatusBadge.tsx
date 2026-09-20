@@ -23,10 +23,22 @@ import type { ReactNode } from 'react'
  */
 export type StatusTone = 'live' | 'win' | 'loss' | 'draw' | 'neutral' | 'warn' | 'off'
 
+/*
+ * Three of these are solid fills and four are tinted plates, and the split is
+ * the point rather than a shortage of colours.
+ *
+ * A solid capsule of colour is the loudest small object this app can draw, so it
+ * is spent only where the badge is the *news*: something is happening right now,
+ * you won, or this thing is switched off and shouldn't be. The other four are
+ * metadata — a draw, a loss, a category, a caveat — and metadata that shouts is
+ * how a ladder of fifty rows turns into confetti. They keep the tinted plate.
+ *
+ * Every solid fill takes dark ink, like every other bright surface here.
+ */
 const TONES: Record<StatusTone, string> = {
-  live: 'border-volt/40 bg-volt/12 text-volt',
-  win: 'border-correct/40 bg-correct/12 text-correct',
-  loss: 'border-chalk/10 bg-chalk/5 text-ash',
+  live: 'bg-volt text-void',
+  win: 'bg-correct text-void',
+  loss: 'border-2 border-chalk/14 bg-chalk/6 text-ash',
   /*
    * White, not the brand orange.
    *
@@ -38,10 +50,10 @@ const TONES: Record<StatusTone, string> = {
    * it. Plain white states that, and it separates cleanly from the grey of a
    * loss, which is dimmer and set in `ash`.
    */
-  draw: 'border-chalk/25 bg-chalk/10 text-chalk',
-  neutral: 'border-chalk/10 bg-chalk/5 text-ash',
-  warn: 'border-rival/40 bg-rival/12 text-rival',
-  off: 'border-wrong/45 bg-wrong/12 text-wrong',
+  draw: 'border-2 border-chalk/28 bg-chalk/12 text-chalk',
+  neutral: 'border-2 border-chalk/14 bg-chalk/6 text-ash',
+  warn: 'border-2 border-rival/45 bg-rival/14 text-rival',
+  off: 'bg-wrong text-void',
 }
 
 export function StatusBadge({
@@ -55,18 +67,24 @@ export function StatusBadge({
 }) {
   return (
     <span
-      // A cut chip, not a pill. This is the label that appears most often in
-      // the app — on every ladder row and every history entry — so its shape
-      // does more than any other to set whether the UI reads as broadcast
-      // furniture or as a row of tags on a blog.
-      className={`inline-flex items-center gap-1.5 rounded-[3px] border px-2 py-0.5 font-display text-[11px] font-bold [font-stretch:var(--display-wide)] uppercase tracking-[0.1em] ${TONES[tone]} ${className}`.trim()}
+      // A pill, where this was a 3px cut chip. The old comment was right that
+      // this shape decides more than any other whether the UI reads as
+      // broadcast furniture or as something else — and broadcast furniture was
+      // the thing to get away from. A capsule is what a game uses for anything
+      // that states a quantity or a status rather than doing something: a score
+      // counter, a streak, a badge. It also gained a pixel of vertical padding,
+      // because a pill needs a little more room inside it than a cut rectangle
+      // to stop reading as a squashed tablet.
+      className={`inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 font-display text-[11px] font-bold [font-stretch:var(--display-wide)] uppercase tracking-[0.1em] ${TONES[tone]} ${className}`.trim()}
     >
       {tone === 'live' && (
         // The one dot in the app that stays a circle: a recording light is
         // round, and this is the only element pretending to be a lamp.
+        // On a solid volt capsule the lamp has to be dark to be seen at all —
+        // the badge is now the colour the dot used to be.
         <span
           aria-hidden
-          className="h-1.5 w-1.5 rounded-full bg-volt motion-safe:animate-live-pulse"
+          className="h-1.5 w-1.5 rounded-full bg-void motion-safe:animate-live-pulse"
         />
       )}
       {children}

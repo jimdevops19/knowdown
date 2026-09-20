@@ -78,6 +78,7 @@ export function MultipleAnswerBoard({
               key={option.id}
               state={state}
               lead={OPTION_LETTERS[index] ?? index + 1}
+            lane={index}
               disabled={locked}
               onClick={() => toggle(option.id)}
             >

@@ -38,15 +38,37 @@ import type { Room } from '../../lib/api/types'
  *
   * DESIGN.md reserves round shapes for things that are physically round. This is
  * the deliberate exception the room concept asks for, and it is kept honest by
- * staying inside every *other* rule: the ring is a flat keyline in the brand
- * orange, never a gradient (the one tell the stories tray would import), the
- * name inside it is widened display caps like every other display element, and
- * nothing here introduces a colour the tokens do not already have.
+ * staying inside every *other* rule: never a gradient (the one tell the stories
+ * tray would import), and the name inside it is widened display caps like every
+ * other display element.
  *
- * Hover is a colour change and nothing else. A lift (`-translate-y`) moves the
- * disc *over* its own description — the two sit a few pixels apart by design —
- * and a transform on a round element next to text reads as a rendering fault
- * rather than as feedback.
+ * ── Why each room is a different colour ─────────────────────────────────────
+ * The discs used to be identical: a flat orange keyline on a dark panel,
+ * repeated across the grid. That was internally consistent and it made the one
+ * genuinely playful choice in the app look like a list of settings — four
+ * outlines of the same shape in the same colour is a form, whatever is written
+ * inside them.
+ *
+ * So a room is a solid disc in its own hue, cycled from a set of four by
+ * position: the brand orange first, then the three hues whose only job is this
+ * (`--color-room-a`/`b`/`c` — violet, pink, lime; see index.css for why those
+ * three and not any of the colours already spoken for). Cycled rather than
+ * derived from the slug, because a hash would reshuffle every room's colour the
+ * day somebody adds a fifth: position is stable, and a player learns "the
+ * orange one" from where it sits.
+ *
+ * Dark ink on the fill, like every other bright surface in the app.
+ *
+ * Pressing a room drives the disc down through its own lip — the same 4px of
+ * travel every button and answer tile now has. That is driven from the <Link>
+ * with `group-active:` rather than from the disc's own `:active`, so the whole
+ * tap target (disc *and* caption) presses as one object.
+ *
+ * Hover stays a colour change and nothing else. A lift (`-translate-y`) moves
+ * the disc *over* its own description — the two sit a few pixels apart by design
+ * — and a transform on a round element next to text reads as a rendering fault
+ * rather than as feedback. The press travel is exempt because it goes the other
+ * way, into the page, and takes the caption with it.
  *
  * A room that cannot currently fill its own shortest match is rendered, dimmed
  * and unlinked, rather than hidden: `select_room_questions` refuses such a draw
@@ -70,9 +92,9 @@ export function RoomCircles() {
 
   return (
     <ul className="grid grid-cols-2 gap-x-4 gap-y-6 sm:grid-cols-3 lg:grid-cols-4">
-      {rooms.data.map((room) => (
+      {rooms.data.map((room, index) => (
         <li key={room.slug} className="flex justify-center">
-          <RoomCircle room={room} />
+          <RoomCircle room={room} index={index} />
         </li>
       ))}
     </ul>
@@ -94,21 +116,32 @@ function contents(room: Room): string {
   return room.categories.map((category) => category.name).join(' · ')
 }
 
-function RoomCircle({ room }: { room: Room }) {
+/* The four fills a room can take, in the order rooms appear. Each carries its
+   own lip, so the disc is an object rather than a circle of colour. */
+const ROOM_FILLS = [
+  'bg-court shadow-lip-court',
+  'bg-room-a shadow-lip-room-a',
+  'bg-room-b shadow-lip-room-b',
+  'bg-room-c shadow-lip-room-c',
+] as const
+
+function RoomCircle({ room, index }: { room: Room; index: number }) {
   const playable = room.question_pool_size >= shortestMatch(room)
 
   const disc = (
     <span
       className={[
-        'flex aspect-square w-full max-w-[9rem] items-center justify-center rounded-full border-2 bg-panel px-[8%] text-center',
-        // A flat two-pixel keyline, never a gradient: emphasis in this system
-        // is an edge, and the sweep a stories ring uses is the one part of the
-        // metaphor that would read as somebody else's brand. On hover the edge
-        // deepens and the ground takes a wash of the same orange — colour only,
-        // so nothing moves next to the text below.
+        'flex aspect-square w-full max-w-[9rem] items-center justify-center rounded-full px-[8%] text-center transition-[filter,background-color,border-color] duration-150',
         playable
-          ? 'border-court text-chalk transition-colors group-hover:border-volt group-hover:bg-court/10'
-          : 'border-idle/40 text-idle',
+          ? // Solid fill, dark ink, its own lip, and the lip is consumed when the
+            // link around it is pressed. Brightness rather than a second fill
+            // colour on hover: four hues would otherwise need four hover values,
+            // and the disc is already the loudest thing on the screen.
+            `text-void group-hover:brightness-110 group-active:translate-y-1 group-active:shadow-none ${ROOM_FILLS[index % ROOM_FILLS.length]}`
+          : // An empty room is a plate, not a colour. It cannot be played, and
+            // painting it in the same bright fill as a live one would be the
+            // lobby's most prominent lie.
+            'border-2 border-idle/40 bg-panel text-idle',
       ].join(' ')}
     >
       {/* The whole name, wrapped, not initials and not truncated: the name is

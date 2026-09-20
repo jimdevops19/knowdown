@@ -43,7 +43,7 @@ export function Countdown({ clock, label }: { clock: QuestionClock; label?: stri
           rounded capsule is a download progress bar, and the two say very
           different things about how much the next second matters. */}
       <div
-        className="h-2.5 flex-1 overflow-hidden rounded-[2px] bg-chalk/8"
+        className="h-2.5 flex-1 overflow-hidden rounded-pill bg-chalk/8"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={10}

@@ -92,27 +92,30 @@ function Side({
   align: 'left' | 'right'
 }) {
   /*
-   * Each side is marked on its *outer* edge — a 3px bar of its own colour on
-   * the left for you, on the right for them, mirroring outward from the centre
-   * the way a scoreboard flanks the score.
+   * Each side is outlined in its own colour, two pixels the whole way round.
    *
-   * The two colours are orange and azure, and that pairing is a legibility
-   * decision before an aesthetic one: this is the single most important
-   * distinction in the app, read on a phone at arm's length with seconds on the
-   * clock, and orange-against-blue is the one opposition that survives both
-   * common forms of colour blindness — as well as being the oldest pair of kits
-   * in sport. The bars mean the sides stay told apart even where the colour
-   * doesn't land at all.
+   * This used to be a 4px bar on the *outer* edge only — left for you, right for
+   * them — mirroring outward the way a scoreboard flanks a score. That was a
+   * nice idea at a 10px corner radius and it broke at 19px: a thick border on
+   * one side of a generously rounded box doesn't read as a bar, it reads as a
+   * crescent hooked around the corner, because the border has to turn the radius
+   * with nothing on the adjacent side to turn into. The outward mirroring is not
+   * worth a rendering artefact on the screen people stare at hardest.
+   *
+   * A full outline says the same thing and says it louder — each side is now a
+   * discretely kitted object rather than a panel with a stripe. The two colours
+   * are unchanged and still carry the real weight: orange against azure is a
+   * legibility decision before an aesthetic one, the one opposition that
+   * survives both common forms of colour blindness, and the oldest pair of kits
+   * in sport. Position (yours left, theirs right) and the avatar carry the
+   * distinction wherever colour doesn't land at all.
    */
-  const edge =
-    accent === 'court'
-      ? 'border-l-4 border-l-court'
-      : 'border-r-4 border-r-rival'
+  const edge = accent === 'court' ? 'border-court' : 'border-rival'
   const text = accent === 'court' ? 'text-court' : 'text-rival'
 
   return (
     <div
-      className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-card border border-chalk/8 bg-panel px-3 py-2.5 ${edge} ${
+      className={`flex min-w-0 flex-1 items-center gap-2.5 rounded-card border-2 bg-panel px-3 py-2.5 shadow-card ${edge} ${
         align === 'right' ? 'flex-row-reverse text-right' : ''
       } ${away ? 'opacity-60' : ''}`}
     >
@@ -140,8 +143,8 @@ function Side({
           is the whole of what may be said about it. */}
       {answered && (
         <span
-          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[4px] ${
-            accent === 'court' ? 'bg-court/25 text-court' : 'bg-rival/25 text-rival'
+          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-pill ${
+            accent === 'court' ? 'bg-court text-void' : 'bg-rival text-void'
           }`}
           title="Locked in"
         >

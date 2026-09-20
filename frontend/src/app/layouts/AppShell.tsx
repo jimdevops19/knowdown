@@ -59,20 +59,25 @@ function SidebarLink({ item }: { item: NavItem }) {
       // `end` makes the link match only its exact path, not every nested route
       // ("/" would otherwise match everything).
       end={item.exact || item.to === '/'}
-      // The active row is a raised plate struck with an orange bar down its left
-      // edge — the same marking the answer tiles and the scoreboard use, so
-      // "this one" is spelled one way throughout the app.
+      // The active row is a raised plate outlined in orange.
       //
-      // Not the solid orange fill the phone tab bar uses for the same state: that
-      // plate is a 36px key, while this is a full-width row, and filled solid
-      // it became the largest block of colour on every screen — permanent
-      // chrome shouting down the content it frames. The tab bar can afford it
-      // because it is small; the sidebar cannot because it is not.
+      // It was a plate struck with a 3px bar down its left edge — the marking
+      // the answer tiles and the scoreboard both used at the time. Neither of
+      // them uses it any more (a tile's state is now the whole tile), and at a
+      // 15px corner radius a one-sided thick border renders as a crescent hooked
+      // round the corner rather than as a bar. A full 2px outline is the
+      // vocabulary the rest of the app moved to.
+      //
+      // Still not the solid orange fill the phone tab bar uses for the same
+      // state: that plate is a 36px key, while this is a full-width row, and
+      // filled solid it became the largest block of colour on every screen —
+      // permanent chrome shouting down the content it frames. The tab bar can
+      // afford it because it is small; the sidebar cannot because it is not.
       className={[
-        'group relative flex items-center gap-3 rounded-btn border-l-[3px] px-3 py-2.5 text-sm font-medium transition-all duration-200',
+        'group relative flex items-center gap-3 rounded-btn border-2 px-3 py-2.5 text-sm font-medium transition-all duration-200',
         isActive
-          ? 'border-l-court bg-raised font-semibold text-chalk'
-          : 'border-l-transparent text-ash hover:bg-raised hover:text-chalk',
+          ? 'border-court bg-raised font-semibold text-chalk'
+          : 'border-transparent text-ash hover:bg-raised hover:text-chalk',
       ].join(' ')}
     >
       <Icon size={18} className={litIcon ? 'text-court' : undefined} />

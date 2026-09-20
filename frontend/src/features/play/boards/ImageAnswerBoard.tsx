@@ -1,3 +1,4 @@
+import { Check, X } from 'lucide-react'
 import type { ImageAnswerQuestion } from '../../../lib/api/types'
 import { OPTION_LETTERS, type BoardProps } from './types'
 
@@ -18,6 +19,10 @@ import { OPTION_LETTERS, type BoardProps } from './types'
  * question into a text question — but it must be on the `alt`, or the question
  * is unanswerable with a screen reader.
  */
+/** The same lane colours <AnswerTile> gives its keys, so A is the orange one
+ *  whether the options are sentences or photographs. */
+const LANE_FILLS = ['bg-court', 'bg-room-a', 'bg-room-b', 'bg-rival'] as const
+
 export function ImageAnswerBoard({
   question,
   submission,
@@ -34,15 +39,23 @@ export function ImageAnswerBoard({
     <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
       {question.options.map((option, index) => {
         const picked = option.id === pickedId
+        /*
+         * The one board whose state cannot be the surface: the surface is the
+         * photograph, and it is the thing being asked about. So a picture tile
+         * keeps the ring — but it takes the lip and the press travel every other
+         * control now has, so it is still an object rather than a framed image,
+         * and the verdict gets a solid chip in the corner so the answer is not
+         * carried by a 2px outline alone.
+         */
         const ring = picked
           ? verdict === 'correct'
-            ? 'border-correct shadow-edge-correct motion-safe:animate-verdict-correct'
+            ? 'border-correct shadow-lip-correct motion-safe:animate-verdict-correct'
             : verdict === 'wrong'
-              ? 'border-wrong shadow-edge-wrong motion-safe:animate-verdict-wrong'
-              : 'border-court shadow-edge-court'
+              ? 'border-wrong shadow-lip-wrong motion-safe:animate-verdict-wrong'
+              : 'border-court shadow-lip-court'
           : locked
             ? 'border-chalk/8 opacity-50'
-            : 'border-chalk/10 hover:border-court/60 active:scale-[0.985]'
+            : 'pressable border-chalk/16 shadow-lip-plate hover:border-court'
 
         return (
           <button
@@ -51,7 +64,7 @@ export function ImageAnswerBoard({
             disabled={locked}
             aria-pressed={picked}
             onClick={() => onAnswer({ type: 'image-answer', option_id: option.id })}
-            className={`relative overflow-hidden rounded-tile border-2 bg-panel transition-all duration-150 disabled:pointer-events-none ${ring}`}
+            className={`relative overflow-hidden rounded-tile border-2 bg-panel disabled:pointer-events-none ${ring}`}
           >
             <img
               src={option.image}
@@ -62,9 +75,31 @@ export function ImageAnswerBoard({
               className="aspect-square w-full object-cover"
               loading="eager"
             />
-            <span className="absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-[3px] bg-void/70 font-display text-xs font-bold text-chalk backdrop-blur-sm">
+            {/* The lane key, in the same four colours the text boards use — a
+                solid chip rather than a smoked-glass one, because on top of a
+                photograph a translucent badge is legible against exactly the
+                images that happen to be dark. */}
+            <span
+              className={`absolute left-2 top-2 flex h-6 w-6 items-center justify-center rounded-[9px] font-display text-xs font-bold text-void ${
+                LANE_FILLS[index % LANE_FILLS.length]
+              }`}
+            >
               {OPTION_LETTERS[index] ?? index + 1}
             </span>
+            {picked && verdict && (
+              <span
+                aria-hidden
+                className={`absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-[9px] text-void ${
+                  verdict === 'correct' ? 'bg-correct' : 'bg-wrong'
+                }`}
+              >
+                {verdict === 'correct' ? (
+                  <Check size={18} strokeWidth={3} />
+                ) : (
+                  <X size={18} strokeWidth={3} />
+                )}
+              </span>
+            )}
           </button>
         )
       })}

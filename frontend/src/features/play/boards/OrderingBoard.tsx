@@ -171,7 +171,7 @@ export function OrderingBoard({
                     ? `Position ${index + 1}: ${option.text}. Activate to take it out`
                     : `Position ${index + 1}, empty`
                 }
-                className={`flex min-h-11 w-full touch-none select-none items-center gap-2.5 rounded-tile border px-3 py-2 text-left transition-colors disabled:pointer-events-none ${
+                className={`flex min-h-11 w-full touch-none select-none items-center gap-2.5 rounded-tile border-2 px-3 py-2 text-left transition-colors disabled:pointer-events-none ${
                   option
                     ? SLOT_FILLED[verdict ?? 'picked']
                     : over
@@ -181,17 +181,21 @@ export function OrderingBoard({
                         : 'border-dashed border-chalk/20 bg-panel/40'
                 }`}
               >
+                {/* A filled slot is a bright plate now, so its position number
+                    inverts onto dark ink — the same flip AnswerTile's lead badge
+                    makes, for the same reason. An empty slot stays a light key
+                    on a dark dashed outline. */}
                 <span
-                  className={`nums flex h-7 w-7 shrink-0 items-center justify-center rounded-[3px] font-display text-sm font-bold [font-stretch:var(--display-wide)] ${
-                    option ? 'bg-chalk/10 text-ash' : 'bg-chalk/5 text-ash/70'
+                  className={`nums flex h-7 w-7 shrink-0 items-center justify-center rounded-[9px] font-display text-sm font-bold [font-stretch:var(--display-wide)] ${
+                    option ? 'bg-void/20 text-void' : 'bg-chalk/5 text-ash/70'
                   }`}
                 >
                   {index + 1}
                 </span>
                 {option ? (
-                  <span className="min-w-0 flex-1 break-words font-medium text-chalk">
-                    {option.text}
-                  </span>
+                  // Inherits the slot's dark ink rather than forcing chalk:
+                  // near-white on a full-strength orange or coral fill fails AA.
+                  <span className="min-w-0 flex-1 break-words font-semibold">{option.text}</span>
                 ) : (
                   <span className="min-w-0 flex-1 text-sm text-ash/70">
                     {index === firstEmpty ? 'Drop or tap a card here' : `${ordinal(index + 1)}`}
@@ -226,10 +230,10 @@ export function OrderingBoard({
                   ? option.text
                   : `${option.text}. Activate to put it in position ${firstEmpty + 1}`
               }
-              className={`flex min-h-[3.25rem] touch-none select-none items-center justify-center rounded-[6px] border border-chalk/15 border-l-2 border-l-court bg-raised px-2.5 py-2 text-center text-sm font-medium leading-snug text-chalk transition-transform disabled:pointer-events-none disabled:opacity-55 ${
+              className={`flex min-h-[3.25rem] touch-none select-none items-center justify-center rounded-tile border-2 border-chalk/16 bg-raised px-2.5 py-2 text-center text-sm font-medium leading-snug text-chalk disabled:pointer-events-none disabled:opacity-55 ${
                 drag?.optionId === option.id && drag.moved
                   ? 'opacity-35'
-                  : 'hover:border-l-volt active:scale-[0.97]'
+                  : 'pressable shadow-lip-plate hover:border-volt'
               }`}
             >
               {/* Two lines' worth of box whether or not the text needs two:
@@ -275,7 +279,7 @@ export function OrderingBoard({
           travelled — a tap must not flash a floating card. */}
       {dragged && drag && (
         <div
-          className="pointer-events-none fixed z-50 flex min-h-[3.25rem] w-[45vw] max-w-[13rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center text-balance rounded-[6px] border border-volt bg-raised px-2.5 py-2 text-center text-sm font-medium leading-snug text-chalk shadow-edge-volt"
+          className="pointer-events-none fixed z-50 flex min-h-[3.25rem] w-[45vw] max-w-[13rem] -translate-x-1/2 -translate-y-1/2 items-center justify-center text-balance rounded-tile border-2 border-volt bg-raised px-2.5 py-2 text-center text-sm font-medium leading-snug text-chalk shadow-elevated"
           style={{ left: drag.x, top: drag.y }}
           aria-hidden
         >
@@ -303,12 +307,14 @@ interface Drag {
  *  up rather than dragged into life. */
 const DRAG_THRESHOLD = 6
 
-/** A filled slot wears the same left-edge bar as an answer tile, and the same
- *  verdict colours — this is the control the server's ruling lands on. */
+/** A filled slot is the same object an answer tile is, in the same verdict
+ *  colours — a full fill with dark ink and its own lip, not a tinted plate with
+ *  a bar on its edge (see AnswerTile for why that changed). This is the control
+ *  the server's ruling lands on, so it has to land the same way it does there. */
 const SLOT_FILLED: Record<'picked' | 'correct' | 'wrong', string> = {
-  picked: 'border-chalk/8 border-l-4 border-l-court bg-court/12',
-  correct: 'border-chalk/8 border-l-4 border-l-correct bg-correct/12',
-  wrong: 'border-chalk/8 border-l-4 border-l-wrong bg-wrong/10',
+  picked: 'border-transparent bg-court text-void shadow-lip-court',
+  correct: 'border-transparent bg-correct text-void shadow-lip-correct',
+  wrong: 'border-transparent bg-wrong text-void shadow-lip-wrong',
 }
 
 /** `findIndex` says "nowhere" with -1; the rest of this file says it with

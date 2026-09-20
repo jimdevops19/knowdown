@@ -58,7 +58,7 @@ const TAB_CLASS =
  */
 function plateClass(active: boolean, accent?: NavItem['accent']): string {
   const base =
-    'flex h-9 w-9 shrink-0 items-center justify-center rounded-[5px] border transition-all duration-200 short:h-8 short:w-8'
+    'flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border transition-all duration-200 short:h-8 short:w-8'
   if (active) return `${base} border-court bg-court text-void`
   return `${base} border-transparent active:bg-chalk/10 ${
     accent === 'court' ? 'text-court' : 'text-ash'

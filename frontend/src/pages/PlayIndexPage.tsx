@@ -15,7 +15,7 @@ export function PlayIndexPage() {
       <section className="flex flex-col items-center gap-3 py-1 text-center sm:py-4">
         {/* Orange, not gold: this triangle is the same mark the nav lights, and
             gold is reserved for rank. */}
-        <span className="flex h-12 w-12 items-center justify-center rounded-[6px] border border-court/50 bg-court/15 text-court motion-safe:shadow-edge-court">
+        <span className="flex h-12 w-12 items-center justify-center rounded-tile border-2 border-court/50 bg-court/15 text-court motion-safe:shadow-edge-court">
           <Play size={22} aria-hidden />
         </span>
         <h1 className="font-display text-2xl font-bold text-chalk sm:text-3xl">Play someone</h1>

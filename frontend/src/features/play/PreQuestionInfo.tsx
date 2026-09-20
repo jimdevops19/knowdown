@@ -36,7 +36,7 @@ export function PreQuestionInfo({ text }: { text: string }) {
       // Fixed and opaque, for `MatchupCountdown`'s reason: an instruction read
       // through a scrim, over a question that is already half-legible behind
       // it, is an instruction that has been skipped.
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-court-black px-6 text-center motion-safe:animate-fade-in"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-pitch px-6 text-center motion-safe:animate-fade-in"
       role="status"
       // Assertive: this is the only thing on screen, and a screen-reader player
       // has the same couple of seconds to hear it as everyone else has to read
@@ -62,7 +62,7 @@ export function PreQuestionInfo({ text }: { text: string }) {
           Driven by a CSS animation rather than a per-frame width: nothing is
           measured off it, so it does not need to be the truth to the
           millisecond the way `Countdown`'s bar does. */}
-      <div className="h-1 w-40 overflow-hidden rounded-[2px] bg-chalk/10" aria-hidden>
+      <div className="h-1 w-40 overflow-hidden rounded-pill bg-chalk/10" aria-hidden>
         <div
           className="h-full origin-left bg-volt motion-safe:animate-task-drain motion-reduce:hidden"
           style={{ animationDuration: `${PRE_QUESTION_INFO_MS}ms` }}

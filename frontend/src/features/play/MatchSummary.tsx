@@ -166,24 +166,50 @@ function Banner({
   ranked: boolean
 }) {
   /*
-   * The result, as a title card with a struck band across the top.
+   * The result, and the one screen in the app allowed to be theatrical.
    *
-   * `tone` was a `from-*` stop for a vertical gradient fading the result colour
-   * down into nothing. A soft colour wash is the weakest possible way to state
-   * the one thing this screen exists to say, and the fade is the same effect
-   * the rest of the system dropped. A 3px band of full-strength colour along
-   * the top edge says it flatly, at full saturation, the way a result graphic
-   * does at the end of a broadcast.
+   * ── Why a win is a different *kind* of object, not a different colour ──────
+   * This has now been wrong twice in the same way. It began as a panel with a
+   * 3px band of the result colour along its top edge — a broadcast result
+   * graphic, which reports an outcome to somebody who wasn't playing, on a
+   * screen only ever read by the person who just won. The fix was to flood the
+   * whole panel in mint, and that traded one wrong register for another: a
+   * full-bleed field of a single flat colour with dark text on it is the shape
+   * of a *confirmation* — payment received, settings saved — and it read as one.
+   *
+   * Flat colour is not what makes a victory screen. Light is. So the panel goes
+   * back to the app's darkest ink and the celebration happens *on* it: rays
+   * turning slowly out from behind a struck gold medal, the medal itself
+   * dropping in and settling, the result in gold display caps a size larger than
+   * any other headline in the app. Everything luminous, nothing flat.
+   *
+   * Gold rather than mint, which is the reverse of the earlier call. The
+   * argument for mint was that gold means *rank* elsewhere in the app — true,
+   * but mint means something far more frequent: it is every right answer, and
+   * the ring on every correct tile. Spending it a fourth time on the match
+   * result made the biggest moment in the game look like one more question gone
+   * well. Gold is the only bright colour here that a player has not already seen
+   * ten times in the last two minutes.
+   *
+   * It all arrives on the reward motion tier (index.css) — a rise that takes
+   * 0.85s and a medal that drops and bounces, both several times slower than
+   * anything permitted during play, because the whole job of this half-second is
+   * to feel like winning something.
+   *
+   * ── And why a loss is still quiet ─────────────────────────────────────────
+   * A loss and a draw keep the plate and the struck band. Turning the reward
+   * treatment symmetrical would mean rays and a medal on every second game,
+   * which is not "honest about the result", it is being taunted for losing.
    */
   const { tone, title, sub } = drew
     ? {
-        tone: 'border-t-court',
+        tone: 'border-2 border-chalk/14 border-t-[3px] border-t-court bg-panel shadow-card',
         title: 'Dead heat',
         sub: 'Level on points and level on the clock — nobody edged it.',
       }
     : won
       ? {
-          tone: 'border-t-correct',
+          tone: 'border-2 border-gold/45 bg-void shadow-lip-gold',
           title: 'You win',
           // "Rating … on their way" is a promise, so it is only made when one
           // is coming. An unranked win still earns badges; it just moves no
@@ -195,32 +221,77 @@ function Banner({
               : 'Badges are on their way.',
         }
       : {
-          tone: 'border-t-idle',
+          tone: 'border-2 border-chalk/14 border-t-[3px] border-t-idle bg-panel shadow-card',
           title: 'You lose',
           sub: abandoned ? 'You left the match.' : 'Straight back in — the pool is open.',
         }
 
   return (
     <div
-      className={`relative overflow-hidden rounded-card border border-chalk/8 border-t-[3px] bg-panel ${tone} p-6 text-center`}
+      className={`relative overflow-hidden rounded-card px-6 py-8 text-center ${tone} ${
+        won ? 'motion-safe:animate-reward-rise' : ''
+      }`}
     >
-      {/* The winner's banner gets a sweeping highlight; a loss does not. A
-          celebration animation on a defeat reads as being taunted. */}
+      {/* The rays. A victory screen in a game is lit from behind the trophy,
+          and that is the whole difference between this and a banner that
+          announces a result: the light is the celebration, and it costs no
+          legibility because it lives under the type rather than in it.
+
+          Masked to a circle centred on the trophy so it reads as a burst from
+          one point rather than as a striped background, and turning slowly
+          enough (24s) to be felt rather than watched. */}
       {won && (
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-y-0 -left-1/3 w-1/3 bg-gradient-to-r from-transparent via-chalk/12 to-transparent motion-safe:animate-shimmer"
-        />
+        <>
+          {/* The warm ground the rays are read against. Gold laid straight onto
+              this navy at low alpha mixes to olive — the spokes came out the
+              colour of old moss. The glow sits underneath and warms the whole
+              centre, so the same gold reads as light rather than as a tint. */}
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                'radial-gradient(circle at 50% 30%, rgba(255,160,46,0.22), transparent 62%)',
+            }}
+          />
+          <span
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-[30%] aspect-square w-[160%] -translate-x-1/2 -translate-y-1/2 motion-safe:animate-[spin_24s_linear_infinite]"
+            style={{
+              background:
+                'repeating-conic-gradient(from 0deg, rgba(255,200,70,0.13) 0deg 7deg, transparent 7deg 22deg)',
+              maskImage: 'radial-gradient(circle, #000 0%, transparent 62%)',
+              WebkitMaskImage: 'radial-gradient(circle, #000 0%, transparent 62%)',
+            }}
+          />
+        </>
       )}
       {drew ? (
         <Handshake size={34} className="mx-auto mb-2 text-court" aria-hidden />
       ) : won ? (
-        <Trophy size={34} className="mx-auto mb-2 text-correct" aria-hidden />
+        // The trophy is a struck medal, not an icon in a paragraph: a solid
+        // gold disc with the cup cut out of it in the app's dark ink, dropped
+        // in on the reward tier so it lands and settles.
+        //
+        // Gold, and not the mint this banner used to be painted in. A
+        // full-bleed mint plate is the shape of a *confirmation* — payment
+        // received, settings saved — and it was reading as one. Mint is also
+        // already spoken for three times over on the way to this screen: it is
+        // every right answer and the verdict ring on every tile. Spending it
+        // again on the match result made the biggest moment in the app look
+        // like one more correct answer.
+        <span className="relative mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-gold text-void shadow-lip-gold motion-safe:animate-trophy-land">
+          <Trophy size={40} strokeWidth={2.5} aria-hidden />
+        </span>
       ) : (
         <LogOut size={34} className="mx-auto mb-2 text-idle" aria-hidden />
       )}
-      <h1 className="text-headline text-4xl text-chalk">{title}</h1>
-      <p className="mt-1 text-sm text-ash">{sub}</p>
+      <h1
+        className={`relative text-headline ${won ? 'text-5xl text-gold' : 'text-4xl text-chalk'}`}
+      >
+        {title}
+      </h1>
+      <p className="relative mt-1 text-sm text-ash">{sub}</p>
       {/* One badge, because the two things it can say are about the same
           question — did this count? — and stacking them would make the
           screen argue with itself. Unranked wins: "abandoned but it still
@@ -230,15 +301,15 @@ function Banner({
         // categories cannot move a ladder (`Room.is_rated`), and the lobby
         // says so up front, but a match reached by link or by reconnecting
         // never passed through the lobby.
-        <StatusBadge tone="neutral" className="mt-3">
-          Unrated · no rating changed
+        <StatusBadge tone="neutral" className="relative mt-3">
+          Unrated · no rating change
         </StatusBadge>
       ) : (
         abandoned && (
           // Worth naming, because it moved the ladder exactly as a played-out
           // match would — an abandoned win is not a lesser win, and a player
           // who wasn't told would assume it didn't count.
-          <StatusBadge tone="warn" className="mt-3">
+          <StatusBadge tone="warn" className="relative mt-3">
             Abandoned · still ranked
           </StatusBadge>
         )
@@ -263,20 +334,32 @@ function Finalist({
   accent: 'court' | 'rival'
 }) {
   return (
+    // The winning side is filled, the losing side is outlined. Same move as the
+    // answer tiles: the state is the surface, not a stripe on the edge of it —
+    // which is what lets the final score be read from the two cells' *shapes*
+    // before either number is.
     <div
-      className={`flex min-w-0 flex-1 flex-col items-center gap-2 rounded-tile border p-3 ${
+      className={`flex min-w-0 flex-1 flex-col items-center gap-2 rounded-tile border-2 p-3 ${
         winner
-          ? 'border-correct/50 bg-correct/8'
+          ? 'border-transparent bg-gold text-void shadow-lip-gold'
           : accent === 'court'
-            ? 'border-court/30'
-            : 'border-rival/30'
+            ? 'border-court/40'
+            : 'border-rival/40'
       }`}
     >
       <Avatar name={name} seed={seed} avatarUrl={avatarUrl} size={48} ring={winner} />
-      <span className="w-full truncate text-center text-sm font-medium text-chalk">{name}</span>
+      <span
+        className={`w-full truncate text-center text-sm font-semibold ${
+          winner ? '' : 'text-chalk'
+        }`}
+      >
+        {name}
+      </span>
+      {/* The winner's number lands on the reward tier — it overshoots and
+          settles, so the score *arrives* rather than simply being present. */}
       <span
         className={`nums font-display text-3xl font-bold leading-none ${
-          winner ? 'text-correct' : 'text-ash'
+          winner ? 'motion-safe:animate-reward-pop' : 'text-ash'
         }`}
       >
         {score}

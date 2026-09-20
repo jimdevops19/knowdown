@@ -56,7 +56,7 @@ export function MatchupCountdown({ startsAt }: { startsAt: number | null }) {
       // Fixed and opaque: "get ready" is the only thing on screen, and a player
       // reading half a question through a translucent scrim is a player who has
       // already stopped getting ready.
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-court-black px-6 text-center motion-safe:animate-fade-in"
+      className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-pitch px-6 text-center motion-safe:animate-fade-in"
       role="status"
       aria-live="assertive"
     >
