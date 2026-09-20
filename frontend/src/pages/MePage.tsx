@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Camera, Trash2 } from 'lucide-react'
 import { useAuth } from '../features/auth/useAuth'
 import { DisplayNameField } from '../features/players/DisplayNameField'
+import { MascotPicker } from '../features/players/MascotPicker'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
@@ -45,6 +46,7 @@ export function MePage() {
       )}
 
       <AvatarSection />
+      <MascotSection />
       <NameSection />
       <EmailSection />
 
@@ -91,6 +93,7 @@ function AvatarSection() {
           name={user?.player_name ?? '?'}
           seed={user?.player_id ?? undefined}
           avatarUrl={user?.player_avatar_url ?? null}
+          mascot={user?.player_mascot ?? null}
           size={64}
         />
         <div className="flex flex-1 flex-wrap gap-2">
@@ -122,10 +125,63 @@ function AvatarSection() {
         </div>
       </Card>
       <p className="text-xs text-ash/70">
-        {/* No initials fallback to explain away: the generated gradient avatar
-            is a real identity, not a placeholder someone should feel obliged to
-            replace. */}
-        Without one you get a colour of your own, generated from your name.
+        {/* No fallback to apologise for: a mascot is a real identity and so is
+            a colour generated from a name. A photo simply outranks both, which
+            is the only thing worth saying here. */}
+        A picture beats a mascot. Without either you get a colour of your own,
+        generated from your name.
+      </p>
+    </section>
+  )
+}
+
+function MascotSection() {
+  const { user, updateMascot } = useAuth()
+  const toast = useToast()
+  const queryClient = useQueryClient()
+  const [pending, setPending] = useState(false)
+
+  /*
+   * Saved on the tap, with no confirm step. The write is one short field, it is
+   * trivially reversible by tapping another one, and a "Save" button under a
+   * grid of forty animals would mean a player who picked a raptor and walked
+   * away is still wearing nothing.
+   */
+  async function choose(mascot: string | null) {
+    if (mascot === (user?.player_mascot ?? null)) return
+    setPending(true)
+    try {
+      await updateMascot(mascot)
+      // The mark rides on every payload that carries a player, so a ladder or
+      // a profile already fetched is now showing the old one.
+      void queryClient.invalidateQueries({ queryKey: ['players'] })
+      void queryClient.invalidateQueries({ queryKey: ['rankings'] })
+      toast.success(mascot ? 'Mascot updated' : 'Back to your initials')
+    } catch (caught) {
+      toast.error('Could not change your mascot', {
+        description: normalizeApiError(caught).message,
+      })
+    } finally {
+      setPending(false)
+    }
+  }
+
+  return (
+    <section className="flex flex-col gap-3">
+      <SectionHeading>Mascot</SectionHeading>
+      <Card className="p-4">
+        <MascotPicker
+          value={user?.player_mascot ?? null}
+          onChange={(mascot) => void choose(mascot)}
+          disabled={pending}
+        />
+      </Card>
+      <p className="text-xs text-ash/70">
+        {/* Said plainly because it is the one thing about the picker that is
+            not visible in it: a photo is the more specific statement, so it
+            wins, and the mascot is waiting underneath if the photo goes. */}
+        Shown wherever you appear — unless you've uploaded a picture, which
+        takes precedence.
       </p>
     </section>
   )

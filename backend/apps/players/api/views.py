@@ -22,9 +22,9 @@ from .serializers import (
 class PlayerMeView(APIView):
     """``GET``/``PATCH /api/v1/players/me/`` — the caller's own competitor.
 
-    The PATCH is not a serializer ``update``: both writable things go through
-    their service (``set_display_name``, ``set_avatar``), which is where the
-    domain rules and the log lines live. The serializer's job here is to
+    The PATCH is not a serializer ``update``: every writable thing goes through
+    its service (``set_display_name``, ``set_avatar``, ``set_mascot``), which is
+    where the domain rules and the log lines live. The serializer's job here is to
     describe the *answer*, not to perform the write.
     """
 
@@ -48,6 +48,12 @@ class PlayerMeView(APIView):
         if "display_name" in request.data:
             player = services.set_display_name(
                 player=player, display_name=str(request.data["display_name"])
+            )
+        # Same convention as the picture: a key holding nothing clears it, and
+        # a PATCH that never mentions it leaves the choice alone.
+        if "mascot" in request.data:
+            player = services.set_mascot(
+                player=player, mascot=str(request.data["mascot"] or "")
             )
         # An `avatar` key holding nothing is how a picture is removed; a PATCH
         # that never mentions it leaves the one that is there alone.

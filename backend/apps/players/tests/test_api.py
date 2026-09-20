@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import tempfile
 
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
@@ -99,6 +100,95 @@ class AvatarTests(TestCase):
             "/api/v1/players/me/", {"avatar": ""}, format="multipart"
         )
         self.assertIsNone(response.json()["data"]["avatar_url"])
+
+
+class MascotTests(TestCase):
+    """Choosing a mark. A key, one of a named set, or nothing at all."""
+
+    def setUp(self):
+        self.player = make_player()
+        self.client = APIClient()
+        self.client.force_authenticate(self.player.user)
+
+    def test_it_starts_with_no_mascot(self):
+        self.assertIsNone(self.client.get("/api/v1/players/me/").json()["data"]["mascot"])
+
+    def test_a_mascot_can_be_chosen_and_read_back(self):
+        response = self.client.patch(
+            "/api/v1/players/me/", {"mascot": "raptor"}, format="json"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["data"]["mascot"], "raptor")
+        self.player.refresh_from_db()
+        self.assertEqual(self.player.mascot, "raptor")
+
+    def test_a_key_nobody_draws_is_refused(self):
+        """An allow-list, not a shape check: an unknown key would reach a
+        scoreboard as an empty disc."""
+        response = self.client.patch(
+            "/api/v1/players/me/", {"mascot": "tyrannosaurus"}, format="json"
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()["error"]["code"], "invalid_mascot")
+        self.player.refresh_from_db()
+        self.assertEqual(self.player.mascot, "")
+
+    def test_a_mascot_can_be_cleared(self):
+        self.client.patch("/api/v1/players/me/", {"mascot": "raptor"}, format="json")
+        response = self.client.patch("/api/v1/players/me/", {"mascot": ""}, format="json")
+        self.assertIsNone(response.json()["data"]["mascot"])
+
+    def test_a_patch_that_never_mentions_it_leaves_it_alone(self):
+        self.client.patch("/api/v1/players/me/", {"mascot": "raptor"}, format="json")
+        self.client.patch("/api/v1/players/me/", {"display_name": "Kobe"}, format="json")
+        self.player.refresh_from_db()
+        self.assertEqual(self.player.mascot, "raptor")
+
+    def test_it_is_published_on_a_public_profile(self):
+        """The mark is how somebody is recognised, so it travels wherever the
+        name does — not only on the caller's own payload."""
+        self.client.patch("/api/v1/players/me/", {"mascot": "hornet"}, format="json")
+        payload = self.client.get(
+            f"/api/v1/players/{self.player.display_name}/"
+        ).json()["data"]
+        self.assertEqual(payload["mascot"], "hornet")
+
+    def test_every_key_the_allow_list_names_is_accepted(self):
+        from apps.players.constants import MASCOT_KEYS
+
+        self.assertEqual(len(MASCOT_KEYS), 41)
+        for key in sorted(MASCOT_KEYS):
+            with self.subTest(mascot=key):
+                response = self.client.patch(
+                    "/api/v1/players/me/", {"mascot": key}, format="json"
+                )
+                self.assertEqual(response.status_code, 200)
+
+    def test_the_allow_list_is_the_set_the_client_can_draw(self):
+        """The mascot list lives in two files — the drawings in
+        ``frontend/src/components/avatars/marks.ts`` and the names in
+        ``apps.players.constants`` — and nothing but this test stops them
+        drifting. A mark added on one side only would be a picker offering an
+        option the API answers 400 to, or a stored key nobody draws.
+
+        Read as text rather than imported, obviously: there is no TypeScript
+        here. The shape it matches (``key: 'raptor',``) is the one the file is
+        written in, and a rewrite that breaks the match fails loudly.
+        """
+        import re
+        from pathlib import Path
+
+        from apps.players.constants import MASCOT_KEYS
+
+        marks = (
+            Path(settings.BASE_DIR).parent
+            / "frontend/src/components/avatars/marks.ts"
+        )
+        if not marks.exists():  # a backend-only checkout or container image
+            self.skipTest("the client is not in this tree")
+
+        drawn = set(re.findall(r"^\s*key: '([a-z-]+)',$", marks.read_text(), re.M))
+        self.assertEqual(drawn, set(MASCOT_KEYS))
 
 
 class DisplayNameAvailableTests(TestCase):

@@ -30,15 +30,21 @@ export function LiveScoreboard({
   myPlayerId,
   myName,
   myAvatarUrl,
+  myMascot,
   opponentName,
   opponentAvatarUrl,
+  opponentMascot,
 }: {
   state: MatchupState
   myPlayerId: string | null
   myName: string
   myAvatarUrl: string | null
+  myMascot: string | null
   opponentName: string
   opponentAvatarUrl: string | null
+  /** Arrives with the name, from the participants call — so the opponent is a
+   *  coloured disc for the first beat of a match and their own mark after. */
+  opponentMascot: string | null
 }) {
   const opponentId = findOpponentId(state, myPlayerId)
 
@@ -48,6 +54,7 @@ export function LiveScoreboard({
         name={myName}
         seed={myPlayerId ?? myName}
         avatarUrl={myAvatarUrl}
+        mascot={myMascot}
         accent="court"
         answered={state.mySubmission !== null}
         align="left"
@@ -65,6 +72,7 @@ export function LiveScoreboard({
         // whole match even in the brief window before the name resolves.
         seed={opponentId ?? 'rival'}
         avatarUrl={opponentAvatarUrl}
+        mascot={opponentMascot}
         accent="rival"
         answered={state.opponentAnswered}
         away={state.opponentAway}
@@ -78,6 +86,7 @@ function Side({
   name,
   seed,
   avatarUrl,
+  mascot,
   accent,
   answered,
   away = false,
@@ -86,6 +95,7 @@ function Side({
   name: string
   seed: string
   avatarUrl: string | null
+  mascot: string | null
   accent: 'court' | 'rival'
   answered: boolean
   away?: boolean
@@ -119,7 +129,14 @@ function Side({
         align === 'right' ? 'flex-row-reverse text-right' : ''
       } ${away ? 'opacity-60' : ''}`}
     >
-      <Avatar name={name} seed={seed} avatarUrl={avatarUrl} size={36} ring={answered} />
+      <Avatar
+        name={name}
+        seed={seed}
+        avatarUrl={avatarUrl}
+        mascot={mascot}
+        size={36}
+        ring={answered}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
         <span className="flex items-center gap-1.5 truncate text-sm font-medium text-chalk">
           {away && <WifiOff size={13} className="shrink-0 text-rival" aria-hidden />}

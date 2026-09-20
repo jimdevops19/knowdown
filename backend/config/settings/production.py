@@ -66,6 +66,13 @@ ADMIN_GATE_ENABLED = env_bool("ADMIN_GATE_ENABLED", True)
 # is described — the surface hands out live answer keys, and "why is this off
 # in production" should be answerable without reading two files.
 TESTER_ENDPOINT_ENABLED = env_bool("TESTER_ENDPOINT_ENABLED", False)
+
+# And read-only where it is mounted: **staging sets QUESTION_TESTER_EDITABLE=0**
+# (this default says the same thing, so forgetting it fails safe). The editor
+# writes YAML into the checkout it is running from, which on a deployed tier is
+# the image — so the write would be lost at the next deploy and absent from git
+# either way. The page still shows the verbs, greyed, saying to do it locally.
+QUESTION_TESTER_EDITABLE = env_bool("QUESTION_TESTER_EDITABLE", False)
 STATIC_URL = env("STATIC_URL", OPS_STATIC_PATH)
 
 # base.py's default (BASE_DIR / "media") is only correct for local dev, where

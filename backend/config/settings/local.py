@@ -40,6 +40,13 @@ FF_ENABLE_BOTS_IF_TIMEOUT = True
 # anywhere else it is turned on.
 TESTER_ENDPOINT_ENABLED = True
 
+# …and editable, which only this tier is. What the editor writes is a block in
+# `resources/questions/*.yaml` inside the running checkout, so here the edit is
+# a file change a developer can read in `git diff` and commit — and anywhere
+# else it is a change to a container's copy of the repo that the next deploy
+# throws away. Staging sets QUESTION_TESTER_EDITABLE=0 for exactly that reason.
+QUESTION_TESTER_EDITABLE = True
+
 # --- Development-only API affordances ----------------------------------------
 # base.py ships hardened defaults (JSON-only, admin-only schema) since the
 # deployed tiers inherit them. Relaxed only here, patched after the import

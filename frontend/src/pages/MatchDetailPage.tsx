@@ -161,6 +161,7 @@ function Scoreline({ match, myPlayerId }: { match: MatchupDetail; myPlayerId: st
               <Avatar
                 name={side.player.display_name}
                 avatarUrl={side.player.avatar_url}
+                mascot={side.player.mascot}
                 size={44}
                 ring={side.is_winner}
               />

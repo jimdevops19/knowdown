@@ -98,6 +98,7 @@ function MatchRow({ match }: { match: MatchupSummary }) {
       <Avatar
         name={them?.player.display_name ?? '?'}
         avatarUrl={them?.player.avatar_url}
+        mascot={them?.player.mascot}
         size={40}
       />
       <div className="min-w-0 flex-1">

@@ -72,7 +72,7 @@ export function TesterQuestionPage() {
           <span className="font-display text-[10px] font-bold uppercase tracking-[0.12em] text-volt">
             {question.type}
           </span>
-          <LevelChip level={question.level} />
+          <LevelChip level={question.level} showLabel />
           <StatusBadge>{question.category_name}</StatusBadge>
           {!question.is_active && (
             <StatusBadge tone="off" className="inline-flex items-center gap-1">

@@ -43,6 +43,7 @@ SUPPORTED_LOG_FIELDS: frozenset[str] = frozenset(
         "room",            # a room's slug, e.g. "nba-room-finals"
         "question",        # a question's slug
         "question_type",   # a QuestionType value, e.g. "single-answer"
+        "mascot",          # a mascot's key, e.g. "raptor" (apps.players)
         # --- Resource sync ----------------------------------------------------
         "summary",         # a LoadReport rendered as "3 created, 1 updated..."
         "file",            # the resource file being read

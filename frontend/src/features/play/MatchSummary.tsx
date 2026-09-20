@@ -70,6 +70,8 @@ export function MatchSummary({
     sides.find((side) => side.player.id === playerId)?.player.display_name ?? null
   const avatarFor = (playerId: string) =>
     sides.find((side) => side.player.id === playerId)?.player.avatar_url ?? null
+  const mascotFor = (playerId: string) =>
+    sides.find((side) => side.player.id === playerId)?.player.mascot ?? null
 
   const myScore = myPlayerId ? (completed.scores[myPlayerId] ?? 0) : 0
   const opponentId = Object.keys(completed.scores).find((id) => id !== myPlayerId) ?? null
@@ -98,6 +100,7 @@ export function MatchSummary({
           name={(myPlayerId && nameFor(myPlayerId)) ?? 'You'}
           seed={myPlayerId ?? 'you'}
           avatarUrl={myPlayerId ? avatarFor(myPlayerId) : null}
+          mascot={myPlayerId ? mascotFor(myPlayerId) : null}
           score={myScore}
           winner={won}
           accent="court"
@@ -111,6 +114,7 @@ export function MatchSummary({
           name={(opponentId && nameFor(opponentId)) ?? 'Rival'}
           seed={opponentId ?? 'rival'}
           avatarUrl={opponentId ? avatarFor(opponentId) : null}
+          mascot={opponentId ? mascotFor(opponentId) : null}
           score={theirScore}
           winner={!drew && !won}
           accent="rival"
@@ -322,6 +326,7 @@ function Finalist({
   name,
   seed,
   avatarUrl,
+  mascot,
   score,
   winner,
   accent,
@@ -329,6 +334,7 @@ function Finalist({
   name: string
   seed: string
   avatarUrl: string | null
+  mascot: string | null
   score: number
   winner: boolean
   accent: 'court' | 'rival'
@@ -347,7 +353,14 @@ function Finalist({
             : 'border-rival/40'
       }`}
     >
-      <Avatar name={name} seed={seed} avatarUrl={avatarUrl} size={48} ring={winner} />
+      <Avatar
+        name={name}
+        seed={seed}
+        avatarUrl={avatarUrl}
+        mascot={mascot}
+        size={48}
+        ring={winner}
+      />
       <span
         className={`w-full truncate text-center text-sm font-semibold ${
           winner ? '' : 'text-chalk'

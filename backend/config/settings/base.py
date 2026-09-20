@@ -658,6 +658,22 @@ TRUSTED_PROXY_HOPS = env_int("TRUSTED_PROXY_HOPS", 0)
 # environment; production leaves it unset, which is what this default means.
 TESTER_ENDPOINT_ENABLED = env_bool("TESTER_ENDPOINT_ENABLED", False)
 
+# Whether that tester may *write*. The editor behind it does not change a row:
+# it rewrites a block in `backend/resources/questions/…` and reloads the
+# catalog from the file, so the durable half of every edit lands in the
+# checkout the process is running from.
+#
+# That makes it a local-only verb. On a deployed tier the files it edits belong
+# to the image, so the edit survives exactly until the next deploy and is
+# written down nowhere a pull request could carry it — which is the worst of
+# both: a question that is right on staging and wrong in git.
+#
+# So: `local.py` hardcodes it on, staging sets QUESTION_TESTER_EDITABLE=0 (and
+# gets a read-only catalog with the verbs greyed out and the reason on hover),
+# production never mounts the tester at all. Off by default, like the flag
+# above — a tier that says nothing may look, not touch.
+QUESTION_TESTER_EDITABLE = env_bool("QUESTION_TESTER_EDITABLE", False)
+
 
 # --- Django admin ------------------------------------------------------------
 # Off by default, and never at `/admin/`. The admin is ~120 URLs of direct

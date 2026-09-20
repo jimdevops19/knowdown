@@ -23,14 +23,28 @@ from apps.rankings.api.serializers import RankingSerializer
 
 
 class PlayerSerializer(serializers.Serializer):
-    """A competitor as anybody may see them: a name and a picture."""
+    """A competitor as anybody may see them: a name, a picture, a mascot.
+
+    ``mascot`` is a *key* (``"raptor"``, ``"polar-bear"``) and not a URL: the
+    drawing lives in the client, so this rides along on every payload that
+    already carries a player — the ladder, a box score, the participants call
+    the live match makes — and costs a dozen bytes rather than a request.
+    ``null`` means "no mascot", and the client falls back to initials.
+    """
 
     id = serializers.UUIDField(read_only=True)
     display_name = serializers.CharField(read_only=True)
     avatar_url = serializers.SerializerMethodField()
+    mascot = serializers.SerializerMethodField()
 
     def get_avatar_url(self, player) -> str | None:
         return selectors.avatar_url(player=player)
+
+    def get_mascot(self, player) -> str | None:
+        # `""` on the row, `null` on the wire: the column cannot be null (see
+        # `Player.mascot`), and JSON should not make the client check for two
+        # spellings of "nothing".
+        return player.mascot or None
 
 
 class PlayerMeSerializer(PlayerSerializer):

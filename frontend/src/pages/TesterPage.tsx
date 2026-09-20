@@ -20,6 +20,12 @@ import { describeRefusal } from '../features/tester/entryDrafts'
 import { TesterUnavailable } from '../features/tester/TesterUnavailable'
 import type { TesterQuestionCard } from '../lib/api/types'
 
+/** What the greyed verbs say on hover where this tier will not take a write.
+ *  One sentence, and it names the fix rather than the rule: the person reading
+ *  it has a change to make and needs to know where to go and make it. */
+const LOCKED_REASON =
+  "Can't edit questions in staging — do it from local so it's also saved in the questions resources' YAML files."
+
 /*
  * `/tester` — every question in the database, searchable, one card each.
  *
@@ -48,6 +54,14 @@ import type { TesterQuestionCard } from '../lib/api/types'
  * and safe from the next deploy's sync, rather than a row that sync would
  * silently undo. `features/tester/QuestionEditor` is where that is spelled out
  * at length, and the toast after every save names the file it touched.
+ *
+ * **And only where the deployment says so.** `GET /tester/config/` carries an
+ * `editable` flag (`QUESTION_TESTER_EDITABLE`), true on a developer's machine
+ * and false on staging, where the YAML this writes lives inside the container
+ * image: the edit would vanish at the next deploy and never reach git. With it
+ * false the three verbs are still drawn, greyed, saying on hover to make the
+ * change from local — the backend refuses them too (`CanEditQuestions`), which
+ * is the actual gate; this is only the half that explains itself.
  *
  * **Nothing here deletes.** Retiring writes `is_active: false` — a matchup that
  * already played a question points at its row, and a hard delete would edit a
@@ -175,6 +189,10 @@ export function TesterPage() {
   // The backend's own names for the eight answer shapes, rather than a second
   // copy of them maintained here — the registry is over there and this page
   // only borrows its labels.
+  /* Whether this deployment will accept a write at all. Absent config means
+     no — the verbs appear only once the server has said they work, the same
+     way the page itself waits on `access.available`. */
+  const editable = config?.editable ?? false
   const typeLabels = new Map((config?.types ?? []).map((entry) => [entry.value, entry.label]))
 
   return (
@@ -188,10 +206,14 @@ export function TesterPage() {
           <p className="nums text-sm text-ash">
             {config?.question_count ?? 0} in the catalog
           </p>
-          <Button size="sm" onClick={() => setEditing('new')}>
-            <Plus size={15} aria-hidden />
-            New question
-          </Button>
+          {/* `title` on the wrapper, not the button: a `disabled` control
+              swallows mouse events, so its own tooltip would never open. */}
+          <span title={editable ? undefined : LOCKED_REASON} className="inline-flex">
+            <Button size="sm" onClick={() => setEditing('new')} disabled={!editable}>
+              <Plus size={15} aria-hidden />
+              New question
+            </Button>
+          </span>
         </div>
       </header>
 
@@ -271,6 +293,7 @@ export function TesterPage() {
             typeLabel={typeLabels.get(question.type) ?? question.type}
             onEdit={() => setEditing(question)}
             onToggleActive={() => toggleActive.mutate(question)}
+            lockedReason={editable ? undefined : LOCKED_REASON}
             busy={toggleActive.isPending && toggleActive.variables?.id === question.id}
           />
         ))}

@@ -292,6 +292,31 @@
   --animate-live-pulse: live-pulse 1.6s ease-in-out infinite;
   --animate-skeleton: skeleton 1.4s ease-in-out infinite;
 
+  /* The empty clue slots on the gradual-hints board, while the next clue is
+     still on the server's clock.
+
+     Deliberately at the edge of noticeable, and it took two passes to get
+     there. The first version swung opacity 0.35 to 1 *and* scaled the bar
+     horizontally, which was a mistake twice over: peripheral vision is far more
+     sensitive to movement and to size than to brightness, so a bar changing
+     width beside a text box you are typing in pulls the eye every single cycle.
+     That is not anticipation, it is a distraction with a period.
+
+     So: no transform at all, and a swing narrow enough (0.3 to 0.5) that you
+     cannot catch any single frame of it — the slot is never bright, never gone,
+     and only reads as alive if you look straight at it or watch it for a while.
+     Which is the correct place for this. It has to say *something is still
+     coming* to a player who wonders; it must never interrupt one who doesn't.
+
+     4s, slower than `live-pulse`'s 1.6s, and the gap is the point: 1.6s is a
+     heartbeat, read as status — *this is on*. Waiting for a clue is a much
+     slower feeling than that, and the board is already carrying the only clock
+     that matters. Opacity alone also composites on the GPU and touches no
+     layout, which matters more here than usual: these slots sit directly above
+     the inputs, and anything that reflowed would move the boxes under a thumb
+     that is mid-type. */
+  --animate-hint-breathe: hint-breathe 4s ease-in-out infinite;
+
   /* The matchmaking radar, while the pool looks for an opponent. Two rings
      pushing out of the avatar on the same clock, half a period apart, so the
      wait reads as *searching* rather than as a spinner that might be stuck. */
@@ -386,6 +411,14 @@
 @keyframes live-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.4; transform: scale(0.8); }
+}
+
+/* An empty clue slot, waiting. A narrow drift rather than a pulse, and nothing
+   but opacity — see the token above for why movement is the wrong material
+   here. */
+@keyframes hint-breathe {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 0.5; }
 }
 
 /* Loading skeleton shimmer sweep. */

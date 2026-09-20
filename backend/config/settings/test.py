@@ -65,6 +65,12 @@ PERMIT_PASSWORD_AUTH = True
 # URLconf with it off rather than asking the rest of the suite to run blind.
 TESTER_ENDPOINT_ENABLED = True
 
+# Editable too: the authoring tests write into a temporary resources tree, and
+# a suite that ran with the write gate shut would be testing the gate on every
+# one of them. That the gate *does* refuse is its own test
+# (apps.tester.tests.test_authoring), with the flag overridden off.
+QUESTION_TESTER_EDITABLE = True
+
 # Match abuse limits: counted, never enforced. Same reasoning as
 # LOGIN_LOCKOUT_ENFORCED below — test_realtime.py opens many sockets and sends
 # many answer frames in a tight loop by design, and the counters are not

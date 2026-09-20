@@ -1,6 +1,6 @@
 import { useAuthStore } from './store'
 import * as authApi from './api'
-import { setMyAvatar, setMyDisplayName } from '../../lib/api/endpoints'
+import { setMyAvatar, setMyDisplayName, setMyMascot } from '../../lib/api/endpoints'
 
 /*
  * The hook components use for auth. Reads reactive state from the store and
@@ -61,6 +61,16 @@ export function useAuth() {
     return me
   }
 
+  /** Wear a mascot, or `null` for initials. Re-hydrates like the avatar does:
+   *  the choice is mirrored onto the user, and every avatar on screen reads it
+   *  from there. */
+  async function updateMascot(mascot: string | null) {
+    await setMyMascot(mascot)
+    const me = await authApi.getMe()
+    useAuthStore.getState().setUser(me)
+    return me
+  }
+
   /**
    * Clears the local session immediately — the UI should not wait on a network
    * round trip to sign somebody out — and blacklists the refresh cookie
@@ -85,6 +95,7 @@ export function useAuth() {
     loginWithGoogle,
     updateDisplayName,
     updateAvatar,
+    updateMascot,
     logout,
   }
 }

@@ -89,6 +89,12 @@ class TesterConfigSerializer(serializers.Serializer):
     """What the tester page needs before it can draw its filter bar."""
 
     enabled = serializers.BooleanField(read_only=True)
+    #: Whether this tier honours the write verbs (QUESTION_TESTER_EDITABLE).
+    #: Sent on the call the page already makes, so the editor can arrive
+    #: disabled-with-a-reason rather than discovering the 403 on submit — the
+    #: refusal itself lives in ``permissions.CanEditQuestions``, and this is
+    #: only what lets the client be honest about it in advance.
+    editable = serializers.BooleanField(read_only=True)
     question_count = serializers.IntegerField(read_only=True)
     categories = serializers.ListField(child=serializers.DictField(), read_only=True)
     types = serializers.ListField(child=serializers.DictField(), read_only=True)

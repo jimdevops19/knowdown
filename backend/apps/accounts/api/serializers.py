@@ -42,6 +42,7 @@ class UserSerializer(serializers.Serializer):
     player_name = serializers.SerializerMethodField()
     player_name_is_auto = serializers.SerializerMethodField()
     player_avatar_url = serializers.SerializerMethodField()
+    player_mascot = serializers.SerializerMethodField()
 
     def update(self, instance: User, validated_data: dict) -> User:
         """Nothing on this payload is writable.
@@ -72,6 +73,12 @@ class UserSerializer(serializers.Serializer):
     def get_player_avatar_url(self, user: User) -> str | None:
         player = self._player(user)
         return player_selectors.avatar_url(player=player) if player else None
+
+    def get_player_mascot(self, user: User) -> str | None:
+        """The mark they chose, or ``None`` for initials. Rides along for the
+        same reason the name and the picture do: it is on every page."""
+        player = self._player(user)
+        return (player.mascot or None) if player else None
 
 
 class AuthConfigSerializer(serializers.Serializer):

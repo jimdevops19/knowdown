@@ -44,6 +44,10 @@ export interface User {
    *  ask for a real one (see /welcome). Nobody else has any use for it. */
   player_name_is_auto: boolean
   player_avatar_url: string | null
+  /** The mascot they chose, as a key (`"raptor"`), or `null` for initials.
+   *  Rides along for the same reason the name and the picture do — the avatar
+   *  in the top-right is on every page. */
+  player_mascot: string | null
 }
 
 /** `GET /auth/config/` — which sign-in methods this deployment has credentials
@@ -63,11 +67,22 @@ export interface AuthTokens {
 
 /* --- The competitor -------------------------------------------------------- */
 
-/** A player as anybody may see them: a name and a picture. Never an email. */
+/** A player as anybody may see them: a name, a picture, a mascot. Never an
+ *  email. */
 export interface Player {
   id: string
   display_name: string
   avatar_url: string | null
+  /**
+   * The chosen mascot, as a key — `"raptor"`, `"polar-bear"` — resolved
+   * against `components/avatars`. Not a URL: the drawings ship with the
+   * client, so this costs a dozen bytes on payloads that already carry a
+   * player rather than an image request per row of a ladder.
+   *
+   * `null` means no mascot (initials), and so does a key this build does not
+   * know — an older client served a newer row. Both fall back; see `Avatar`.
+   */
+  mascot: string | null
 }
 
 /** `GET/PATCH /players/me/` — the public payload plus what only they need. */
@@ -768,6 +783,12 @@ export interface TesterVerdict {
 /** `GET /tester/config/` — the filter bar's vocabulary, and proof of entry. */
 export interface TesterConfig {
   enabled: boolean
+  /** Whether this deployment honours the authoring verbs — `QUESTION_TESTER_EDITABLE`
+   *  on the backend. False on staging, where an edit would rewrite YAML inside
+   *  the container image: lost at the next deploy and never in git. The page
+   *  keeps the buttons and greys them, because "do this from local" is the
+   *  answer to the question, and a missing button answers nothing. */
+  editable: boolean
   question_count: number
   categories: { slug: string; name: string; question_count: number }[]
   /** Every question type, including those with nothing authored yet. */

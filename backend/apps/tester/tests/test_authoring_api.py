@@ -18,6 +18,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import yaml
+from django.test import override_settings
 from rest_framework.test import APITestCase
 
 from apps.categories.models import Category
@@ -143,6 +144,51 @@ class DoorTests(AuthoringAPITestCase):
         )
         # And the refusal is a refusal, not a refusal after the fact.
         self.assertEqual([entry["slug"] for entry in self.entries()], ["who-scored"])
+
+    @override_settings(QUESTION_TESTER_EDITABLE=False)
+    def test_a_read_only_tier_refuses_every_write_and_still_reads(self):
+        """Staging: the tester is mounted, the catalog plays, nothing is written.
+
+        The flag exists because what these three verbs change is the YAML in
+        the checkout the process is running from — which on a deployed tier is
+        the image, so the edit dies at the next deploy and never reaches git.
+        A staff account is still the right person; this is the wrong machine.
+        """
+        self.assertEqual(
+            self.client.post(
+                "/api/v1/tester/questions/",
+                {"category": "nba", "entry": NEW_ENTRY},
+                format="json",
+            ).status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.put(self.source_url, {"entry": NEW_ENTRY}, format="json").status_code,
+            403,
+        )
+        self.assertEqual(
+            self.client.patch(
+                self.source_url, {"is_active": False}, format="json"
+            ).status_code,
+            403,
+        )
+        self.assertEqual([entry["slug"] for entry in self.entries()], ["who-scored"])
+
+        # Reading is untouched — the point of the tier is that the catalog is
+        # still browsable and playable, only frozen.
+        self.assertEqual(self.client.get(self.source_url).status_code, 200)
+        self.assertEqual(
+            self.client.get("/api/v1/tester/questions/").status_code, 200
+        )
+        # And the page is told, so the buttons arrive greyed rather than
+        # discovering the 403 on submit.
+        config = self.client.get("/api/v1/tester/config/").json()["data"]
+        self.assertFalse(config["editable"])
+        self.assertTrue(config["enabled"])
+
+    def test_an_editable_tier_says_so_on_the_config(self):
+        config = self.client.get("/api/v1/tester/config/").json()["data"]
+        self.assertTrue(config["editable"])
 
 
 class CreateTests(AuthoringAPITestCase):

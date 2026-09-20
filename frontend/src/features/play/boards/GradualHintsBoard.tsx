@@ -54,6 +54,28 @@ import { useAutoSubmitAtDeadline } from './useAutoSubmitAtDeadline'
  * strategy, the clock catching somebody mid-thought must not cost them
  * everything they had (`useAutoSubmitAtDeadline`).
  */
+/*
+ * The shapes behind the frosted glass — deliberately *not* the clue.
+ *
+ * The client is never sent a hint before its time (see the match consumer: the
+ * server pushes each one when it lands), so there is nothing here to blur even
+ * if we wanted to, and that is the right way round. A blur is a reversible
+ * encoding: CSS filters come off in one line of devtools, and a question whose
+ * remaining clues sat in the DOM under `blur-[5px]` would be a cheat available
+ * to anyone who thought to look. These are filler with the right *texture* —
+ * word lengths and a ragged right edge — and nothing else.
+ *
+ * Varying lengths, cycled by index, so five waiting slots do not read as five
+ * copies of one graphic.
+ */
+const REDACTED_LINES = [
+  'it first appeared during the second season',
+  'the name comes from a river',
+  'only one of them was ever built in europe',
+  'its designer never worked on another',
+  'the record stood for nineteen years',
+] as const
+
 export function GradualHintsBoard({
   question,
   hints,
@@ -116,6 +138,8 @@ export function GradualHintsBoard({
       <ol className="flex flex-col gap-2" aria-live="polite" aria-label="Clues">
         {Array.from({ length: question.hint_count }, (_, index) => {
           const text = hints[index]
+          // The slot the server is about to fill: the first one still empty.
+          const isNext = index === hints.length
           return (
             <li
               key={index}
@@ -129,7 +153,7 @@ export function GradualHintsBoard({
               className={`flex min-h-[2.375rem] items-center rounded-tile border px-3 py-2 text-sm ${
                 text
                   ? 'border-chalk/8 bg-panel/60 text-chalk motion-safe:animate-slide-up'
-                  : 'border-dashed border-chalk/10 bg-transparent'
+                  : 'overflow-hidden border-dashed border-chalk/10 bg-transparent'
               }`}
             >
               {text ? (
@@ -140,10 +164,42 @@ export function GradualHintsBoard({
                   {text}
                 </span>
               ) : (
-                // The slot a clue has not filled yet. Hidden from screen
-                // readers: "blank, blank, blank" is noise, and the count is
-                // already announced by the list's own label.
-                <span aria-hidden className="block h-4 w-2/3 rounded bg-chalk/5" />
+                // The slot a clue has not filled yet: a line of text behind
+                // frosted glass.
+                //
+                // This was a plain grey bar, and a bar is the wrong object —
+                // it is what a *loading* placeholder looks like, so the board
+                // read as content that had not arrived rather than as content
+                // being withheld. Those are different feelings, and only one of
+                // them is the game. Blurred type says there is something there
+                // and you are not allowed to read it yet, which is exactly the
+                // deal this question offers: wait and it comes into focus, or
+                // answer now and beat the player who waited.
+                //
+                // The words are filler, never the real clue — see
+                // REDACTED_LINES for why that is a security property and not
+                // just a convenience.
+                //
+                // `overflow-hidden` sits on the <li> for this variant, because
+                // a blur radius paints outside the box it came from and would
+                // otherwise smear across the dashed border.
+                <span
+                  aria-hidden
+                  className={`block w-full select-none truncate text-sm leading-5 text-chalk blur-[5px] ${
+                    isNext
+                      ? // Only the next one breathes. Every empty slot pulsing
+                        // was the complaint that led here: five things moving
+                        // is a busy screen whatever the amplitude, and it also
+                        // said the wrong thing — they are not all imminent,
+                        // one is. Motion now marks the single line about to
+                        // resolve, and the rest are simply further down the
+                        // queue, dimmer and still.
+                        'opacity-30 motion-safe:animate-hint-breathe'
+                      : 'opacity-[0.15]'
+                  }`}
+                >
+                  {REDACTED_LINES[index % REDACTED_LINES.length]}
+                </span>
               )}
             </li>
           )

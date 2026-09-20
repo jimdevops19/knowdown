@@ -130,6 +130,7 @@ function PlayerHero() {
         name={user?.player_name ?? '?'}
         seed={user?.player_id ?? undefined}
         avatarUrl={user?.player_avatar_url ?? null}
+        mascot={user?.player_mascot ?? null}
         size={56}
       />
       <div className="min-w-0 flex-1">
@@ -275,7 +276,12 @@ function RecentMatchRow({ match, playerId }: { match: MatchupSummary; playerId: 
 
   return (
     <Card as={Link} to={`/matches/${match.id}`} interactive className="flex items-center gap-3 p-3.5">
-      <Avatar name={them?.player.display_name ?? '?'} avatarUrl={them?.player.avatar_url} size={36} />
+      <Avatar
+        name={them?.player.display_name ?? '?'}
+        avatarUrl={them?.player.avatar_url}
+        mascot={them?.player.mascot}
+        size={36}
+      />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-chalk">vs {them?.player.display_name ?? 'Unknown'}</p>
         <p className="text-xs text-ash">

@@ -34,6 +34,7 @@ __all__ = [
     "generate_display_name",
     "set_avatar",
     "set_display_name",
+    "set_mascot",
 ]
 
 
@@ -133,6 +134,27 @@ def set_avatar(*, player: Player, image) -> Player:
     player.avatar = image
     player.save(update_fields=["avatar", "updated_at"])
     logger.info("Avatar uploaded", player=labels.player(player))
+    return player
+
+
+def set_mascot(*, player: Player, mascot: str | None) -> Player:
+    """Wear one of the marks, or `None` to go back to initials.
+
+    A key, never a drawing: see ``Player.mascot``. The allow-list is what makes
+    this safe to store and render without escaping anything — the client looks
+    the key up in a table it ships, and a key that is not in the table is
+    refused here rather than drawn as a blank.
+    """
+    if mascot is None or mascot == "":
+        player.mascot = ""
+        player.save(update_fields=["mascot", "updated_at"])
+        logger.info("Mascot cleared", player=labels.player(player))
+        return player
+
+    validators.validate_mascot(mascot=mascot)
+    player.mascot = mascot
+    player.save(update_fields=["mascot", "updated_at"])
+    logger.info("Mascot chosen", player=labels.player(player), mascot=mascot)
     return player
 
 

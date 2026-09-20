@@ -15,6 +15,18 @@ not ``is_staff`` — which, in this platform, means an account made with
 flag is what makes the surface not exist on a tier real players use, and the
 permission is what makes a tier where it *does* exist safe.
 
+**A third gate, and it is about writes, not readers.**
+``QUESTION_TESTER_EDITABLE`` (local: on; staging: ``0``) decides whether the
+three authoring verbs are honoured, and
+:class:`~apps.tester.permissions.CanEditQuestions` is what enforces it on the
+two views that write. It is a separate flag from the one above because it
+answers a different question: not "may this person be here" but "does an edit
+made here mean anything". What the editor changes is the YAML in the checkout
+the process runs from, so on a deployed tier the change lives in the container
+image — undone by the next deploy, and never in the pull request it was meant
+to be. ``GET /tester/config/`` reports the flag as ``editable`` so the page can
+grey its buttons and name the reason instead of discovering the 403 on submit.
+
 **Why an app of its own rather than a corner of ``apps.questions``.** What this
 does is span two domains: the board, the evaluator and the answer key come from
 ``apps.questions``, while the clock and the points come from ``apps.matches``.

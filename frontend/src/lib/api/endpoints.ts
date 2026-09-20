@@ -107,6 +107,19 @@ export async function setMyAvatar(image: File | null): Promise<PlayerMe> {
 }
 
 /**
+ * `PATCH /players/me/` 🔒 — wear a mascot, or `null` to go back to initials.
+ *
+ * Sends a *key*, not a picture. The drawing lives in
+ * `components/avatars/marks.ts`; the server keeps an allow-list of the same
+ * keys, so a key this client invented is a 400 (`invalid_mascot`) rather than
+ * a blank disc on somebody else's ladder.
+ */
+export async function setMyMascot(mascot: string | null): Promise<PlayerMe> {
+  const res = await apiClient.patch<PlayerMe>('/players/me/', { mascot: mascot ?? '' })
+  return res.data
+}
+
+/**
  * `GET /players/display-name-available/` 🔒 — can I have this name?
  *
  * Authenticated on purpose: unauthenticated, it would be a way to enumerate

@@ -144,6 +144,7 @@ function AccountControl() {
             name={user?.player_name ?? '?'}
             seed={user?.player_id ?? undefined}
             avatarUrl={user?.player_avatar_url ?? null}
+            mascot={user?.player_mascot ?? null}
             size={30}
           />
           <span className="hidden max-w-32 truncate text-sm text-ash sm:inline">

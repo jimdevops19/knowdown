@@ -49,6 +49,7 @@ export function QuestionCatalogCard({
   onEdit,
   onToggleActive,
   busy = false,
+  lockedReason,
 }: {
   question: TesterQuestionCard
   /** The human name of the answer shape, from `GET /tester/config/` — the
@@ -63,6 +64,12 @@ export function QuestionCatalogCard({
   /** A write against this question is in flight. Both verbs go dead, because
    *  they edit the same block of the same file. */
   busy?: boolean
+  /** Why this deployment will not accept a write, or undefined where it will.
+   *  Set, both verbs are greyed and carry this sentence on hover instead of
+   *  being removed: a maintainer on staging is looking for the button, and
+   *  "it is not here" leaves them to guess why, while "not here, do it from
+   *  local" is the entire answer. See `TesterConfig.editable`. */
+  lockedReason?: string
 }) {
   const card = (
     <Card
@@ -77,7 +84,7 @@ export function QuestionCatalogCard({
         <span className="font-display text-[10px] font-bold uppercase tracking-[0.12em] text-volt">
           {typeLabel}
         </span>
-        <LevelChip level={question.level} />
+        <LevelChip level={question.level} showLabel />
         <StatusBadge>{question.category_name}</StatusBadge>
         {!question.is_active && (
           <StatusBadge tone="off" className="inline-flex items-center gap-1">
@@ -124,7 +131,12 @@ export function QuestionCatalogCard({
       {card}
       <div className="flex items-center justify-end gap-1 px-1 pt-1.5">
         {onEdit && (
-          <ActionButton onClick={onEdit} disabled={busy} icon={<Pencil size={13} aria-hidden />}>
+          <ActionButton
+            onClick={onEdit}
+            disabled={busy}
+            lockedReason={lockedReason}
+            icon={<Pencil size={13} aria-hidden />}
+          >
             Edit
           </ActionButton>
         )}
@@ -132,6 +144,9 @@ export function QuestionCatalogCard({
           <ActionButton
             onClick={onToggleActive}
             disabled={busy}
+            /* Retiring is a write to the same YAML block the editor opens, so
+               it is locked by the same flag — it only looks like a toggle. */
+            lockedReason={lockedReason}
             icon={
               question.is_active ? <EyeOff size={13} aria-hidden /> : <Eye size={13} aria-hidden />
             }
@@ -150,23 +165,37 @@ export function QuestionCatalogCard({
 function ActionButton({
   onClick,
   disabled,
+  lockedReason,
   icon,
   children,
 }: {
   onClick: () => void
   disabled?: boolean
+  lockedReason?: string
   icon: ReactNode
   children: ReactNode
 }) {
+  const locked = Boolean(lockedReason)
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="inline-flex items-center gap-1.5 rounded-tile px-2 py-1 text-[11px] font-medium text-ash transition-colors hover:bg-chalk/6 hover:text-chalk disabled:pointer-events-none disabled:opacity-50"
-    >
-      {icon}
-      {children}
-    </button>
+    /* The hover text hangs on this wrapper rather than on the button, and the
+       button is `aria-disabled` rather than `disabled`, for one reason: a truly
+       disabled control receives no mouse events, so a `title` on it never opens
+       — the tooltip would be missing in exactly the case it exists for. */
+    <span title={lockedReason} className="inline-flex">
+      <button
+        type="button"
+        onClick={locked ? undefined : onClick}
+        disabled={disabled && !locked}
+        aria-disabled={locked || undefined}
+        className={`inline-flex items-center gap-1.5 rounded-tile px-2 py-1 text-[11px] font-medium transition-colors disabled:pointer-events-none disabled:opacity-50 ${
+          locked
+            ? 'cursor-not-allowed text-ash/40'
+            : 'text-ash hover:bg-chalk/6 hover:text-chalk'
+        }`}
+      >
+        {icon}
+        {children}
+      </button>
+    </span>
   )
 }

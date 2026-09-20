@@ -1,4 +1,4 @@
-"""What a display name may be.
+"""What a display name may be — and, at the foot of the file, what a mascot may be.
 
 The name is the one thing the platform prints about a person — every
 scoreboard, every match history, every ladder row — so the rules here are about
@@ -13,6 +13,7 @@ import re
 
 from apps.core_common.exceptions import ValidationFailed
 from apps.players import selectors
+from apps.players.constants import MASCOT_KEYS
 
 DISPLAY_NAME_MIN_LENGTH = 3
 DISPLAY_NAME_MAX_LENGTH = 30
@@ -81,3 +82,17 @@ def validate_display_name(*, display_name: str, exclude_player=None) -> None:
     validate_display_name_available(
         display_name=display_name, exclude_player=exclude_player
     )
+
+
+def validate_mascot(*, mascot: str) -> None:
+    """One of the keys the client can actually draw.
+
+    Not a shape check. The set of mascots is finite, named, and drawn by hand;
+    anything outside it would reach a scoreboard as an empty disc, so it is
+    refused at the door rather than rendered as a hole.
+    """
+    if mascot not in MASCOT_KEYS:
+        raise ValidationFailed(
+            f"'{mascot}' isn't a mascot. Pick one from the picker.",
+            code="invalid_mascot",
+        )

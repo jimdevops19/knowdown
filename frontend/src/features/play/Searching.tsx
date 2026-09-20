@@ -27,6 +27,7 @@ export function Searching({
   roomName,
   displayName,
   avatarUrl,
+  mascot,
   playerId,
   waitingSeconds,
   onCancel,
@@ -34,6 +35,7 @@ export function Searching({
   roomName: string
   displayName: string
   avatarUrl: string | null
+  mascot: string | null
   playerId: string | null
   waitingSeconds: number
   onCancel: () => void
@@ -59,7 +61,13 @@ export function Searching({
             style={{ animationDelay: `${index * 1.1}s` }}
           />
         ))}
-        <Avatar name={displayName} seed={playerId ?? displayName} avatarUrl={avatarUrl} size={96} />
+        <Avatar
+          name={displayName}
+          seed={playerId ?? displayName}
+          avatarUrl={avatarUrl}
+          mascot={mascot}
+          size={96}
+        />
       </div>
 
       <div className="flex flex-col gap-1">

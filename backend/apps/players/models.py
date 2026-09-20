@@ -57,6 +57,20 @@ class Player(BaseModel):
 
     avatar = models.ImageField(upload_to=avatar_upload_to, null=True, blank=True)
 
+    #: The mascot this player wears where they have no uploaded picture — one
+    #: key from ``constants.MASCOT_KEYS``, or ``""`` for "none, use initials".
+    #:
+    #: A **key**, not a drawing and not a URL. The forty-one marks are SVG
+    #: built in the client (``frontend/src/components/avatars/``), so what the
+    #: backend stores is the choice and nothing else: a mark can be redrawn,
+    #: relabelled or restyled without a migration, and without the platform
+    #: serving an image it did not need to.
+    #:
+    #: Blank rather than null: "chose nothing" and "has not chosen" are the
+    #: same state here — both mean initials — and two spellings of one state is
+    #: how a column grows a bug.
+    mascot = models.CharField(max_length=32, blank=True, default="")
+
     #: A CPU opponent (``manage.py seed_bots``, ``apps.matches.bots``) rather
     #: than a person behind an account. Still an ordinary ``Player`` — it
     #: takes a rating, appears on a scoreboard, and is subject to every

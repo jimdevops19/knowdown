@@ -1,7 +1,15 @@
+import { Mascot } from './avatars'
+import { getMark } from './avatars/marks'
 import { hashHue } from '../lib/nameColor'
 
 /*
  * Circular avatar.
+ *
+ * Three things can fill it, in this order: an uploaded picture, the mascot the
+ * player chose, or their initials on a colour derived from their name. The
+ * order is the order of deliberateness — a photo is the most specific thing
+ * somebody can say about themselves, a mascot is a thing they picked from a
+ * list, and initials are what the app says when they have said nothing.
  *
  * Every identity gets a deterministic gradient derived from its own string, so
  * a player reads as the same colour everywhere — and, during a live match,
@@ -16,6 +24,7 @@ export function Avatar({
   name,
   seed,
   avatarUrl,
+  mascot,
   size = 40,
   ring = false,
 }: {
@@ -23,8 +32,16 @@ export function Avatar({
   name: string
   /** Colour seed, when it differs from the name — a player id, mid-match. */
   seed?: string
-  /** A real uploaded/imported image. Falls back to initials when absent. */
+  /** A real uploaded/imported image. Falls back to the mascot, then initials. */
   avatarUrl?: string | null
+  /**
+   * The mascot key off the player payload, e.g. `"raptor"`.
+   *
+   * A key this build does not draw falls through to initials rather than
+   * rendering a hole — an older client being served a newer player row is the
+   * ordinary case, not an error worth showing anybody.
+   */
+  mascot?: string | null
   size?: number
   ring?: boolean
 }) {
@@ -43,6 +60,20 @@ export function Avatar({
         style={{ width: size, height: size, boxShadow: halo }}
         className="inline-block shrink-0 rounded-full object-cover ring-1 ring-chalk/10"
       />
+    )
+  }
+
+  // The mark itself is a disc, so it needs no fill behind it — but it keeps
+  // the same ring and halo as every other avatar, because "whose turn it is"
+  // has to read the same whatever is inside the circle.
+  if (mascot && getMark(mascot)) {
+    return (
+      <span
+        style={{ width: size, height: size, boxShadow: halo }}
+        className="inline-flex shrink-0 overflow-hidden rounded-full ring-1 ring-chalk/10"
+      >
+        <Mascot mascotKey={mascot} size={size} />
+      </span>
     )
   }
 

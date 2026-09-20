@@ -59,7 +59,7 @@ from apps.tester.api.serializers import (
     QuestionWriteResultSerializer,
     TesterConfigSerializer,
 )
-from apps.tester.permissions import IsMaintainer
+from apps.tester.permissions import CanEditQuestions, IsMaintainer
 from shared.logging import get_logger, labels
 
 logger = get_logger(__name__)
@@ -114,6 +114,10 @@ class TesterConfigView(APIView):
             TesterConfigSerializer(
                 {
                     "enabled": settings.TESTER_ENDPOINT_ENABLED,
+                    # Whether the write verbs will be honoured, stated before
+                    # the client offers them: a greyed Edit that says why beats
+                    # a live one that 403s after the form has been filled in.
+                    "editable": settings.QUESTION_TESTER_EDITABLE,
                     "question_count": counts.total,
                     "categories": [
                         {"slug": slug, "name": name, "question_count": count}
@@ -169,7 +173,9 @@ class CatalogListView(ListAPIView):
     the first request rather than at import.
     """
 
-    permission_classes = [IsMaintainer]
+    # The second class covers `post` only — every read here is a read of the
+    # catalog, and a tier with QUESTION_TESTER_EDITABLE off still lists it.
+    permission_classes = [IsMaintainer, CanEditQuestions]
     serializer_class = CatalogCardSerializer
     filter_backends = ()
 
@@ -468,6 +474,11 @@ class QuestionSourceView(_QuestionView):
     contract of the feature: an edit made here is an edit to the repository, so
     it survives the next deploy's sync instead of being undone by it.
     """
+
+    # …which is also why the two writing verbs need a tier that can commit:
+    # `CanEditQuestions` lets the `GET` through and refuses `PUT`/`PATCH`
+    # wherever QUESTION_TESTER_EDITABLE is off.
+    permission_classes = [IsMaintainer, CanEditQuestions]
 
     @extend_schema(tags=["tester"], responses=QuestionSourceSerializer)
     def get(self, request, *args, **kwargs) -> Response:

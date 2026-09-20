@@ -36,13 +36,13 @@ export function PlayerProfilePage() {
   if (profile.isError) return <ErrorState error={profile.error} />
   if (!profile.data) return null
 
-  const { display_name, avatar_url, rankings, badges } = profile.data
+  const { display_name, avatar_url, mascot, rankings, badges } = profile.data
   const isMe = profile.data.id === user?.player_id
 
   return (
     <div className="flex flex-col gap-6">
       <header className="flex items-center gap-4">
-        <Avatar name={display_name} avatarUrl={avatar_url} size={72} ring={isMe} />
+        <Avatar name={display_name} avatarUrl={avatar_url} mascot={mascot} size={72} ring={isMe} />
         <div className="min-w-0">
           <h1 className="truncate font-display text-2xl font-bold text-chalk">{display_name}</h1>
           <p className="text-sm text-ash">

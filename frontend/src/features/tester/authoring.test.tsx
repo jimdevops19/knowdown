@@ -38,6 +38,9 @@ import type { TesterConfig, TesterQuestionCard, TesterQuestionSource } from '../
 
 const CONFIG: TesterConfig = {
   enabled: true,
+  // A tier that takes writes — which is what these tests are about. The
+  // read-only tier has its own test below.
+  editable: true,
   question_count: 2,
   categories: [{ slug: 'nba', name: 'NBA', question_count: 2 }],
   types: [
@@ -276,6 +279,34 @@ describe('the catalog card’s verbs', () => {
     renderCard({ ...CARD, is_active: false }, { onEdit: vi.fn(), onToggleActive: vi.fn() })
 
     expect(screen.getByRole('button', { name: 'Restore' })).toBeInTheDocument()
+  })
+
+  it('greys the verbs, and says why, where the tier will not take a write', async () => {
+    const onEdit = vi.fn()
+    const onToggleActive = vi.fn()
+    render(
+      <MemoryRouter>
+        <QuestionCatalogCard
+          question={CARD}
+          typeLabel="Single answer"
+          onEdit={onEdit}
+          onToggleActive={onToggleActive}
+          lockedReason="Can't edit questions in staging — do it from local."
+        />
+      </MemoryRouter>,
+    )
+
+    // Still on screen: the person looking for Edit on staging needs to find
+    // the reason where they went looking for the button.
+    const edit = screen.getByRole('button', { name: 'Edit' })
+    expect(edit).toHaveAttribute('aria-disabled', 'true')
+    expect(screen.getAllByTitle(/from local/i).length).toBeGreaterThan(0)
+
+    await userEvent.click(edit)
+    await userEvent.click(screen.getByRole('button', { name: 'Retire' }))
+    expect(onEdit).not.toHaveBeenCalled()
+    // Retire writes the same YAML block the editor opens, so it is locked too.
+    expect(onToggleActive).not.toHaveBeenCalled()
   })
 
   it('keeps the verbs out of the link that opens the rehearsal', async () => {
