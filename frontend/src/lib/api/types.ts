@@ -783,3 +783,51 @@ export interface TesterConfig {
     question_count: number
   }[]
 }
+
+/* --- Authoring, from the tester ----------------------------------------------
+ *
+ * The write half of `apps.tester`, and the one thing worth understanding about
+ * it before reading the types: **these endpoints edit YAML files, not rows.**
+ * A create appends a block to `backend/apps/questions/resources/<category>/
+ * <type>.yaml`, an update rewrites one block, a deactivation writes one line —
+ * and each is followed by the ordinary `sync_questions` over that category,
+ * which is what puts the change in the database.
+ *
+ * That is why every write answers with three things rather than the updated
+ * row: the row, the file, and what the load made of the file. They can
+ * disagree, and the disagreement is the interesting part.
+ */
+
+/** One question as its resource file has it, which is what the form edits.
+ *
+ *  `entry` is deliberately untyped past `Record<string, unknown>`. The shape it
+ *  must obey is pydantic's, in `apps.questions.schemas`, and a TypeScript
+ *  mirror of nine discriminated variants would be a second copy of a contract
+ *  that is already validated on the way in — one that would drift, and drift by
+ *  *accepting* things the loader refuses. The editor knows the shape per type;
+ *  the transport does not need to. */
+export interface TesterQuestionSource {
+  /** `nba/single-answer.yaml` — the file to look at in the diff. */
+  path: string
+  category: string
+  entry: Record<string, unknown>
+}
+
+/** What the `sync_questions` that followed the edit did — slugs, not counts,
+ *  because "which ones" is the question a surprising number answers. */
+export interface TesterSyncReport {
+  created: string[]
+  updated: string[]
+  deactivated: string[]
+  /** The same sentence `manage.py sync_questions` prints. */
+  summary: string
+}
+
+/** The answer to a create or an update: both effects, plus the load. */
+export interface TesterWriteResult {
+  question: TesterQuestionCard
+  source: TesterQuestionSource
+  /** `created` or `updated` — about the *block in the file*. */
+  action: 'created' | 'updated'
+  sync: TesterSyncReport
+}

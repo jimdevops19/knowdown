@@ -1,16 +1,24 @@
 import { useState } from 'react'
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Search, Wrench } from 'lucide-react'
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus, Search, Wrench } from 'lucide-react'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { Input } from '../components/Input'
 import { EmptyState, ErrorState, Loading } from '../components/states'
 import { queryKeys } from '../lib/query/queryClient'
 import { useDebouncedValue } from '../hooks/useDebouncedValue'
+import { useToast } from '../hooks/useToast'
 import { useTesterAccess } from '../features/tester/useTesterAccess'
-import { listTesterQuestions } from '../features/tester/api'
+import {
+  getTesterQuestionSource,
+  listTesterQuestions,
+  setTesterQuestionActive,
+} from '../features/tester/api'
 import { QuestionCatalogCard } from '../features/tester/QuestionCard'
+import { QuestionEditor } from '../features/tester/QuestionEditor'
+import { describeRefusal } from '../features/tester/entryDrafts'
 import { TesterUnavailable } from '../features/tester/TesterUnavailable'
+import type { TesterQuestionCard } from '../lib/api/types'
 
 /*
  * `/tester` — every question in the database, searchable, one card each.
@@ -30,6 +38,22 @@ import { TesterUnavailable } from '../features/tester/TesterUnavailable'
  * Everything is a query parameter on one endpoint, so the filters compose and
  * none of the narrowing happens in this browser.
  *
+ * ## The catalog is editable from here, and editing means editing the YAML
+ *
+ * "New question", "Edit" and "Retire" are three verbs over one thing: the block
+ * a question is authored as in `backend/apps/questions/resources/`. None of
+ * them writes a question row. Each edits the file and then runs the ordinary
+ * `sync_questions` over that category, which is what loads the change — so what
+ * this page produces is a change to the repository, reviewable in `git diff`
+ * and safe from the next deploy's sync, rather than a row that sync would
+ * silently undo. `features/tester/QuestionEditor` is where that is spelled out
+ * at length, and the toast after every save names the file it touched.
+ *
+ * **Nothing here deletes.** Retiring writes `is_active: false` — a matchup that
+ * already played a question points at its row, and a hard delete would edit a
+ * game two people have already finished. It is the same rule the loader has
+ * always followed for a question dropped from a file.
+ *
  * ## Inactive questions are shown by default
  *
  * The one place this page deliberately disagrees with every other list in the
@@ -41,6 +65,8 @@ import { TesterUnavailable } from '../features/tester/TesterUnavailable'
  */
 export function TesterPage() {
   const access = useTesterAccess()
+  const toast = useToast()
+  const queryClient = useQueryClient()
 
   /*
    * Every filter and the page number in one piece of state, changed through one
@@ -102,6 +128,45 @@ export function TesterPage() {
     placeholderData: keepPreviousData,
   })
 
+  /* Which question the editor is open on. `null` is closed, `'new'` is a
+   * create, and a card is an edit — one piece of state rather than an `open`
+   * flag beside a selection, so "open on nothing" is not a state that exists. */
+  const [editing, setEditing] = useState<TesterQuestionCard | 'new' | null>(null)
+
+  // The authored entry behind the question being edited. Fetched on demand
+  // rather than with the list: it is the *file's* copy of one question, and
+  // fetching fifty of them to open one would be fifty file reads per page.
+  const source = useQuery({
+    queryKey:
+      editing && editing !== 'new'
+        ? queryKeys.tester.source(editing.type, editing.id)
+        : ['tester', 'source', 'none'],
+    queryFn: () =>
+      getTesterQuestionSource(
+        (editing as TesterQuestionCard).type,
+        (editing as TesterQuestionCard).id,
+      ),
+    enabled: editing !== null && editing !== 'new',
+  })
+
+  const toggleActive = useMutation({
+    mutationFn: (question: TesterQuestionCard) =>
+      setTesterQuestionActive(question.type, question.id, !question.is_active),
+    onSuccess: (result) => {
+      toast.success(result.question.is_active ? 'Question restored' : 'Question retired', {
+        description: `${result.source.path} · ${result.sync.summary}`,
+        duration: 6000,
+      })
+      void queryClient.invalidateQueries({ queryKey: ['tester'] })
+    },
+    onError: (error) => {
+      toast.error('The catalog refused that', {
+        description: describeRefusal(error),
+        duration: 0,
+      })
+    },
+  })
+
   if (access.isLoading) return <Loading label="Checking access…" />
   if (!access.available) return <TesterUnavailable />
 
@@ -119,9 +184,15 @@ export function TesterPage() {
           <Wrench size={20} className="text-volt" aria-hidden />
           Question tester
         </h1>
-        <p className="nums text-sm text-ash">
-          {config?.question_count ?? 0} in the catalog
-        </p>
+        <div className="flex items-center gap-3">
+          <p className="nums text-sm text-ash">
+            {config?.question_count ?? 0} in the catalog
+          </p>
+          <Button size="sm" onClick={() => setEditing('new')}>
+            <Plus size={15} aria-hidden />
+            New question
+          </Button>
+        </div>
       </header>
 
       <Card className="flex flex-col gap-3 p-4">
@@ -198,6 +269,9 @@ export function TesterPage() {
             key={`${question.type}:${question.id}`}
             question={question}
             typeLabel={typeLabels.get(question.type) ?? question.type}
+            onEdit={() => setEditing(question)}
+            onToggleActive={() => toggleActive.mutate(question)}
+            busy={toggleActive.isPending && toggleActive.variables?.id === question.id}
           />
         ))}
       </div>
@@ -224,6 +298,22 @@ export function TesterPage() {
             Next
           </Button>
         </div>
+      )}
+
+      {/* A create needs nothing fetched; an edit waits for the file's copy of
+          the question, because that — not the row — is what the form edits. */}
+      {editing === 'new' && (
+        <QuestionEditor config={config} onClose={() => setEditing(null)} />
+      )}
+      {editing && editing !== 'new' && source.data && (
+        <QuestionEditor
+          config={config}
+          editing={{ question: editing, source: source.data }}
+          onClose={() => setEditing(null)}
+        />
+      )}
+      {editing && editing !== 'new' && source.isError && (
+        <ErrorState error={source.error} />
       )}
     </div>
   )

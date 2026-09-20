@@ -15,6 +15,7 @@ from .views import (
     AnswerAttemptView,
     AnswerKeyView,
     CatalogListView,
+    QuestionSourceView,
     RehearsalView,
     TesterConfigView,
 )
@@ -33,4 +34,9 @@ urlpatterns = [
     path(_QUESTION, RehearsalView.as_view(), name="question-rehearsal"),
     path(f"{_QUESTION}answer/", AnswerAttemptView.as_view(), name="question-answer"),
     path(f"{_QUESTION}answer-key/", AnswerKeyView.as_view(), name="question-answer-key"),
+    # The authored YAML behind a question — read it, replace it, or retire it.
+    # `source` rather than hanging the write verbs off the rehearsal URL above:
+    # what these three edit is the block in the resource file, and the row
+    # changing is a consequence of the load that follows, not the request.
+    path(f"{_QUESTION}source/", QuestionSourceView.as_view(), name="question-source"),
 ]

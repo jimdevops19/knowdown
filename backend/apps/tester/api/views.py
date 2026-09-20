@@ -1,4 +1,4 @@
-"""The rehearsal room's four endpoints.
+"""The rehearsal room's endpoints — reading the catalog, and editing it.
 
 Thin, in the way every view in this backend is thin: parse input, call one
 selector or one service, serialize. The only thing here that is not a pass-
@@ -8,12 +8,23 @@ is three lines with a comment on them.
 **Every one of these carries the same two gates.** ``IsMaintainer`` on each
 view, and the whole module unmounted by ``TESTER_ENDPOINT_ENABLED`` — see
 ``config/urls.py``. They are repeated per view rather than left to a base class
-so that adding a fifth endpoint by copying a fourth cannot quietly produce an
-open one.
+so that adding an endpoint by copying another cannot quietly produce an open
+one.
 
-**Nothing here writes.** No ``Matchup``, no ``PlayerAnswer``, no rating: a
-rehearsal is a read of the catalog plus a pure function over what was typed, so
-there is no ``services/`` layer in this app and no transaction to wrap.
+**Rehearsing writes nothing.** No ``Matchup``, no ``PlayerAnswer``, no rating:
+answering the same question forty times while fixing its accepted spellings
+leaves the database as it found it.
+
+**Authoring writes the resource file, and never a question row.** The three
+write endpoints (:class:`CatalogListView`'s ``post`` and
+:class:`QuestionSourceView`'s ``put``/``patch``) all hand off to
+``apps.questions.services.authoring``, which splices the YAML under
+``resources/`` and then runs the ordinary ``sync_questions`` over that category.
+So a question created here is a question created *in the repository*: it shows
+up in ``git diff`` and it survives the next deploy's sync, rather than being
+undone by it — which is exactly what a row written straight to the database
+would be. This app still has no ``services/`` of its own; the service belongs
+to ``apps.questions``, because it is the loader's own file format it is writing.
 """
 
 from __future__ import annotations
@@ -35,11 +46,17 @@ from apps.questions.api.serializers import serialize_for_play
 from apps.questions.constants import LEVEL_BANDS
 from apps.questions.models import MAX_LEVEL, QUESTION_MODELS, QuestionType
 from apps.questions.selectors import QuestionRef, get_question, reveal_schedule
+from apps.questions.services import authoring
 from apps.questions.services.evaluation import evaluate_answer
 from apps.tester import selectors
 from apps.tester.api.serializers import (
     AnswerAttemptSerializer,
     CatalogCardSerializer,
+    QuestionActivationSerializer,
+    QuestionCreateSerializer,
+    QuestionSourceSerializer,
+    QuestionUpdateSerializer,
+    QuestionWriteResultSerializer,
     TesterConfigSerializer,
 )
 from apps.tester.permissions import IsMaintainer
@@ -138,7 +155,8 @@ class TesterConfigView(APIView):
 
 
 class CatalogListView(ListAPIView):
-    """``GET /api/v1/tester/questions/`` — the catalog, searchable.
+    """``/api/v1/tester/questions/`` — the catalog: ``GET`` to search it,
+    ``POST`` to add to it.
 
     Filters: ``search``, ``category``, ``type``, ``level_min``/``level_max``,
     and ``include_inactive`` (**on** by default — see the selector module for
@@ -184,6 +202,40 @@ class CatalogListView(ListAPIView):
             level_range=_parse_level_range(request),
             include_inactive=include_inactive.strip().lower() not in {"0", "false", "no"},
         )
+
+    @extend_schema(
+        tags=["tester"],
+        request=QuestionCreateSerializer,
+        responses=QuestionWriteResultSerializer,
+    )
+    def post(self, request, *args, **kwargs) -> Response:
+        """Author a new question — a new block in a resource file, then a load.
+
+        The category is a field of its own rather than a key on the entry,
+        because a resource file states its category once at the top and the
+        loader refuses an entry that disagrees with the file it sits in. The
+        file itself is chosen by the entry's ``type``
+        (``<category>/<type>.yaml``, the convention every folder follows), and
+        created — and added to that category's ``_active.yaml`` — if this is
+        the first question of its shape.
+        """
+        payload = QuestionCreateSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+
+        result = authoring.save_entry(
+            category=payload.validated_data["category"],
+            entry=payload.validated_data["entry"],
+        )
+        logger.info(
+            "Question authored",
+            action="tester.create",
+            user=labels.user(request.user),
+            question=result.source.entry.get("slug", ""),
+            question_type=result.source.entry.get("type", ""),
+            file=result.source.path,
+            summary=str(result.report),
+        )
+        return Response(_write_result(result), status=201)
 
 
 class _QuestionView(APIView):
@@ -355,3 +407,128 @@ class AnswerKeyView(_QuestionView):
     def get(self, request, *args, **kwargs) -> Response:
         question = self.question()
         return Response(serialize_answer_key(question=question, submitted=None))
+
+
+def _card(*, question_type: str, slug: str):
+    """The row the loader just wrote, or ``None`` if it wrote none.
+
+    ``all_objects`` because a question can be saved *deactivated* — that is what
+    the activation endpoint does — and a soft-deleted row being revived by the
+    load is the loader's own documented behaviour. A card is what the caller
+    asked to see either way.
+    """
+    model = QUESTION_MODELS[question_type]
+    return model.all_objects.select_related("category").filter(slug=slug).first()
+
+
+def _write_result(result) -> dict:
+    """An ``authoring.SaveResult`` as the payload both write endpoints answer with.
+
+    Three keys, because an edit here has three outcomes worth reporting and they
+    can disagree: the row, the file, and what the load made of the file. See
+    :class:`~apps.tester.api.serializers.QuestionWriteResultSerializer`.
+    """
+    slug = result.source.entry.get("slug", "")
+    question = _card(question_type=result.source.entry.get("type", ""), slug=slug)
+    return QuestionWriteResultSerializer(
+        {
+            "question": question,
+            "source": result.source,
+            "action": result.action,
+            "sync": {
+                "created": result.report.created,
+                "updated": result.report.updated,
+                "deactivated": result.report.deactivated,
+                "summary": str(result.report),
+            },
+        }
+    ).data
+
+
+class QuestionSourceView(_QuestionView):
+    """``/api/v1/tester/questions/{type}/{id}/source/`` — the authored YAML.
+
+    The write half of the rehearsal room, and the one endpoint here that is not
+    read-only. Three verbs, one resource — **the block in the resource file**,
+    which is what "source" names:
+
+    - ``GET`` — the entry as the file has it. This, not the row, is what seeds
+      the edit form: the row has had the file's ``time_limit_seconds`` resolved
+      into it by the loader, so a form built from it would quietly hand every
+      question an override its author never wrote.
+    - ``PUT`` — replace the block. Whole, never merged; half these keys mean
+      something by being *absent* (see ``QuestionUpdateSerializer``).
+    - ``PATCH`` — flip ``is_active``, and nothing else. The catalog's per-row
+      switch, kept apart from the form so a stale list cannot revert an edit it
+      never saw.
+
+    Every one of them goes through ``apps.questions.services.authoring``, which
+    writes the YAML and then runs the ordinary ``sync_questions`` over that
+    category. **This view never touches a question row.** That is the whole
+    contract of the feature: an edit made here is an edit to the repository, so
+    it survives the next deploy's sync instead of being undone by it.
+    """
+
+    @extend_schema(tags=["tester"], responses=QuestionSourceSerializer)
+    def get(self, request, *args, **kwargs) -> Response:
+        question = self.question()
+        return Response(
+            QuestionSourceSerializer(
+                authoring.read_entry(
+                    category=question.category.slug, slug=question.slug
+                )
+            ).data
+        )
+
+    @extend_schema(
+        tags=["tester"],
+        request=QuestionUpdateSerializer,
+        responses=QuestionWriteResultSerializer,
+    )
+    def put(self, request, *args, **kwargs) -> Response:
+        question = self.question()
+        payload = QuestionUpdateSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+
+        result = authoring.save_entry(
+            category=question.category.slug,
+            entry=payload.validated_data["entry"],
+            # What it was called before this edit. Without it a retitled
+            # question would leave its old block behind and the catalog would
+            # grow a duplicate of everything anybody renamed.
+            original_slug=question.slug,
+        )
+        logger.info(
+            "Question edited",
+            action="tester.update",
+            user=labels.user(request.user),
+            question=labels.question(question),
+            question_type=question.question_type,
+            file=result.source.path,
+            summary=str(result.report),
+        )
+        return Response(_write_result(result))
+
+    @extend_schema(
+        tags=["tester"],
+        request=QuestionActivationSerializer,
+        responses=QuestionWriteResultSerializer,
+    )
+    def patch(self, request, *args, **kwargs) -> Response:
+        question = self.question()
+        payload = QuestionActivationSerializer(data=request.data)
+        payload.is_valid(raise_exception=True)
+        is_active = payload.validated_data["is_active"]
+
+        result = authoring.set_entry_active(
+            category=question.category.slug, slug=question.slug, is_active=is_active
+        )
+        logger.info(
+            "Question activation changed",
+            action="tester.activate" if is_active else "tester.deactivate",
+            user=labels.user(request.user),
+            question=labels.question(question),
+            question_type=question.question_type,
+            file=result.source.path,
+        )
+        return Response(_write_result(result))

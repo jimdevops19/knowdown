@@ -72,5 +72,10 @@ export const queryKeys = {
     questions: (filters: unknown) => ['tester', 'questions', filters] as const,
     rehearsal: (type: string, id: string, seed: string) =>
       ['tester', 'rehearsal', type, id, seed] as const,
+    /* The authored YAML behind one question — what the edit form is seeded
+     * from. Its own key rather than a field on the rehearsal: a rehearsal is
+     * the *row* staged for play, and these two disagree on purpose (the row
+     * has had its file's clock resolved into it, the entry has not). */
+    source: (type: string, id: string) => ['tester', 'source', type, id] as const,
   },
 }

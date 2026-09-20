@@ -95,6 +95,14 @@ class _QuestionSpec(_Strict):
     #: ``""`` is how one entry opts *out* of a file that sets one.
     pre_question_info: str | None = Field(default=None, max_length=160)
 
+    #: Off means "do not serve this to anyone". Authored rather than only set by
+    #: the sweep, so retiring a question is a reviewable line in the file — the
+    #: same edit whether it is made by hand or by the tester's CRUD surface,
+    #: which writes this key back here as well as flipping the column. Omitted
+    #: from the file in the ordinary case: ``is_active: false`` is the statement
+    #: worth reading, ``true`` is what every other entry already means.
+    is_active: bool = True
+
 
 class _TextOptionSpec(_Strict):
     text: str = Field(min_length=1, max_length=255)

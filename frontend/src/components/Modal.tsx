@@ -45,6 +45,11 @@ export interface ModalProps {
   className?: string
   /** The row of actions along the bottom, if the caller has any. */
   footer?: ReactNode
+  /** How wide the window may get. The default suits a sentence and a pair of
+   *  buttons, which is what every modal in this app was until the question
+   *  editor — a form with option rows in it needs the room, and cramming one
+   *  into a reading-width column makes every row wrap. */
+  widthClass?: string
 }
 
 export function Modal({
@@ -56,6 +61,7 @@ export function Modal({
   role = 'dialog',
   className = 'border-chalk/12',
   footer,
+  widthClass = 'max-w-md',
 }: ModalProps) {
   useEffect(() => {
     if (!open) return
@@ -93,7 +99,7 @@ export function Modal({
         // `max-h` + the scrolling body below are what keep a forty-cell grid
         // from running off the bottom of a phone with no way back to the close
         // button.
-        className={`plate flex max-h-[80vh] w-full max-w-md flex-col rounded-modal border p-5 shadow-elevated motion-safe:animate-slide-up ${className}`}
+        className={`plate flex max-h-[85vh] w-full ${widthClass} flex-col rounded-modal border p-5 shadow-elevated motion-safe:animate-slide-up ${className}`}
         onClick={(event) => event.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-3">

@@ -1,10 +1,10 @@
 """Draw every PWA / favicon asset in frontend/public from the app's own mark.
 
-The mark is the buzzer from frontend/src/components/Logo.tsx — a filled dot
-inside a ring that is cut open at the top right — and it is a dozen path
-commands rather than artwork, so it is *redrawn* here instead of being traced
-from a file. That keeps one source of truth: the geometry and the two colours
-below are the same numbers the inline SVG uses, on the same 32-unit grid.
+The mark is the K from frontend/src/components/Logo.tsx — a wide, flat-sided
+letter cut out of the orange tile — and it is four path commands rather than
+artwork, so it is *redrawn* here instead of being traced from a file. That
+keeps one source of truth: the geometry and the two colours below are the same
+numbers the inline SVG uses, on the same 32-unit grid.
 
 Three variants ship, because a launcher does not ask which one it wants:
 
@@ -12,7 +12,7 @@ Three variants ship, because a launcher does not ask which one it wants:
                        purpose, and what a desktop install shows.
   icon-maskable-*.png  full bleed, mark shrunk into the 80% safe zone, so
                        Android can crop the tile to a circle/squircle/whatever
-                       the launcher uses without slicing the ring.
+                       the launcher uses without slicing the letter.
   apple-touch-icon     180px, square and opaque — iOS rounds it itself, and a
                        transparent corner there comes out black.
 
@@ -35,26 +35,35 @@ VOID = "#0b0b0b"
 # icon's side, so one set of numbers covers 16px and 512px alike.
 GRID = 32.0
 RADIUS = 5 / GRID  # the tile's corner
-RING_R = 9.5 / GRID  # the buzzer ring
-RING_W = 2.8 / GRID
-DOT_R = 4.4 / GRID
 
-# Where the ring is cut. The SVG arc runs from (23.5, 9.5) round to (25.7,
-# 13.7) the long way; as angles about the centre that is a gap in the top-right
-# quadrant. PIL measures degrees clockwise from 3 o'clock on a y-down canvas,
-# which is the same convention the SVG is written in, so these are the two
-# endpoints directly.
-ARC_START = -13.3
-ARC_END = 319.1
+# The K, as the two filled paths the SVG draws, in grid units.
+#
+#   the stem   a plain upright bar down the left
+#   the arms   one polygon for both, traced from the SVG's `M24.4 7 …Z`
+#
+# The arms' inner edge (x=12.2) lands *inside* the stem (which runs to 12.4)
+# rather than against it. Butting two fills at the same coordinate leaves a
+# hairline of orange between them once PIL's supersample is resampled down, and
+# the 512px launcher icon is exactly where that shows.
+STEM = (8.0, 7.0, 12.4, 25.0)  # left, top, right, bottom
+ARMS = (
+    (24.4, 7.0),
+    (16.0, 15.2),
+    (24.8, 25.0),
+    (19.2, 25.0),
+    (12.2, 16.9),
+    (12.2, 15.2),
+    (19.0, 7.0),
+)
 
 # Draw big, then shrink: PIL has no antialiasing of its own, so the smooth
-# edges come from the downsample. 8x is enough that a 16px favicon's ring
-# still has clean sides.
+# edges come from the downsample. 8x is enough that a 16px favicon's diagonals
+# still have clean sides.
 SS = 8
 
 
 def mark(side: int, *, tile: bool, inset: float = 0.0) -> Image.Image:
-    """One icon: orange ground, ring, dot.
+    """One icon: orange ground, K.
 
     `tile` rounds the corners (the in-app look); a maskable or Apple icon wants
     the ground to run to the edge instead. `inset` shrinks the *mark* towards
@@ -70,21 +79,17 @@ def mark(side: int, *, tile: bool, inset: float = 0.0) -> Image.Image:
     else:
         d.rectangle((0, 0, px - 1, px - 1), fill=COURT)
 
+    # Grid units → pixels, about the centre, so `inset` shrinks the letter
+    # towards the middle without moving the ground under it.
     scale = 1.0 - inset
     c = px / 2
-    ring_r = RING_R * px * scale
-    ring_w = max(1, round(RING_W * px * scale))
-    # `arc` strokes centred on the path, so the bounding box is the ring's own
-    # radius — not the outer edge of the stroke.
-    d.arc(
-        (c - ring_r, c - ring_r, c + ring_r, c + ring_r),
-        start=ARC_START,
-        end=ARC_END,
-        fill=VOID,
-        width=ring_w,
-    )
-    dot_r = DOT_R * px * scale
-    d.ellipse((c - dot_r, c - dot_r, c + dot_r, c + dot_r), fill=VOID)
+
+    def at(x: float, y: float) -> tuple[float, float]:
+        return (c + (x - GRID / 2) / GRID * px * scale, c + (y - GRID / 2) / GRID * px * scale)
+
+    left, top, right, bottom = STEM
+    d.polygon([at(left, top), at(right, top), at(right, bottom), at(left, bottom)], fill=VOID)
+    d.polygon([at(x, y) for x, y in ARMS], fill=VOID)
 
     return img.resize((side, side), Image.LANCZOS)
 

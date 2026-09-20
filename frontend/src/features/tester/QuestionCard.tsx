@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
-import { EyeOff, Image as ImageIcon, Timer } from 'lucide-react'
+import { Eye, EyeOff, Image as ImageIcon, Pencil, Timer } from 'lucide-react'
 import { Card } from '../../components/Card'
 import { LevelChip } from '../../components/LevelChip'
 import { StatusBadge } from '../../components/StatusBadge'
+import type { ReactNode } from 'react'
 import type { TesterQuestionCard } from '../../lib/api/types'
 
 /*
@@ -32,18 +33,38 @@ import type { TesterQuestionCard } from '../../lib/api/types'
  * YAML, and whether matchmaking will ever draw it — and both are the answer to
  * the two questions this page exists for: "which file do I edit?" and "why does
  * this never come up?"
+ *
+ * ## The actions sit outside the link, not inside it
+ *
+ * The card itself is one big `Link` into the rehearsal, which is what a click
+ * anywhere on it should do. Edit and retire are therefore rendered in a strip
+ * *beneath* it rather than in a corner of it: a `<button>` nested inside an
+ * `<a>` is invalid HTML, and the browsers that tolerate it disagree about
+ * whether the click navigates as well as fires — which on this card would mean
+ * retiring a question and being thrown into a rehearsal of it.
  */
 export function QuestionCatalogCard({
   question,
   typeLabel,
+  onEdit,
+  onToggleActive,
+  busy = false,
 }: {
   question: TesterQuestionCard
   /** The human name of the answer shape, from `GET /tester/config/` — the
    *  backend's own `QuestionType` label rather than a second copy of the eight
    *  names maintained over here. */
   typeLabel: string
+  /** Opens the editor on this question's authored YAML. */
+  onEdit?: () => void
+  /** Writes `is_active` into the resource file and reloads the catalog from it
+   *  — never a bare column edit, which the next sync would undo. */
+  onToggleActive?: () => void
+  /** A write against this question is in flight. Both verbs go dead, because
+   *  they edit the same block of the same file. */
+  busy?: boolean
 }) {
-  return (
+  const card = (
     <Card
       as={Link}
       to={`/tester/${question.type}/${question.id}`}
@@ -94,5 +115,58 @@ export function QuestionCatalogCard({
         </div>
       </div>
     </Card>
+  )
+
+  if (!onEdit && !onToggleActive) return card
+
+  return (
+    <div className="flex flex-col">
+      {card}
+      <div className="flex items-center justify-end gap-1 px-1 pt-1.5">
+        {onEdit && (
+          <ActionButton onClick={onEdit} disabled={busy} icon={<Pencil size={13} aria-hidden />}>
+            Edit
+          </ActionButton>
+        )}
+        {onToggleActive && (
+          <ActionButton
+            onClick={onToggleActive}
+            disabled={busy}
+            icon={
+              question.is_active ? <EyeOff size={13} aria-hidden /> : <Eye size={13} aria-hidden />
+            }
+          >
+            {question.is_active ? 'Retire' : 'Restore'}
+          </ActionButton>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/** A quiet text verb under a card. Deliberately not `Button`: these sit under
+ *  fifty cards at once, and the app's button is a display-face, uppercase,
+ *  lifting thing built to be the one action on a screen. */
+function ActionButton({
+  onClick,
+  disabled,
+  icon,
+  children,
+}: {
+  onClick: () => void
+  disabled?: boolean
+  icon: ReactNode
+  children: ReactNode
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex items-center gap-1.5 rounded-tile px-2 py-1 text-[11px] font-medium text-ash transition-colors hover:bg-chalk/6 hover:text-chalk disabled:pointer-events-none disabled:opacity-50"
+    >
+      {icon}
+      {children}
+    </button>
   )
 }

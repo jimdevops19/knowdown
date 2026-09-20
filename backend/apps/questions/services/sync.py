@@ -473,7 +473,11 @@ def _write_question(*, spec, category: Category, folder: Path) -> bool:
         # that opens without a task screen.
         "pre_question_info": spec.pre_question_info or "",
         "image": _question_image(spec=spec, folder=folder),
-        "is_active": True,
+        # The file's own word on it, defaulted true by the schema. An entry that
+        # writes `is_active: false` is retired *and stays retired* across
+        # re-syncs, which is what makes deactivation from the tester a change to
+        # the resources rather than a column edit the next load undoes.
+        "is_active": spec.is_active,
         # Revive rather than insert beside it — see sync_categories.
         "deleted_at": None,
     }

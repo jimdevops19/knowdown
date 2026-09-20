@@ -36,6 +36,12 @@ from rest_framework import serializers
 __all__ = [
     "AnswerAttemptSerializer",
     "CatalogCardSerializer",
+    "QuestionActivationSerializer",
+    "QuestionCreateSerializer",
+    "QuestionSourceSerializer",
+    "QuestionUpdateSerializer",
+    "QuestionWriteResultSerializer",
+    "SyncReportSerializer",
     "TesterConfigSerializer",
 ]
 
@@ -114,3 +120,91 @@ class AnswerAttemptSerializer(serializers.Serializer):
 
     submitted = serializers.DictField()
     elapsed_ms = serializers.IntegerField(required=False, min_value=0)
+
+
+class QuestionSourceSerializer(serializers.Serializer):
+    """One question as its resource file has it.
+
+    ``entry`` is the raw YAML mapping, passed through rather than described
+    field by field, and that is the whole reason this surface can edit nine
+    answer shapes without nine serializers. The shape it must obey is already
+    written down once — ``apps.questions.schemas`` — and re-stating it here in
+    DRF fields would be a second copy to keep in step with the loader, which is
+    the copy that would drift and start accepting files the loader refuses.
+    """
+
+    #: ``nba/single-answer.yaml`` — the file to look at in the diff.
+    path = serializers.CharField(read_only=True)
+    category = serializers.CharField(read_only=True)
+    entry = serializers.DictField(read_only=True)
+
+
+class SyncReportSerializer(serializers.Serializer):
+    """What the load that followed the edit did — ``LoadReport``, as JSON.
+
+    Sent back on every write because there are *two* effects and only one of
+    them is the one the form was filled in for. A save that wrote the file and
+    updated no row means the loader did not see the question it just wrote,
+    which is a real failure mode (a file the category's ``_active.yaml`` does
+    not list) and one nobody would notice from a green toast.
+    """
+
+    created = serializers.ListField(child=serializers.CharField(), read_only=True)
+    updated = serializers.ListField(child=serializers.CharField(), read_only=True)
+    deactivated = serializers.ListField(child=serializers.CharField(), read_only=True)
+    #: The same sentence ``manage.py sync_questions`` prints.
+    summary = serializers.CharField(read_only=True)
+
+
+class QuestionWriteResultSerializer(serializers.Serializer):
+    """The answer to a create or an update: both halves of what happened.
+
+    The row (``question``), the file (``source``, plus whether the block was
+    written or rewritten), and the load (``sync``). A client that showed only
+    the first would be reporting a database change for an operation whose whole
+    point is that it is a change to the *resources*.
+    """
+
+    question = CatalogCardSerializer(read_only=True)
+    source = QuestionSourceSerializer(read_only=True)
+    #: ``created`` or ``updated``, about the block in the file.
+    action = serializers.CharField(read_only=True)
+    sync = SyncReportSerializer(read_only=True)
+
+
+class QuestionCreateSerializer(serializers.Serializer):
+    """``POST /tester/questions/`` — the category to file it under, and the entry.
+
+    The category is separate from the entry because it is not a field of one: a
+    resource file states its category once at the top and every question in it
+    inherits that, so an entry carrying its own would be a question that could
+    disagree with the file it lives in (which the loader refuses by name).
+    """
+
+    category = serializers.CharField()
+    entry = serializers.DictField()
+
+
+class QuestionUpdateSerializer(serializers.Serializer):
+    """``PUT …/source/`` — the entry, whole.
+
+    A replace rather than a merge, and deliberately so: half the fields on a
+    question mean something by their *absence*. Dropping ``time_limit_seconds``
+    is how an entry goes back to taking its file's clock, and dropping
+    ``image`` is how a picture is removed — neither of which a patch-merge of
+    the keys that happened to be sent could ever express.
+    """
+
+    entry = serializers.DictField()
+
+
+class QuestionActivationSerializer(serializers.Serializer):
+    """``PATCH …/source/`` — retire a question, or bring it back.
+
+    Its own verb rather than an ``is_active`` in the update body, because it is
+    the one edit made *without* opening the form: the catalog list has a switch
+    on each row, and making it send back the whole entry would mean a stale list
+    could silently revert somebody else's edit to the question it toggled.
+    """
+
+    is_active = serializers.BooleanField()

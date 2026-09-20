@@ -210,10 +210,13 @@ describe('QuestionBoard', () => {
     expect(getByText('The final score was 93-89')).toBeTruthy()
   })
 
-  it('draws a number field short and a text field wide, and asks for a keypad', () => {
-    // The board's only use for `kind`. A year box the width of a sentence is
-    // the bug this exists to prevent, and `inputMode` is the half of it a
-    // phone player actually feels.
+  it('asks a number field for a keypad, and gives every box the same column', () => {
+    // `kind` decides the *keyboard* and the length cap, and no longer the
+    // width. Sizing each box to its kind laid "Year / Round / Game number" out
+    // on a phone as a stub, a box running to the right edge, and a third
+    // stranded full-width on its own line — so the boxes are a grid now, one
+    // equal column each, and `inputMode` is the half of `kind` a phone player
+    // actually feels.
     const { getByLabelText } = render(
       <QuestionBoard
         question={QUESTION_FIXTURES['gradual-hints']}
@@ -232,10 +235,12 @@ describe('QuestionBoard', () => {
 
     expect(year.getAttribute('inputmode')).toBe('numeric')
     expect(round.getAttribute('inputmode')).toBeNull()
-    // Width lives on the label that wraps the input, since the input itself is
-    // always `w-full` of whatever it is given.
-    expect(year.closest('label')?.className).toContain('w-28')
-    expect(round.closest('label')?.className).toContain('flex-1')
+    // Neither box carries a width of its own — the grid above them does, and
+    // both sit in the same track whatever their kind.
+    const yearLabel = year.closest('label')
+    const roundLabel = round.closest('label')
+    expect(yearLabel?.className).toBe(roundLabel?.className)
+    expect(yearLabel?.parentElement?.className).toContain('grid-cols-2')
     // Never the native number input: its spinners and scroll-to-change are a
     // wrong answer waiting for a mistap.
     expect(year.getAttribute('type')).not.toBe('number')

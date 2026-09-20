@@ -29,16 +29,15 @@ time_limit_seconds: 10
 questions:
   - type: image-answer
     slug: nba-identify-free-throw-line
-    description: >-
-      Each diagram shows the same half court with one line picked out in red.
-      Which one marks the free-throw line?
+    description: Each diagram shows the same half court with one line picked out in red. Which one marks the free-throw line?
     level: 1
     tags: {topic: rules, era: all-time}
     options:
-      - {image: court-free-throw-line.png, is_correct: true}
-      - {image: court-three-point-line.png}
-      - {image: court-baseline-line.png}
-      - {image: court-halfcourt-line.png}
+      - image: court-free-throw-line.png
+        is_correct: true
+      - image: court-three-point-line.png
+      - image: court-baseline-line.png
+      - image: court-halfcourt-line.png
 
   - type: image-answer
     slug: nba-identify-three-point-line

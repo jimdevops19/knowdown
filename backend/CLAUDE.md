@@ -80,10 +80,12 @@ The question authoring pipeline and the scaffolding under it:
   a `get_or_create`), so a matchup that cannot complete twice cannot grant a
   badge twice either. Embedded in the player profile
   (`GET /players/{display_name}/`); no standalone list endpoint yet.
-- **`apps/tester`** — the maintainers' **rehearsal room**: list the catalog,
-  play any one question exactly as a matchup would show it, and then see what
-  the answer was. No models, no writes, and mounted only where
-  `TESTER_ENDPOINT_ENABLED` says so (local on, staging on by environment,
+- **`apps/tester`** — the maintainers' **rehearsal room and authoring desk**:
+  list the catalog, play any one question exactly as a matchup would show it,
+  see what the answer was, and **write questions** — create, edit and retire,
+  each of which edits the YAML under `apps/questions/resources/` and then runs
+  `sync_questions`, never a question row. No models of its own, and mounted only
+  where `TESTER_ENDPOINT_ENABLED` says so (local on, staging on by environment,
   production off) — see "tester" below.
 
 ## Commands
@@ -1022,12 +1024,53 @@ reveal; the socket pays the text out on a timer). Both are deliberate — there 
 no opponent and no socket here — and both are the reason the whole surface is
 gated the way it is.
 
-**It writes nothing.** No `Matchup`, no `PlayerAnswer`, no rating: answering the
-same question forty times while fixing its accepted spellings leaves the
-database as it found it. The one trace is a log line per rehearsed answer.
+**Rehearsing writes nothing.** No `Matchup`, no `PlayerAnswer`, no rating:
+answering the same question forty times while fixing its accepted spellings
+leaves the database as it found it. The one trace is a log line per rehearsed
+answer.
 The client half is `frontend/src/features/tester` + `/tester` and
 `/tester/:type/:id`, which mount the *same* `QuestionBoard` and
 `useQuestionClock` a live match does.
+
+**Authoring writes the YAML, and never a question row.** The tester is also
+where the catalog is *edited* — `POST /api/v1/tester/questions/` to author one,
+`GET/PUT/PATCH …/{type}/{id}/source/` to read, replace or retire it — and every
+one of those goes through `apps.questions.services.authoring`, which splices the
+entry into `resources/<category>/<type>.yaml` and then runs the ordinary
+`sync_questions` over that category. So **a question created from the browser is
+a question created in the repository**: it appears in `git diff`, it is
+reviewable as the text its author would have typed, and it survives the next
+deploy's sync instead of being undone by it — which is precisely what a row
+written straight to the database would have been. Five things hold it together:
+
+- **The file goes first, and a refusal undoes both halves.** Splice, validate,
+  write, sync. A sync that refuses rolls its own transaction back and every
+  edited file is restored from the copy taken before the write (a file the call
+  *created* is removed, and its `_active.yaml` line with it — a manifest naming
+  a missing file is a hard load failure for the whole category).
+- **Edits are surgical.** One block is re-emitted; the rest of the document —
+  the page of format notes at the top of every resource file, the comments
+  between entries — is untouched, because the module splices lines rather than
+  round-tripping the document through a YAML dumper.
+- **Deactivating is a line in the file.** `is_active` is now an authored key on
+  a question entry (`schemas._QuestionSpec`, default true, omitted from the file
+  unless false) and `_write_question` reads it. A tester that only flipped the
+  column would have the next sync put the question straight back in the pool.
+  Nothing is ever deleted, here as everywhere: a matchup that already played a
+  question points at its row.
+- **The edit form is seeded from the file, not the row.** `GET …/source/`
+  answers with the authored entry, because the row has had the file's
+  `time_limit_seconds` resolved into it by the loader — a form built from the
+  row would hand every edited question an override its author never wrote.
+- **Nothing re-implements the schemas.** The entry is passed through as an
+  opaque mapping from the browser to pydantic; the tester's serializers describe
+  three keys and none of the nine answer shapes. A refusal comes back as
+  `ValidationFailed.details`, the loader's own list of every problem it found.
+
+This surface is only mounted where `TESTER_ENDPOINT_ENABLED` is on — local and
+staging, never production — which is also the only place it *could* work: the
+container's code directory is effectively read-only past `USER app`, and
+`resources/` lives in it.
 
 ### Container and deploy
 

@@ -4,8 +4,10 @@ import type {
   AnswerSubmission,
   TesterConfig,
   TesterQuestionCard,
+  TesterQuestionSource,
   TesterRehearsal,
   TesterVerdict,
+  TesterWriteResult,
 } from '../../lib/api/types'
 import type { Page } from '../../lib/api/endpoints'
 
@@ -120,6 +122,102 @@ export async function submitTesterAnswer(
   const res = await apiClient.post<TesterVerdict>(
     `/tester/questions/${questionType}/${questionId}/answer/`,
     { submitted, elapsed_ms: Math.max(0, Math.round(elapsedMs)) },
+  )
+  return res.data
+}
+
+/*
+ * ---- The write half ---------------------------------------------------------
+ *
+ * Read the backend module before changing any of these:
+ * `apps.questions.services.authoring`. The short version is the part that makes
+ * this surface unusual, and it is worth saying here because it changes what a
+ * green toast means —
+ *
+ * **These do not write question rows.** Each one edits a YAML file under
+ * `backend/apps/questions/resources/`, then runs the ordinary
+ * `sync_questions` over that category, which is what loads the change. So a
+ * question added from this page is a question added *to the repository*: it
+ * appears in `git diff`, it is reviewable as text, and it survives the next
+ * deploy's sync rather than being silently undone by it — which is exactly
+ * what a row written straight to the database would have been.
+ *
+ * Both effects come back on every write (`TesterWriteResult`), and the UI says
+ * both out loud. A save that wrote the file and loaded nothing is a real
+ * failure mode, and one nobody would notice from a tick.
+ */
+
+/** `GET /tester/questions/{type}/{id}/source/` 🔒 staff — the authored entry.
+ *
+ *  What the edit form is seeded from, and deliberately **not** the catalog card
+ *  or the rehearsal. The row has had its file's `time_limit_seconds` resolved
+ *  into it by the loader; the entry has not. A form built from the row would
+ *  send that number back as the question's own override, and every question
+ *  edited here would quietly stop tracking the tempo its file sets. */
+export async function getTesterQuestionSource(
+  questionType: string,
+  questionId: string,
+): Promise<TesterQuestionSource> {
+  const res = await apiClient.get<TesterQuestionSource>(
+    `/tester/questions/${questionType}/${questionId}/source/`,
+  )
+  return res.data
+}
+
+/** `POST /tester/questions/` 🔒 staff — author a new question.
+ *
+ *  The category rides beside the entry rather than inside it, because it is not
+ *  a field of one: a resource file states its category once at the top, and the
+ *  loader refuses an entry that disagrees with the file it sits in. Which file
+ *  the block lands in follows from the entry's `type`. */
+export async function createTesterQuestion(
+  category: string,
+  entry: Record<string, unknown>,
+): Promise<TesterWriteResult> {
+  const res = await apiClient.post<TesterWriteResult>('/tester/questions/', {
+    category,
+    entry,
+  })
+  return res.data
+}
+
+/** `PUT …/source/` 🔒 staff — replace the block, whole.
+ *
+ *  A replace and not a merge, on purpose: half of a question's keys mean
+ *  something by their *absence*. Dropping `time_limit_seconds` is how an entry
+ *  goes back to taking its file's clock; dropping `image` is how a picture is
+ *  removed. Neither can be said by sending only the keys that changed. */
+export async function updateTesterQuestion(
+  questionType: string,
+  questionId: string,
+  entry: Record<string, unknown>,
+): Promise<TesterWriteResult> {
+  const res = await apiClient.put<TesterWriteResult>(
+    `/tester/questions/${questionType}/${questionId}/source/`,
+    { entry },
+  )
+  return res.data
+}
+
+/** `PATCH …/source/` 🔒 staff — retire a question, or bring it back.
+ *
+ *  Its own call rather than a field on the update, because it is the one edit
+ *  made without opening the form — the catalog has a switch on each row, and
+ *  having it send the whole entry back would let a stale list revert somebody
+ *  else's edit to the question it toggled.
+ *
+ *  Nothing is deleted, here or anywhere: a matchup that already played this
+ *  question points at the row, so retiring writes `is_active: false` into the
+ *  YAML and the loader carries it to the column. Writing only the column would
+ *  have the next sync put the question straight back in the pool. */
+export async function setTesterQuestionActive(
+  questionType: string,
+  questionId: string,
+  isActive: boolean,
+): Promise<TesterWriteResult> {
+  const res = await apiClient.patch<TesterWriteResult>(
+    `/tester/questions/${questionType}/${questionId}/source/`,
+    { is_active: isActive },
   )
   return res.data
 }

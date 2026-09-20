@@ -4,10 +4,18 @@
 #   instruction: the rule for answering, kept separate from `description`
 #                because the client shows them in different places. "Highest to
 #                lowest" buried in the question is a direction players miss.
-#   items:       three or more, written IN THEIR CORRECT ORDER. Positions are
+#   items:       three or four, written IN THEIR CORRECT ORDER. Positions are
 #                not authored — the list order is the answer, so a file cannot
 #                have a gap or a duplicate position. The client shuffles what it
 #                draws; the correct order never leaves the server in question form.
+#
+#                WARNING — DO NOT AUTHOR A FIFTH ITEM. The board holds four
+#                tiles at phone resolution; a fifth one overflows the ordering
+#                list and is not displayed in a user-friendly way (the bottom
+#                tile sits off screen, so a player on a phone drags against
+#                something they cannot see). The loader still accepts more for
+#                legacy rows — this cap is an authoring rule, not a load error.
+#                Every question in this file stops at four.
 #
 # Pick facts with an unambiguous order that will not drift: career totals of
 # retired players and dated events are safe, "best" anything is not, and an
@@ -42,7 +50,7 @@ questions:
   - type: ordering
     slug: nba-order-bulls-finals-opponents
     description: >-
-      The Chicago Bulls beat a different opponent in each of their first five
+      The Chicago Bulls beat a different opponent in each of their first four
       championship runs.
     instruction: Order the opponents by the season the Bulls beat them, earliest first.
     level: 7
@@ -52,7 +60,6 @@ questions:
       - Portland Trail Blazers
       - Phoenix Suns
       - Seattle SuperSonics
-      - Utah Jazz
 
   - type: ordering
     slug: nba-order-career-points-retired-greats
@@ -68,7 +75,7 @@ questions:
 
   - type: ordering
     slug: nba-order-2000s-champions-by-year
-    description: Five different franchises won the NBA championship during the 2000s decade.
+    description: Four different franchises won the NBA championship during the 2000s decade.
     instruction: Order these teams by the year they won their title, earliest first.
     level: 5
     tags: {topic: finals, era: 2000s}
@@ -77,11 +84,10 @@ questions:
       - San Antonio Spurs
       - Detroit Pistons
       - Miami Heat
-      - Boston Celtics
 
   - type: ordering
     slug: nba-order-2000s-mvp-winners
-    description: Five players each won a regular-season MVP award at some point during the 2000s.
+    description: Four players each won a regular-season MVP award at some point during the 2000s.
     instruction: Order these MVP winners by the year they won the award, earliest first.
     level: 6
     tags: {topic: awards, era: 2000s}
@@ -90,11 +96,10 @@ questions:
       - Tim Duncan
       - Kevin Garnett
       - Dirk Nowitzki
-      - Kobe Bryant
 
   - type: ordering
     slug: nba-order-number-one-draft-picks-early-2000s
-    description: Five players were each selected first overall in the NBA Draft during the early 2000s.
+    description: Four players were each selected first overall in the NBA Draft during the early 2000s.
     instruction: Order these players by the year they were drafted, earliest first.
     level: 6
     tags: {topic: draft, era: 2000s}
@@ -103,11 +108,10 @@ questions:
       - Kwame Brown
       - Yao Ming
       - LeBron James
-      - Dwight Howard
 
   - type: ordering
     slug: nba-order-finals-runners-up-2000s
-    description: Five teams each reached the NBA Finals but lost during the 2000s decade.
+    description: Four teams each reached the NBA Finals but lost during the 2000s decade.
     instruction: Order these losing finalists by the year they made the Finals, earliest first.
     level: 7
     tags: {topic: finals, era: 2000s}
@@ -116,11 +120,10 @@ questions:
       - New Jersey Nets
       - Los Angeles Lakers
       - Dallas Mavericks
-      - Orlando Magic
 
   - type: ordering
     slug: nba-order-dunk-contest-champions-2000s
-    description: Five different players won the NBA Slam Dunk Contest during the 2000s.
+    description: Four different players won the NBA Slam Dunk Contest during the 2000s.
     instruction: Order these champions by the year they won, earliest first.
     level: 7
     tags: {topic: awards, era: 2000s}
@@ -129,11 +132,10 @@ questions:
       - Desmond Mason
       - Fred Jones
       - Josh Smith
-      - Gerald Green
 
   - type: ordering
     slug: nba-order-2000s-nba-milestones
-    description: Five moments define the NBA's 2000s decade in the public memory.
+    description: Four moments define the NBA's 2000s decade in the public memory.
     instruction: Order these moments by when they happened, earliest first.
     level: 6
     tags: {topic: history, era: 2000s}
@@ -142,7 +144,6 @@ questions:
       - The Malice at the Palace brawl erupts
       - Kobe Bryant scores 81 points in a game
       - The Celtics trade for Kevin Garnett
-      - The Sonics announce their move to Oklahoma City
 
   - type: ordering
     slug: nba-order-2000s-stars-career-scoring-average
@@ -193,7 +194,7 @@ questions:
 
   - type: ordering
     slug: nba-order-rookie-of-the-year-2000s
-    description: Five players each won NBA Rookie of the Year during the 2000s.
+    description: Four players each won NBA Rookie of the Year during the 2000s.
     instruction: Order these winners by the season they won, earliest first.
     level: 6
     tags: {topic: awards, era: 2000s}
@@ -202,11 +203,10 @@ questions:
       - Pau Gasol
       - LeBron James
       - Chris Paul
-      - Kevin Durant
 
   - type: ordering
     slug: nba-order-2000s-finals-winning-coaches
-    description: Five head coaches each won their first 2000s-decade NBA championship in a different year.
+    description: Four head coaches each won their first 2000s-decade NBA championship in a different year.
     instruction: Order these coaches by the year of that title, earliest first.
     level: 7
     tags: {topic: finals, era: 2000s}
@@ -215,7 +215,6 @@ questions:
       - Gregg Popovich
       - Larry Brown
       - Pat Riley
-      - Doc Rivers
 
   - type: ordering
     slug: nba-order-2000s-bigs-career-rebounds
@@ -241,7 +240,7 @@ questions:
 
   - type: ordering
     slug: nba-order-2003-draft-first-five-picks
-    description: The 2003 NBA Draft produced five future All-Stars in its first five selections.
+    description: The first four selections of the 2003 NBA Draft.
     instruction: Order these players by the order they were picked, first to last.
     level: 6
     tags: {topic: draft, era: 2000s}
@@ -250,7 +249,6 @@ questions:
       - Darko Milicic
       - Carmelo Anthony
       - Chris Bosh
-      - Dwyane Wade
 
   - type: ordering
     slug: nba-order-2000s-shot-blockers-career-blocks
@@ -310,7 +308,7 @@ questions:
 
   - type: ordering
     slug: nba-order-2010s-champions-by-year
-    description: Five different franchises lifted the trophy during the 2010s.
+    description: Four different franchises lifted the trophy during the 2010s.
     instruction: Order these teams by the year they won their 2010s title, earliest first.
     level: 5
     tags: {topic: finals, era: 2010s}
@@ -319,11 +317,10 @@ questions:
       - Dallas Mavericks
       - San Antonio Spurs
       - Cleveland Cavaliers
-      - Toronto Raptors
 
   - type: ordering
     slug: nba-order-2010s-mvp-winners
-    description: Five players who took home the regular-season MVP award in the 2010s.
+    description: Four players who took home the regular-season MVP award in the 2010s.
     instruction: Order them by the year they won the award, earliest first.
     level: 6
     tags: {topic: awards, era: 2010s}
@@ -332,7 +329,6 @@ questions:
       - Kevin Durant
       - Stephen Curry
       - Russell Westbrook
-      - Giannis Antetokounmpo
 
   - type: ordering
     slug: nba-order-2010s-finals-mvp-winners
@@ -348,7 +344,7 @@ questions:
 
   - type: ordering
     slug: nba-order-2010s-number-one-draft-picks
-    description: Five players taken first overall in 2010s drafts.
+    description: Four players taken first overall in 2010s drafts.
     instruction: Order them by their draft year, earliest first.
     level: 5
     tags: {topic: draft, era: 2010s}
@@ -357,11 +353,10 @@ questions:
       - Kyrie Irving
       - Anthony Davis
       - Andrew Wiggins
-      - Zion Williamson
 
   - type: ordering
     slug: nba-order-2010s-rookie-of-the-year
-    description: Five Rookie of the Year winners from the 2010s.
+    description: Four Rookie of the Year winners from the 2010s.
     instruction: Order them by the season they won the award, earliest first.
     level: 6
     tags: {topic: awards, era: 2010s}
@@ -370,11 +365,10 @@ questions:
       - Damian Lillard
       - Karl-Anthony Towns
       - Ben Simmons
-      - Luka Doncic
 
   - type: ordering
     slug: nba-order-2010s-title-winning-coaches
-    description: Five head coaches who won a championship during the 2010s.
+    description: Four head coaches who won a championship during the 2010s.
     instruction: Order them by the year of their 2010s title, earliest first.
     level: 6
     tags: {topic: teams, era: 2010s}
@@ -383,11 +377,10 @@ questions:
       - Rick Carlisle
       - Gregg Popovich
       - Tyronn Lue
-      - Nick Nurse
 
   - type: ordering
     slug: nba-order-2010s-scoring-champions
-    description: Five players who led the league in scoring during the 2010s.
+    description: Four players who led the league in scoring during the 2010s.
     instruction: Order them by the season they won the scoring title, earliest first.
     level: 7
     tags: {topic: awards, era: 2010s}
@@ -396,11 +389,10 @@ questions:
       - Carmelo Anthony
       - Russell Westbrook
       - Stephen Curry
-      - James Harden
 
   - type: ordering
     slug: nba-order-2010s-defensive-players-of-the-year
-    description: Five Defensive Player of the Year winners from the 2010s.
+    description: Four Defensive Player of the Year winners from the 2010s.
     instruction: Order them by the season they won the award, earliest first.
     level: 7
     tags: {topic: awards, era: 2010s}
@@ -409,11 +401,10 @@ questions:
       - Tyson Chandler
       - Marc Gasol
       - Draymond Green
-      - Rudy Gobert
 
   - type: ordering
     slug: nba-order-2010s-retired-stars-career-points
-    description: Five stars of the 2010s who have since retired, by career regular-season points.
+    description: Four stars of the 2010s who have since retired, by career regular-season points.
     instruction: Order them from most career points to fewest.
     level: 8
     tags: {topic: records, era: 2010s}
@@ -422,11 +413,10 @@ questions:
       - Dirk Nowitzki
       - Tim Duncan
       - Paul Pierce
-      - Vince Carter
 
   - type: ordering
     slug: nba-order-2010s-milestones
-    description: Five moments that defined the NBA's 2010s.
+    description: Four moments that defined the NBA's 2010s.
     instruction: Order these events by when they happened, earliest first.
     level: 6
     tags: {topic: history, era: 2010s}
@@ -435,7 +425,6 @@ questions:
       - A lockout delays the start of the season and cuts it to 66 games
       - Ray Allen's corner three forces Game 7 of the Finals
       - The Warriors win 73 regular-season games
-      - The Raptors win the first championship in franchise history
 
   - type: ordering
     slug: nba-order-2010s-relocations-renames
@@ -450,7 +439,7 @@ questions:
 
   - type: ordering
     slug: nba-order-2010s-dunk-contest-champions
-    description: Five winners of the All-Star Saturday dunk contest during the 2010s.
+    description: Four winners of the All-Star Saturday dunk contest during the 2010s.
     instruction: Order them by the year they won, earliest first.
     level: 8
     tags: {topic: awards, era: 2010s}
@@ -459,7 +448,6 @@ questions:
       - Jeremy Evans
       - Terrence Ross
       - Zach LaVine
-      - Donovan Mitchell
 
   - type: ordering
     slug: nba-order-2010s-finals-series-length
@@ -474,7 +462,7 @@ questions:
 
   - type: ordering
     slug: nba-order-2010s-warriors-dynasty-milestones
-    description: Five steps in Golden State's rise from playoff hopeful to dynasty.
+    description: Four steps in Golden State's rise from playoff hopeful to dynasty.
     instruction: Order these moments by when they happened, earliest first.
     level: 6
     tags: {topic: teams, era: 2010s}
@@ -483,4 +471,3 @@ questions:
       - The franchise wins its first championship in 40 years
       - The team sets the record for regular-season wins
       - Kevin Durant signs with the club in free agency
-      - Durant collects the first Finals MVP of his career
