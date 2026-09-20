@@ -49,16 +49,3 @@ def is_display_name_taken(*, display_name: str, exclude_player=None) -> bool:
     if exclude_player is not None:
         taken = taken.exclude(pk=exclude_player.pk)
     return taken.exists()
-
-
-def avatar_url(*, player: Player) -> str | None:
-    """The player's picture as a root-relative URL, or ``None``.
-
-    Relative rather than absolute on purpose: the client talks to this API
-    same-origin, so building an absolute URL would bake in whichever host this
-    particular request arrived on — right for the machine serving it, a broken
-    image for any other device on the same network.
-    """
-    if not player.avatar:
-        return None
-    return player.avatar.url

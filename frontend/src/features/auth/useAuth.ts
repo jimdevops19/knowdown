@@ -1,6 +1,6 @@
 import { useAuthStore } from './store'
 import * as authApi from './api'
-import { setMyAvatar, setMyDisplayName, setMyMascot } from '../../lib/api/endpoints'
+import { setMyDisplayName, setMyMascot } from '../../lib/api/endpoints'
 
 /*
  * The hook components use for auth. Reads reactive state from the store and
@@ -52,18 +52,9 @@ export function useAuth() {
     return me
   }
 
-  /** Set or remove the avatar; `null` removes it. Re-hydrates for the same
-   *  reason the rename does — the URL is mirrored onto the user. */
-  async function updateAvatar(image: File | null) {
-    await setMyAvatar(image)
-    const me = await authApi.getMe()
-    useAuthStore.getState().setUser(me)
-    return me
-  }
-
-  /** Wear a mascot, or `null` for initials. Re-hydrates like the avatar does:
-   *  the choice is mirrored onto the user, and every avatar on screen reads it
-   *  from there. */
+  /** Wear a mascot, or `null` for initials. Re-hydrates for the same reason
+   *  the rename does: the choice is mirrored onto the user, and every avatar
+   *  on screen reads it from there. */
   async function updateMascot(mascot: string | null) {
     await setMyMascot(mascot)
     const me = await authApi.getMe()
@@ -94,7 +85,6 @@ export function useAuth() {
     register,
     loginWithGoogle,
     updateDisplayName,
-    updateAvatar,
     updateMascot,
     logout,
   }

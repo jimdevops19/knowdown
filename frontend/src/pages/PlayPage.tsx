@@ -77,7 +77,6 @@ export function PlayPage() {
     <Searching
       roomName={name}
       displayName={user?.player_name ?? 'You'}
-      avatarUrl={user?.player_avatar_url ?? null}
       mascot={user?.player_mascot ?? null}
       playerId={user?.player_id ?? null}
       waitingSeconds={search.waitingSeconds}

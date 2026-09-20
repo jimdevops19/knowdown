@@ -18,10 +18,11 @@ __all__ = [
 
 
 def icon_url(*, achievement: Achievement) -> str | None:
-    """The badge's picture as a root-relative URL, or ``None`` — the same
-    shape as ``apps.players.selectors.avatar_url``, for the same reason: the
-    client is same-origin, so a relative URL travels with whichever host
-    answered the request instead of baking one in."""
+    """The badge's picture as a root-relative URL, or ``None``.
+
+    Relative rather than absolute because the client is same-origin: a
+    relative URL travels with whichever host answered the request instead of
+    baking one in."""
     if not achievement.icon:
         return None
     return achievement.icon.url

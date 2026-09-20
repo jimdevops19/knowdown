@@ -195,7 +195,6 @@ function LadderRow({
         </span>
         <Avatar
           name={entry.player.display_name}
-          avatarUrl={entry.player.avatar_url}
           mascot={entry.player.mascot}
           size={36}
           ring={isMe}

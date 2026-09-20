@@ -2,16 +2,6 @@
 
 from __future__ import annotations
 
-#: The largest avatar accepted, in bytes. A picture shown at 64px does not need
-#: to be bigger than this, and the ceiling is what stops an upload endpoint
-#: being a way to fill a disk.
-MAX_AVATAR_BYTES = 2 * 1024 * 1024
-
-#: Image formats Pillow must report for an upload to be stored. A list of what
-#: is allowed rather than of what is refused: a format nobody named is a format
-#: nobody thought about.
-ALLOWED_AVATAR_FORMATS = frozenset({"JPEG", "PNG", "WEBP"})
-
 #: The stem every generated name is built on. Deliberately anonymous — a
 #: display name is published, and one derived from an address would publish
 #: half of a credential (see ``apps.players.models``).
@@ -24,10 +14,10 @@ AUTO_NAME_SUFFIX_LENGTH = 6
 
 #: Every mascot a player may wear, as the keys the client draws.
 #:
-#: An allow-list rather than a shape check, for the reason the avatar formats
-#: above are one: a key nobody named is a key nobody drew, and it would reach a
-#: scoreboard as a blank disc. Refusing it here makes a typo a 400 at the
-#: moment somebody makes it, rather than a hole in the ladder a week later.
+#: An allow-list rather than a shape check: a key nobody named is a key nobody
+#: drew, and it would reach a scoreboard as a blank disc. Refusing it here
+#: makes a typo a 400 at the moment somebody makes it, rather than a hole in
+#: the ladder a week later.
 #:
 #: **This list is the mirror of `MARKS` in
 #: `frontend/src/components/avatars/marks.ts`.** The drawings live there; only

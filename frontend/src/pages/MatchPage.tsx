@@ -231,10 +231,8 @@ export function MatchPage() {
           state={match}
           myPlayerId={playerId}
           myName={user?.player_name ?? 'You'}
-          myAvatarUrl={user?.player_avatar_url ?? null}
           myMascot={user?.player_mascot ?? null}
           opponentName={opponent?.display_name ?? 'Rival'}
-          opponentAvatarUrl={opponent?.avatar_url ?? null}
           opponentMascot={opponent?.mascot ?? null}
         />
       </div>

@@ -143,7 +143,6 @@ function AccountControl() {
           <Avatar
             name={user?.player_name ?? '?'}
             seed={user?.player_id ?? undefined}
-            avatarUrl={user?.player_avatar_url ?? null}
             mascot={user?.player_mascot ?? null}
             size={30}
           />

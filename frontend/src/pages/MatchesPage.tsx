@@ -97,7 +97,6 @@ function MatchRow({ match }: { match: MatchupSummary }) {
     <Card as={Link} to={to} interactive className="flex items-center gap-3 p-3.5">
       <Avatar
         name={them?.player.display_name ?? '?'}
-        avatarUrl={them?.player.avatar_url}
         mascot={them?.player.mascot}
         size={40}
       />

@@ -12,9 +12,9 @@
  * This was a buzzer: a filled dot inside a ring cut open at the top right, the
  * thing you slam when you know the answer. The idea was sound and the drawing
  * was not — a dot centred in a broken ring is the diagram of a camera lens, and
- * that is what it read as on every screen, most painfully on the profile page
- * where it sits a thumb's width from an actual camera glyph on the upload
- * button. A mark whose first reading is "photo app" is not carrying the brand,
+ * that is what it read as on every screen, most painfully on the profile page,
+ * which at the time had a camera glyph on an upload button a thumb's width
+ * away. A mark whose first reading is "photo app" is not carrying the brand,
  * however good the story behind it is.
  *
  * A letter has none of that ambiguity. It cannot be mistaken for an object

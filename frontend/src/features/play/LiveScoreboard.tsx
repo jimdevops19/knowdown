@@ -29,19 +29,15 @@ export function LiveScoreboard({
   state,
   myPlayerId,
   myName,
-  myAvatarUrl,
   myMascot,
   opponentName,
-  opponentAvatarUrl,
   opponentMascot,
 }: {
   state: MatchupState
   myPlayerId: string | null
   myName: string
-  myAvatarUrl: string | null
   myMascot: string | null
   opponentName: string
-  opponentAvatarUrl: string | null
   /** Arrives with the name, from the participants call — so the opponent is a
    *  coloured disc for the first beat of a match and their own mark after. */
   opponentMascot: string | null
@@ -53,7 +49,6 @@ export function LiveScoreboard({
       <Side
         name={myName}
         seed={myPlayerId ?? myName}
-        avatarUrl={myAvatarUrl}
         mascot={myMascot}
         accent="court"
         answered={state.mySubmission !== null}
@@ -71,7 +66,6 @@ export function LiveScoreboard({
         // Seeded on the opponent's id so their colour is stable across the
         // whole match even in the brief window before the name resolves.
         seed={opponentId ?? 'rival'}
-        avatarUrl={opponentAvatarUrl}
         mascot={opponentMascot}
         accent="rival"
         answered={state.opponentAnswered}
@@ -85,7 +79,6 @@ export function LiveScoreboard({
 function Side({
   name,
   seed,
-  avatarUrl,
   mascot,
   accent,
   answered,
@@ -94,7 +87,6 @@ function Side({
 }: {
   name: string
   seed: string
-  avatarUrl: string | null
   mascot: string | null
   accent: 'court' | 'rival'
   answered: boolean
@@ -132,7 +124,6 @@ function Side({
       <Avatar
         name={name}
         seed={seed}
-        avatarUrl={avatarUrl}
         mascot={mascot}
         size={36}
         ring={answered}

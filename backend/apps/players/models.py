@@ -21,18 +21,8 @@ from django.db.models.functions import Lower
 from apps.core_common.models import BaseModel
 
 
-def avatar_upload_to(instance: "Player", filename: str) -> str:
-    """``avatars/<player id>/<filename>``.
-
-    Keyed by the player rather than by the original name so two people
-    uploading ``avatar.png`` do not fight over one path, and so removing a
-    player's pictures is removing one directory.
-    """
-    return f"avatars/{instance.pk}/{filename}"
-
-
 class Player(BaseModel):
-    """A competitor: a name, a picture, and a link back to an account."""
+    """A competitor: a name, a mascot, and a link back to an account."""
 
     #: ``SET_NULL`` rather than ``CASCADE``: a matchup is a thing two people
     #: did, so removing one of them would edit the other's history. The account
@@ -55,10 +45,13 @@ class Player(BaseModel):
     #: person chose. The client's cue to ask them for a real one.
     has_auto_name = models.BooleanField(default=True)
 
-    avatar = models.ImageField(upload_to=avatar_upload_to, null=True, blank=True)
-
-    #: The mascot this player wears where they have no uploaded picture — one
-    #: key from ``constants.MASCOT_KEYS``, or ``""`` for "none, use initials".
+    #: The mascot this player wears — one key from ``constants.MASCOT_KEYS``,
+    #: or ``""`` for "none, use initials".
+    #:
+    #: This is the whole of a player's picture. There was an uploaded-image
+    #: field here once; the mascots replaced it outright, which took the
+    #: platform out of the business of accepting, validating, storing and
+    #: serving somebody else's file.
     #:
     #: A **key**, not a drawing and not a URL. The forty-one marks are SVG
     #: built in the client (``frontend/src/components/avatars/``), so what the

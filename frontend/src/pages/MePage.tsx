@@ -1,7 +1,6 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Camera, Trash2 } from 'lucide-react'
 import { useAuth } from '../features/auth/useAuth'
 import { DisplayNameField } from '../features/players/DisplayNameField'
 import { MascotPicker } from '../features/players/MascotPicker'
@@ -14,11 +13,11 @@ import { normalizeApiError } from '../lib/api/errors'
 
 /*
  * `/me` — the two things a player owns about themselves: their name and their
- * picture, plus (read-only) the address they sign in with.
+ * avatar, plus (read-only) the address they sign in with.
  *
  * Two separate forms rather than one save button, because they are separate
  * writes on the backend and failing them as a unit would be a lie:
- * `set_display_name` and `set_avatar` are different services. The email lives
+ * `set_display_name` and `set_mascot` are different services. The email lives
  * on the User rather than the Player at all, and is fixed at signup — it has
  * no form of its own.
  *
@@ -46,7 +45,6 @@ export function MePage() {
       )}
 
       <AvatarSection />
-      <MascotSection />
       <NameSection />
       <EmailSection />
 
@@ -63,79 +61,6 @@ export function MePage() {
 }
 
 function AvatarSection() {
-  const { user, updateAvatar } = useAuth()
-  const toast = useToast()
-  const fileInput = useRef<HTMLInputElement>(null)
-  const [pending, setPending] = useState(false)
-
-  async function set(image: File | null) {
-    setPending(true)
-    try {
-      await updateAvatar(image)
-      toast.success(image ? 'Picture updated' : 'Picture removed')
-    } catch (caught) {
-      toast.error('Could not update your picture', {
-        description: normalizeApiError(caught).message,
-      })
-    } finally {
-      setPending(false)
-      // Clear the input, or picking the same file twice in a row is a change
-      // event that never fires.
-      if (fileInput.current) fileInput.current.value = ''
-    }
-  }
-
-  return (
-    <section className="flex flex-col gap-3">
-      <SectionHeading>Picture</SectionHeading>
-      <Card className="flex items-center gap-4 p-4">
-        <Avatar
-          name={user?.player_name ?? '?'}
-          seed={user?.player_id ?? undefined}
-          avatarUrl={user?.player_avatar_url ?? null}
-          mascot={user?.player_mascot ?? null}
-          size={64}
-        />
-        <div className="flex flex-1 flex-wrap gap-2">
-          <input
-            ref={fileInput}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(event) => {
-              const file = event.target.files?.[0]
-              if (file) void set(file)
-            }}
-          />
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={pending}
-            onClick={() => fileInput.current?.click()}
-          >
-            <Camera size={16} aria-hidden />
-            {user?.player_avatar_url ? 'Replace' : 'Upload'}
-          </Button>
-          {user?.player_avatar_url && (
-            <Button variant="ghost" size="sm" disabled={pending} onClick={() => void set(null)}>
-              <Trash2 size={16} aria-hidden />
-              Remove
-            </Button>
-          )}
-        </div>
-      </Card>
-      <p className="text-xs text-ash/70">
-        {/* No fallback to apologise for: a mascot is a real identity and so is
-            a colour generated from a name. A photo simply outranks both, which
-            is the only thing worth saying here. */}
-        A picture beats a mascot. Without either you get a colour of your own,
-        generated from your name.
-      </p>
-    </section>
-  )
-}
-
-function MascotSection() {
   const { user, updateMascot } = useAuth()
   const toast = useToast()
   const queryClient = useQueryClient()
@@ -143,7 +68,7 @@ function MascotSection() {
 
   /*
    * Saved on the tap, with no confirm step. The write is one short field, it is
-   * trivially reversible by tapping another one, and a "Save" button under a
+   * trivially reversible by picking another one, and a "Save" button under a
    * grid of forty animals would mean a player who picked a raptor and walked
    * away is still wearing nothing.
    */
@@ -156,9 +81,9 @@ function MascotSection() {
       // a profile already fetched is now showing the old one.
       void queryClient.invalidateQueries({ queryKey: ['players'] })
       void queryClient.invalidateQueries({ queryKey: ['rankings'] })
-      toast.success(mascot ? 'Mascot updated' : 'Back to your initials')
+      toast.success(mascot ? 'Avatar updated' : 'Back to your initials')
     } catch (caught) {
-      toast.error('Could not change your mascot', {
+      toast.error('Could not change your avatar', {
         description: normalizeApiError(caught).message,
       })
     } finally {
@@ -168,20 +93,31 @@ function MascotSection() {
 
   return (
     <section className="flex flex-col gap-3">
-      <SectionHeading>Mascot</SectionHeading>
-      <Card className="p-4">
-        <MascotPicker
-          value={user?.player_mascot ?? null}
-          onChange={(mascot) => void choose(mascot)}
-          disabled={pending}
+      <SectionHeading>Avatar</SectionHeading>
+      <Card className="flex items-center gap-4 p-4">
+        {/* The real `Avatar`, not the mark on its own: it is what resolves a
+            mascot down to initials, so the preview is the thing everybody else
+            sees rather than a second opinion about it. */}
+        <Avatar
+          name={user?.player_name ?? '?'}
+          seed={user?.player_id ?? undefined}
+          mascot={user?.player_mascot ?? null}
+          size={64}
         />
+        <div className="flex flex-1 flex-col items-start gap-1">
+          <MascotPicker
+            value={user?.player_mascot ?? null}
+            onChange={(mascot) => void choose(mascot)}
+            disabled={pending}
+          />
+        </div>
       </Card>
       <p className="text-xs text-ash/70">
-        {/* Said plainly because it is the one thing about the picker that is
-            not visible in it: a photo is the more specific statement, so it
-            wins, and the mascot is waiting underneath if the photo goes. */}
-        Shown wherever you appear — unless you've uploaded a picture, which
-        takes precedence.
+        {/* There is nothing to upload and nothing to explain about file sizes:
+            the marks ship with the app, so the only thing worth saying is what
+            happens if you pick none of them. */}
+        Shown wherever you appear. Pick none and you get your initials on a
+        colour of your own, generated from your name.
       </p>
     </section>
   )

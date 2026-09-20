@@ -129,7 +129,6 @@ function PlayerHero() {
       <Avatar
         name={user?.player_name ?? '?'}
         seed={user?.player_id ?? undefined}
-        avatarUrl={user?.player_avatar_url ?? null}
         mascot={user?.player_mascot ?? null}
         size={56}
       />
@@ -278,7 +277,6 @@ function RecentMatchRow({ match, playerId }: { match: MatchupSummary; playerId: 
     <Card as={Link} to={`/matches/${match.id}`} interactive className="flex items-center gap-3 p-3.5">
       <Avatar
         name={them?.player.display_name ?? '?'}
-        avatarUrl={them?.player.avatar_url}
         mascot={them?.player.mascot}
         size={36}
       />

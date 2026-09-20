@@ -23,7 +23,7 @@ from apps.rankings.api.serializers import RankingSerializer
 
 
 class PlayerSerializer(serializers.Serializer):
-    """A competitor as anybody may see them: a name, a picture, a mascot.
+    """A competitor as anybody may see them: a name and a mascot.
 
     ``mascot`` is a *key* (``"raptor"``, ``"polar-bear"``) and not a URL: the
     drawing lives in the client, so this rides along on every payload that
@@ -34,11 +34,7 @@ class PlayerSerializer(serializers.Serializer):
 
     id = serializers.UUIDField(read_only=True)
     display_name = serializers.CharField(read_only=True)
-    avatar_url = serializers.SerializerMethodField()
     mascot = serializers.SerializerMethodField()
-
-    def get_avatar_url(self, player) -> str | None:
-        return selectors.avatar_url(player=player)
 
     def get_mascot(self, player) -> str | None:
         # `""` on the row, `null` on the wire: the column cannot be null (see
@@ -60,7 +56,7 @@ class PlayerMeSerializer(PlayerSerializer):
 
 class PlayerProfileSerializer(PlayerSerializer):
     """``GET /api/v1/players/{display_name}/`` — the public profile: a name
-    and a picture, a rating per category the player has played, and the
+    and a mascot, a rating per category the player has played, and the
     badges they have earned. One round trip: ``rankings`` and ``badges`` are
     resolved from the same queries the ladder and a profile's badge case
     already use (``apps.rankings.selectors.list_rankings_for_player``,

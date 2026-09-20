@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Search, Wrench } from 'lucide-react'
 import { Button } from '../components/Button'
@@ -163,6 +163,21 @@ export function TesterPage() {
     enabled: editing !== null && editing !== 'new',
   })
 
+  /* A row whose file no longer holds it — renamed in the YAML, or synced once
+   * and since removed — fails that fetch, and there is then no entry for a form
+   * to be seeded from. Said where the click was and the selection dropped,
+   * rather than left as a panel under a three-column grid: below the fold, the
+   * only thing "Edit" appears to do is nothing. The wording is the backend's
+   * own — it names the file that should have held the question. */
+  useEffect(() => {
+    if (!source.isError) return
+    toast.error('That question has no source to edit', {
+      description: describeRefusal(source.error),
+      duration: 0,
+    })
+    setEditing(null)
+  }, [source.isError, source.error, toast])
+
   const toggleActive = useMutation({
     mutationFn: (question: TesterQuestionCard) =>
       setTesterQuestionActive(question.type, question.id, !question.is_active),
@@ -294,7 +309,13 @@ export function TesterPage() {
             onEdit={() => setEditing(question)}
             onToggleActive={() => toggleActive.mutate(question)}
             lockedReason={editable ? undefined : LOCKED_REASON}
-            busy={toggleActive.isPending && toggleActive.variables?.id === question.id}
+            /* Both verbs go dead while this question's source is in flight —
+               opening the editor is a fetch, and without this the card looks
+               untouched for as long as it takes. */
+            busy={
+              (toggleActive.isPending && toggleActive.variables?.id === question.id) ||
+              (source.isLoading && editing !== 'new' && editing?.id === question.id)
+            }
           />
         ))}
       </div>
@@ -334,9 +355,6 @@ export function TesterPage() {
           editing={{ question: editing, source: source.data }}
           onClose={() => setEditing(null)}
         />
-      )}
-      {editing && editing !== 'new' && source.isError && (
-        <ErrorState error={source.error} />
       )}
     </div>
   )

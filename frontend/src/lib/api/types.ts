@@ -43,10 +43,9 @@ export interface User {
   /** True while the name is the generated placeholder — the client's cue to
    *  ask for a real one (see /welcome). Nobody else has any use for it. */
   player_name_is_auto: boolean
-  player_avatar_url: string | null
   /** The mascot they chose, as a key (`"raptor"`), or `null` for initials.
-   *  Rides along for the same reason the name and the picture do — the avatar
-   *  in the top-right is on every page. */
+   *  Rides along for the same reason the name does — the avatar in the
+   *  top-right is on every page. */
   player_mascot: string | null
 }
 
@@ -67,12 +66,10 @@ export interface AuthTokens {
 
 /* --- The competitor -------------------------------------------------------- */
 
-/** A player as anybody may see them: a name, a picture, a mascot. Never an
- *  email. */
+/** A player as anybody may see them: a name and a mascot. Never an email. */
 export interface Player {
   id: string
   display_name: string
-  avatar_url: string | null
   /**
    * The chosen mascot, as a key — `"raptor"`, `"polar-bear"` — resolved
    * against `components/avatars`. Not a URL: the drawings ship with the

@@ -39,7 +39,7 @@ The question authoring pipeline and the scaffolding under it:
   JWT lifecycle, the sign-in lockout, password reset, Google sign-in, and
   `/auth/me/` — the one endpoint in the API that may emit an email address.
 - **`apps/players`** — the **competitor**: a display name (unique
-  case-insensitively, in the database as well as in a validator), an avatar,
+  case-insensitively, in the database as well as in a validator), a mascot,
   `GET/PATCH /players/me/`, and the public profile,
   `GET /players/{display_name}/` (rating per category, record, badges — one
   round trip, `AllowAny`).
@@ -1123,7 +1123,7 @@ bypassing the ingress that would otherwise set `X-Forwarded-Proto`, and
 without the exemption every probe hit is a 301 a *liveness* check reads as
 dead.
 
-`MEDIA_ROOT` (question images, and later avatars) defaults to `BASE_DIR /
+`MEDIA_ROOT` (question images and badge icons) defaults to `BASE_DIR /
 "media"` in `base.py` — correct for local dev, wrong for the container's code
 dir — and `production.py` overrides the default to `/data/media`: the same
 `/data` volume the Dockerfile already creates for a fallback SQLite

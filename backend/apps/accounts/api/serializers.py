@@ -29,7 +29,7 @@ class UserSerializer(serializers.Serializer):
     that would mean publishing a credential.
 
     The player fields ride along so a client needs one round trip rather than
-    two — the top-right avatar and the name are wanted on every page. They stay
+    two — the top-right mascot and the name are wanted on every page. They stay
     nullable because a staff account may have no ``Player``.
     """
 
@@ -41,7 +41,6 @@ class UserSerializer(serializers.Serializer):
     player_id = serializers.SerializerMethodField()
     player_name = serializers.SerializerMethodField()
     player_name_is_auto = serializers.SerializerMethodField()
-    player_avatar_url = serializers.SerializerMethodField()
     player_mascot = serializers.SerializerMethodField()
 
     def update(self, instance: User, validated_data: dict) -> User:
@@ -70,13 +69,9 @@ class UserSerializer(serializers.Serializer):
         player = self._player(user)
         return bool(player is not None and player.has_auto_name)
 
-    def get_player_avatar_url(self, user: User) -> str | None:
-        player = self._player(user)
-        return player_selectors.avatar_url(player=player) if player else None
-
     def get_player_mascot(self, user: User) -> str | None:
         """The mark they chose, or ``None`` for initials. Rides along for the
-        same reason the name and the picture do: it is on every page."""
+        same reason the name does: it is on every page."""
         player = self._player(user)
         return (player.mascot or None) if player else None
 

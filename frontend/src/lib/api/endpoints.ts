@@ -89,24 +89,6 @@ export async function setMyDisplayName(displayName: string): Promise<PlayerMe> {
 }
 
 /**
- * `PATCH /players/me/` 🔒 — set or remove the avatar.
- *
- * Multipart, and `null` is how a picture is *removed*: an `avatar` key holding
- * nothing clears it, while a PATCH that never mentions it leaves the existing
- * one alone. The Content-Type header is deleted rather than set, so the browser
- * writes its own with the multipart boundary — setting it by hand produces a
- * body Django cannot parse, with no error that says so.
- */
-export async function setMyAvatar(image: File | null): Promise<PlayerMe> {
-  const form = new FormData()
-  form.append('avatar', image ?? '')
-  const res = await apiClient.patch<PlayerMe>('/players/me/', form, {
-    headers: { 'Content-Type': undefined },
-  })
-  return res.data
-}
-
-/**
  * `PATCH /players/me/` 🔒 — wear a mascot, or `null` to go back to initials.
  *
  * Sends a *key*, not a picture. The drawing lives in

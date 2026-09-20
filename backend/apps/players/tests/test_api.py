@@ -2,18 +2,13 @@
 
 from __future__ import annotations
 
-import tempfile
-
 from django.conf import settings
-from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from rest_framework.test import APIClient
 
 from apps.players.models import Player
 
-from .factories import an_image, make_player
-
-MEDIA = tempfile.mkdtemp(prefix="knowdown-avatars-")
+from .factories import make_player
 
 
 class MeTests(TestCase):
@@ -26,7 +21,7 @@ class MeTests(TestCase):
         payload = self.client.get("/api/v1/players/me/").json()["data"]
         self.assertEqual(payload["display_name"], self.player.display_name)
         self.assertTrue(payload["has_auto_name"])
-        self.assertIsNone(payload["avatar_url"])
+        self.assertIsNone(payload["mascot"])
 
     def test_a_name_is_claimed_through_the_service(self):
         response = self.client.patch(
@@ -69,37 +64,6 @@ class MeTests(TestCase):
     def test_anonymous_callers_are_refused(self):
         self.client.force_authenticate(None)
         self.assertEqual(self.client.get("/api/v1/players/me/").status_code, 401)
-
-
-@override_settings(MEDIA_ROOT=MEDIA)
-class AvatarTests(TestCase):
-    def setUp(self):
-        self.player = make_player()
-        self.client = APIClient()
-        self.client.force_authenticate(self.player.user)
-
-    def test_a_picture_can_be_uploaded_and_read_back(self):
-        response = self.client.patch(
-            "/api/v1/players/me/", {"avatar": an_image()}, format="multipart"
-        )
-        self.assertEqual(response.status_code, 200)
-        self.assertIsNotNone(response.json()["data"]["avatar_url"])
-
-    def test_a_file_that_is_not_an_image_is_refused(self):
-        """Checked for what it *is*: an extension is a claim the uploader makes."""
-        disguised = SimpleUploadedFile("avatar.png", b"not an image", content_type="image/png")
-        response = self.client.patch(
-            "/api/v1/players/me/", {"avatar": disguised}, format="multipart"
-        )
-        self.assertEqual(response.status_code, 400)
-        self.assertEqual(response.json()["error"]["code"], "invalid_avatar")
-
-    def test_a_picture_can_be_cleared(self):
-        self.client.patch("/api/v1/players/me/", {"avatar": an_image()}, format="multipart")
-        response = self.client.patch(
-            "/api/v1/players/me/", {"avatar": ""}, format="multipart"
-        )
-        self.assertIsNone(response.json()["data"]["avatar_url"])
 
 
 class MascotTests(TestCase):

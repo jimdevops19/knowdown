@@ -26,7 +26,6 @@ import { StatusBadge } from '../../components/StatusBadge'
 export function Searching({
   roomName,
   displayName,
-  avatarUrl,
   mascot,
   playerId,
   waitingSeconds,
@@ -34,7 +33,6 @@ export function Searching({
 }: {
   roomName: string
   displayName: string
-  avatarUrl: string | null
   mascot: string | null
   playerId: string | null
   waitingSeconds: number
@@ -64,7 +62,6 @@ export function Searching({
         <Avatar
           name={displayName}
           seed={playerId ?? displayName}
-          avatarUrl={avatarUrl}
           mascot={mascot}
           size={96}
         />

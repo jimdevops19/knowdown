@@ -18,12 +18,7 @@ from django.db import IntegrityError, transaction
 
 from apps.core_common.exceptions import Conflict, ValidationFailed
 from apps.players import selectors, validators
-from apps.players.constants import (
-    ALLOWED_AVATAR_FORMATS,
-    AUTO_NAME_STEM,
-    AUTO_NAME_SUFFIX_LENGTH,
-    MAX_AVATAR_BYTES,
-)
+from apps.players.constants import AUTO_NAME_STEM, AUTO_NAME_SUFFIX_LENGTH
 from apps.players.models import Player
 from shared.logging import get_logger, labels
 
@@ -32,7 +27,6 @@ logger = get_logger(__name__)
 __all__ = [
     "ensure_player_for_user",
     "generate_display_name",
-    "set_avatar",
     "set_display_name",
     "set_mascot",
 ]
@@ -110,33 +104,6 @@ def set_display_name(*, player: Player, display_name: str) -> Player:
     return player
 
 
-def set_avatar(*, player: Player, image) -> Player:
-    """Store an uploaded picture, or clear the one there.
-
-    Checked before it is written, and checked for what it *is* rather than for
-    what it is called: an extension is a claim the uploader makes, and the only
-    honest answer comes from decoding the file.
-    """
-    if image is None:
-        player.avatar.delete(save=False)
-        player.avatar = None
-        player.save(update_fields=["avatar", "updated_at"])
-        logger.info("Avatar cleared", player=labels.player(player))
-        return player
-
-    if image.size > MAX_AVATAR_BYTES:
-        raise ValidationFailed(
-            f"That picture is too large. The limit is {MAX_AVATAR_BYTES // (1024 * 1024)} MB.",
-            code="avatar_too_large",
-        )
-    _validate_image_format(image=image)
-
-    player.avatar = image
-    player.save(update_fields=["avatar", "updated_at"])
-    logger.info("Avatar uploaded", player=labels.player(player))
-    return player
-
-
 def set_mascot(*, player: Player, mascot: str | None) -> Player:
     """Wear one of the marks, or `None` to go back to initials.
 
@@ -156,27 +123,3 @@ def set_mascot(*, player: Player, mascot: str | None) -> Player:
     player.save(update_fields=["mascot", "updated_at"])
     logger.info("Mascot chosen", player=labels.player(player), mascot=mascot)
     return player
-
-
-def _validate_image_format(*, image) -> None:
-    """Refuse anything Pillow will not open, or opens as a format we don't serve."""
-    from PIL import Image, UnidentifiedImageError
-
-    try:
-        with Image.open(image) as opened:
-            opened.verify()
-            image_format = opened.format
-    except (UnidentifiedImageError, OSError) as exc:
-        raise ValidationFailed(
-            "That file isn't an image we can read.", code="invalid_avatar"
-        ) from exc
-    finally:
-        # `Image.open` consumes the upload's stream; anything that reads it
-        # afterwards (the storage backend, for one) starts from wherever
-        # Pillow stopped unless it is wound back.
-        image.seek(0)
-
-    if image_format not in ALLOWED_AVATAR_FORMATS:
-        raise ValidationFailed(
-            "Avatars must be a JPEG, PNG or WEBP image.", code="invalid_avatar"
-        )

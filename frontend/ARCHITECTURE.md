@@ -147,7 +147,7 @@ the bootstrap refresh behind itself would deadlock.
 | GET/PATCH 🔒 | `auth/me/` | **The only endpoint in the API that may emit an email address.** |
 | GET 🔓 | `categories/`, `categories/{slug}/` | |
 | GET 🔓 | `rooms/`, `rooms/{slug}/` | **The lobby.** A room is the settings a match is played under — its categories, their tag filters, the lengths it runs, and `question_pool_size` (below its shortest match, it cannot be played). `is_rated` is false for a room drawing from more than one category — a result can only move one ladder, so a mixed room is played unrated and the lobby says so. |
-| GET/PATCH 🔒 | `players/me/` | Name, avatar and mascot. PATCH routes to services, not to a serializer `update`. |
+| GET/PATCH 🔒 | `players/me/` | Name and mascot. PATCH routes to services, not to a serializer `update`. |
 | GET 🔒 | `players/display-name-available/` | Authenticated, so it isn't a name-enumeration oracle. |
 | GET 🔓 | `players/{display_name}/` | Public profile: ratings + badges, one round trip. Case-insensitive. |
 | GET 🔓 | `rankings/{category}/` | Paginated ladder. |

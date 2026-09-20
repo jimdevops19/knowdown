@@ -68,8 +68,6 @@ export function MatchSummary({
   const sides = boxScore.data?.players ?? []
   const nameFor = (playerId: string) =>
     sides.find((side) => side.player.id === playerId)?.player.display_name ?? null
-  const avatarFor = (playerId: string) =>
-    sides.find((side) => side.player.id === playerId)?.player.avatar_url ?? null
   const mascotFor = (playerId: string) =>
     sides.find((side) => side.player.id === playerId)?.player.mascot ?? null
 
@@ -99,7 +97,6 @@ export function MatchSummary({
         <Finalist
           name={(myPlayerId && nameFor(myPlayerId)) ?? 'You'}
           seed={myPlayerId ?? 'you'}
-          avatarUrl={myPlayerId ? avatarFor(myPlayerId) : null}
           mascot={myPlayerId ? mascotFor(myPlayerId) : null}
           score={myScore}
           winner={won}
@@ -113,7 +110,6 @@ export function MatchSummary({
         <Finalist
           name={(opponentId && nameFor(opponentId)) ?? 'Rival'}
           seed={opponentId ?? 'rival'}
-          avatarUrl={opponentId ? avatarFor(opponentId) : null}
           mascot={opponentId ? mascotFor(opponentId) : null}
           score={theirScore}
           winner={!drew && !won}
@@ -325,7 +321,6 @@ function Banner({
 function Finalist({
   name,
   seed,
-  avatarUrl,
   mascot,
   score,
   winner,
@@ -333,7 +328,6 @@ function Finalist({
 }: {
   name: string
   seed: string
-  avatarUrl: string | null
   mascot: string | null
   score: number
   winner: boolean
@@ -356,7 +350,6 @@ function Finalist({
       <Avatar
         name={name}
         seed={seed}
-        avatarUrl={avatarUrl}
         mascot={mascot}
         size={48}
         ring={winner}

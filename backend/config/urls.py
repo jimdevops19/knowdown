@@ -54,8 +54,9 @@ if settings.DEBUG:
         path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="docs"),
     ]
 
-# No object storage yet, so Django serves uploads itself — question images, and
-# later player avatars. NOT `django.conf.urls.static.static()`, which no-ops
+# No object storage yet, so Django serves uploads itself — question images and
+# badge icons, which are authored assets rather than anything a player uploads
+# (there is no upload endpoint in this API at all). NOT `django.conf.urls.static.static()`, which no-ops
 # unless DEBUG: uploads would then write fine and 404 on read. Built by hand
 # instead, with the same regex that helper would use.
 urlpatterns += [

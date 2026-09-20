@@ -5,11 +5,10 @@ import { hashHue } from '../lib/nameColor'
 /*
  * Circular avatar.
  *
- * Three things can fill it, in this order: an uploaded picture, the mascot the
- * player chose, or their initials on a colour derived from their name. The
- * order is the order of deliberateness — a photo is the most specific thing
- * somebody can say about themselves, a mascot is a thing they picked from a
- * list, and initials are what the app says when they have said nothing.
+ * Two things can fill it: the mascot the player chose, or their initials on a
+ * colour derived from their name. There is no third — uploading a picture was
+ * removed along with the endpoint behind it, so the app never renders an image
+ * somebody else supplied.
  *
  * Every identity gets a deterministic gradient derived from its own string, so
  * a player reads as the same colour everywhere — and, during a live match,
@@ -23,7 +22,6 @@ import { hashHue } from '../lib/nameColor'
 export function Avatar({
   name,
   seed,
-  avatarUrl,
   mascot,
   size = 40,
   ring = false,
@@ -32,8 +30,6 @@ export function Avatar({
   name: string
   /** Colour seed, when it differs from the name — a player id, mid-match. */
   seed?: string
-  /** A real uploaded/imported image. Falls back to the mascot, then initials. */
-  avatarUrl?: string | null
   /**
    * The mascot key off the player payload, e.g. `"raptor"`.
    *
@@ -49,19 +45,6 @@ export function Avatar({
   const halo = ring
     ? `0 0 0 2px hsl(${hue} 75% 60% / 0.55), 0 0 18px -2px hsl(${hue} 75% 60% / 0.6)`
     : undefined
-
-  if (avatarUrl) {
-    return (
-      <img
-        src={avatarUrl}
-        alt={name}
-        width={size}
-        height={size}
-        style={{ width: size, height: size, boxShadow: halo }}
-        className="inline-block shrink-0 rounded-full object-cover ring-1 ring-chalk/10"
-      />
-    )
-  }
 
   // The mark itself is a disc, so it needs no fill behind it — but it keeps
   // the same ring and halo as every other avatar, because "whose turn it is"
