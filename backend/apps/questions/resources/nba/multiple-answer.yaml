@@ -107,18 +107,6 @@ questions:
       - {text: Vince Carter}
 
   - type: multiple-answer
-    slug: nba-2000s-champion-franchises
-    description: Which of these teams won an NBA championship during the 2000s decade?
-    level: 4
-    tags: {topic: finals, era: 2000s}
-    options:
-      - {text: San Antonio Spurs, is_correct: true}
-      - {text: Detroit Pistons, is_correct: true}
-      - {text: Miami Heat, is_correct: true}
-      - {text: Phoenix Suns}
-      - {text: Sacramento Kings}
-
-  - type: multiple-answer
     slug: nba-high-school-draftees-2000s
     description: Which of these players were drafted directly out of high school in the 2000s?
     level: 6
@@ -221,20 +209,6 @@ questions:
       - {text: LaMarcus Aldridge}
 
   - type: multiple-answer
-    slug: nba-2007-celtics-trade-acquisitions
-    description: >-
-      Which of these players did the Boston Celtics acquire via trade in the
-      summer of 2007, ahead of their 2008 title run?
-    level: 5
-    tags: {topic: teams, era: 2000s}
-    options:
-      - {text: Kevin Garnett, is_correct: true}
-      - {text: Ray Allen, is_correct: true}
-      - {text: Paul Pierce}
-      - {text: Rajon Rondo}
-      - {text: Kendrick Perkins}
-
-  - type: multiple-answer
     slug: nba-2000s-number-one-draft-picks
     description: Which of these players were number one overall draft picks during the 2000s?
     level: 5
@@ -297,20 +271,6 @@ questions:
       - {text: Orlando Magic, is_correct: true}
       - {text: Sacramento Kings}
       - {text: Utah Jazz}
-
-  - type: multiple-answer
-    slug: nba-2000-lakers-championship-teammates
-    description: >-
-      Which of these players were teammates of Kobe Bryant on the 2000
-      championship Los Angeles Lakers roster?
-    level: 6
-    tags: {topic: teams, era: 2000s}
-    options:
-      - {text: Shaquille O'Neal, is_correct: true}
-      - {text: Robert Horry, is_correct: true}
-      - {text: Rick Fox, is_correct: true}
-      - {text: Pau Gasol}
-      - {text: Lamar Odom}
 
   - type: multiple-answer
     slug: nba-2010s-champion-franchises
@@ -379,31 +339,6 @@ questions:
       - {text: Tristan Thompson, is_correct: true}
       - {text: Andrew Wiggins}
       - {text: Dion Waiters}
-
-  - type: multiple-answer
-    slug: nba-2010s-finals-mvp-winners
-    description: Which of these players were named Finals MVP during the 2010s?
-    level: 6
-    tags: {topic: awards, era: 2010s}
-    options:
-      - {text: Dirk Nowitzki, is_correct: true}
-      - {text: Andre Iguodala, is_correct: true}
-      - {text: Kawhi Leonard, is_correct: true}
-      - {text: Chris Bosh}
-      - {text: Klay Thompson}
-
-  - type: multiple-answer
-    slug: nba-2010s-relocations-renames
-    description: >-
-      Which of these franchise moves or name changes happened during the 2010s?
-    level: 7
-    tags: {topic: history, era: 2010s}
-    options:
-      - {text: The Nets moved from New Jersey to Brooklyn, is_correct: true}
-      - {text: New Orleans changed its nickname to the Pelicans, is_correct: true}
-      - {text: Charlotte reclaimed the Hornets name, is_correct: true}
-      - {text: The Grizzlies moved from Vancouver to Memphis}
-      - {text: The SuperSonics moved from Seattle to Oklahoma City}
 
   - type: multiple-answer
     slug: nba-2010s-number-one-draft-picks
@@ -485,16 +420,3 @@ questions:
       - {text: Kawhi Leonard, is_correct: true}
       - {text: LaMarcus Aldridge}
       - {text: DeMar DeRozan}
-
-  - type: multiple-answer
-    slug: nba-2010s-rookie-of-the-year-winners
-    description: Which of these players won Rookie of the Year during the 2010s?
-    level: 6
-    tags: {topic: awards, era: 2010s}
-    options:
-      - {text: Blake Griffin, is_correct: true}
-      - {text: Damian Lillard, is_correct: true}
-      - {text: Ben Simmons, is_correct: true}
-      - {text: Luka Doncic, is_correct: true}
-      - {text: Donovan Mitchell}
-      - {text: Zion Williamson}

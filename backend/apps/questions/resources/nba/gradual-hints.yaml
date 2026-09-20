@@ -401,23 +401,6 @@ questions:
         accepted_answers: [Allen Iverson, Iverson, AI]
 
   - type: gradual-hints
-    slug: nba-guess-the-game-dirk-nowitzki-2006-finals-loss
-    description: Guess the Finals.
-    level: 7
-    tags: {topic: finals, era: 2000s}
-    hints:
-      - The losing team led the series two games to none before it slipped away.
-      - A German forward put up historic numbers in a losing effort.
-      - A controversial late foul call in Game 5 became one of the series' defining moments.
-      - Dwyane Wade was named Finals MVP for the winning side.
-    answer_fields:
-      - label: Year
-        kind: number
-        accepted_answers: [2006]
-      - label: Losing team's star
-        accepted_answers: [Dirk Nowitzki, Nowitzki, Dirk]
-
-  - type: gradual-hints
     slug: nba-guess-the-game-ginobili-sixth-man-2008
     description: Guess the player and award.
     level: 7
@@ -501,25 +484,6 @@ questions:
         accepted_answers: [2011]
       - label: Champion
         accepted_answers: [Dallas Mavericks, Mavericks, Dallas, Mavs]
-
-  - type: gradual-hints
-    slug: nba-guess-the-game-2013-finals-game-seven
-    description: Guess the game.
-    level: 7
-    tags: {topic: finals, era: 2010s}
-    hints:
-      - The final score was 95-88.
-      - The losing team's aging star grabbed 17 rebounds but missed a bunny in the closing minutes.
-      - It came two nights after one of the most famous comebacks in Finals history.
-      - LeBron James scored 37 and won his second straight Finals MVP.
-    answer_fields:
-      - label: Year
-        kind: number
-        accepted_answers: [2013]
-      - label: Game number
-        accepted_answers: [7, Game 7]
-      - label: Winner
-        accepted_answers: [Miami Heat, Heat, Miami]
 
   - type: gradual-hints
     slug: nba-guess-the-game-2016-warriors-seventy-three-wins

@@ -99,17 +99,6 @@ questions:
       - {text: Stephon Marbury}
 
   - type: single-answer
-    slug: nba-2011-regular-season-mvp
-    description: Who was named regular-season MVP for the 2010-11 season?
-    level: 5
-    tags: {topic: awards, era: 2010s}
-    options:
-      - {text: Derrick Rose, is_correct: true}
-      - {text: LeBron James}
-      - {text: Dwight Howard}
-      - {text: Kevin Durant}
-
-  - type: single-answer
     slug: nba-kobe-bryant-draft-team
     description: >-
       Which team selected Kobe Bryant in the 1996 NBA Draft before trading him
@@ -198,17 +187,6 @@ questions:
       - {text: Bill Russell}
       - {text: Nate Thurmond}
       - {text: Jerry Lucas}
-
-  - type: single-answer
-    slug: nba-only-unanimous-mvp
-    description: Which player is the only unanimous winner of the NBA MVP award?
-    level: 6
-    tags: {topic: awards, era: 2010s}
-    options:
-      - {text: Stephen Curry, is_correct: true}
-      - {text: Shaquille O'Neal}
-      - {text: LeBron James}
-      - {text: Michael Jordan}
 
   - type: single-answer
     slug: nba-most-threes-single-game
@@ -401,122 +379,6 @@ questions:
       - {text: New York Knicks}
 
   - type: single-answer
-    slug: nba-2001-mvp-award-winner
-    description: Who won the NBA regular-season MVP award for the 2000-01 season?
-    level: 3
-    tags: {topic: awards, era: 2000s}
-    options:
-      - {text: Allen Iverson, is_correct: true}
-      - {text: Shaquille O'Neal}
-      - {text: Tim Duncan}
-      - {text: Kobe Bryant}
-
-  - type: single-answer
-    slug: nba-2003-draft-first-overall-pick
-    description: Which player was selected first overall in the 2003 NBA Draft?
-    level: 2
-    tags: {topic: draft, era: 2000s}
-    options:
-      - {text: LeBron James, is_correct: true}
-      - {text: Carmelo Anthony}
-      - {text: Dwyane Wade}
-      - {text: Chris Bosh}
-
-  - type: single-answer
-    slug: nba-2004-finals-pistons-mvp
-    description: Who won Finals MVP when the Detroit Pistons upset the Lakers in 2004?
-    level: 5
-    tags: {topic: finals, era: 2000s}
-    options:
-      - {text: Chauncey Billups, is_correct: true}
-      - {text: Ben Wallace}
-      - {text: Rasheed Wallace}
-      - {text: Richard Hamilton}
-
-  - type: single-answer
-    slug: nba-2000-dunk-contest-winner
-    description: Who won the NBA Slam Dunk Contest in 2000?
-    level: 2
-    tags: {topic: awards, era: 2000s}
-    options:
-      - {text: Vince Carter, is_correct: true}
-      - {text: Tracy McGrady}
-      - {text: Steve Francis}
-      - {text: Jerry Stackhouse}
-
-  - type: single-answer
-    slug: nba-2002-draft-first-overall-yao
-    description: >-
-      Which player, a 7-foot-6 center from China, was picked first overall in
-      the 2002 NBA Draft?
-    level: 3
-    tags: {topic: draft, era: 2000s}
-    options:
-      - {text: Yao Ming, is_correct: true}
-      - {text: Mengke Bateer}
-      - {text: Wang Zhizhi}
-      - {text: Yi Jianlian}
-
-  - type: single-answer
-    slug: nba-2006-finals-mvp-wade
-    description: Who won Finals MVP as the Miami Heat won their first NBA championship in 2006?
-    level: 3
-    tags: {topic: finals, era: 2000s}
-    options:
-      - {text: Dwyane Wade, is_correct: true}
-      - {text: Shaquille O'Neal}
-      - {text: Alonzo Mourning}
-      - {text: Antoine Walker}
-
-  - type: single-answer
-    slug: nba-2008-celtics-big-three-third-member
-    description: >-
-      Kevin Garnett and Ray Allen joined which player to form the Boston
-      Celtics' "Big Three" before the 2008 title run?
-    level: 3
-    tags: {topic: teams, era: 2000s}
-    options:
-      - {text: Paul Pierce, is_correct: true}
-      - {text: Rajon Rondo}
-      - {text: Antoine Walker}
-      - {text: Kendrick Perkins}
-
-  - type: single-answer
-    slug: nba-2007-finals-spurs-sweep-opponent
-    description: The San Antonio Spurs swept which team to win the 2007 NBA Finals?
-    level: 4
-    tags: {topic: finals, era: 2000s}
-    options:
-      - {text: Cleveland Cavaliers, is_correct: true}
-      - {text: Detroit Pistons}
-      - {text: Phoenix Suns}
-      - {text: Utah Jazz}
-
-  - type: single-answer
-    slug: nba-shaq-traded-2004-destination
-    description: Shaquille O'Neal was traded away from the Lakers in 2004 to which team?
-    level: 4
-    tags: {topic: teams, era: 2000s}
-    options:
-      - {text: Miami Heat, is_correct: true}
-      - {text: Orlando Magic}
-      - {text: Phoenix Suns}
-      - {text: Boston Celtics}
-
-  - type: single-answer
-    slug: nba-2005-2006-mvp-nash-team
-    description: >-
-      Steve Nash won back-to-back MVP awards in 2005 and 2006 while playing
-      for which team?
-    level: 3
-    tags: {topic: awards, era: 2000s}
-    options:
-      - {text: Phoenix Suns, is_correct: true}
-      - {text: Dallas Mavericks}
-      - {text: Los Angeles Lakers}
-      - {text: Golden State Warriors}
-
-  - type: single-answer
     slug: nba-2003-finals-mvp-duncan-opponent
     description: >-
       The San Antonio Spurs beat which team to win the 2003 NBA Finals, with
@@ -541,17 +403,6 @@ questions:
       - {text: Sacramento Kings}
       - {text: San Antonio Spurs}
       - {text: Indiana Pacers}
-
-  - type: single-answer
-    slug: nba-malice-at-the-palace-year
-    description: In which year did the "Malice at the Palace" brawl between the Pistons and Pacers take place?
-    level: 5
-    tags: {topic: history, era: 2000s}
-    options:
-      - {text: "2004", is_correct: true}
-      - {text: "2003"}
-      - {text: "2005"}
-      - {text: "2006"}
 
   - type: single-answer
     slug: nba-2004-rookie-of-the-year
@@ -585,28 +436,6 @@ questions:
       - {text: Larry Brown}
       - {text: George Karl}
       - {text: Gregg Popovich}
-
-  - type: single-answer
-    slug: nba-carmelo-anthony-2003-draft-team
-    description: Which team drafted Carmelo Anthony third overall in 2003?
-    level: 3
-    tags: {topic: draft, era: 2000s}
-    options:
-      - {text: Denver Nuggets, is_correct: true}
-      - {text: New York Knicks}
-      - {text: Portland Trail Blazers}
-      - {text: Detroit Pistons}
-
-  - type: single-answer
-    slug: nba-seattle-sonics-became-thunder-year
-    description: In what year did the Seattle SuperSonics relocate and become the Oklahoma City Thunder?
-    level: 4
-    tags: {topic: history, era: 2000s}
-    options:
-      - {text: "2008", is_correct: true}
-      - {text: "2007"}
-      - {text: "2009"}
-      - {text: "2006"}
 
   - type: single-answer
     slug: nba-2009-finals-lakers-opponent
@@ -646,19 +475,6 @@ questions:
       - {text: Dwight Howard}
 
   - type: single-answer
-    slug: nba-2013-finals-game-six-corner-three
-    description: >-
-      Who hit the corner three-pointer with 5.2 seconds left in Game 6 of the
-      2013 NBA Finals to force overtime?
-    level: 3
-    tags: {topic: finals, era: 2010s}
-    options:
-      - {text: Ray Allen, is_correct: true}
-      - {text: Mario Chalmers}
-      - {text: Shane Battier}
-      - {text: Dwyane Wade}
-
-  - type: single-answer
     slug: nba-2014-finals-mvp-spurs
     description: Who was named Finals MVP when the San Antonio Spurs won the 2014 title?
     level: 4
@@ -681,30 +497,6 @@ questions:
       - {text: Stephen Curry}
       - {text: Draymond Green}
       - {text: Klay Thompson}
-
-  - type: single-answer
-    slug: nba-2016-warriors-regular-season-win-record
-    description: >-
-      How many regular-season games did the 2015-16 Golden State Warriors win to
-      set the all-time record?
-    level: 3
-    tags: {topic: records, era: 2010s}
-    options:
-      - {text: "73", is_correct: true}
-      - {text: "72"}
-      - {text: "74"}
-      - {text: "70"}
-
-  - type: single-answer
-    slug: nba-2019-first-championship-franchise
-    description: Which franchise won its first NBA championship in 2019?
-    level: 2
-    tags: {topic: finals, era: 2010s}
-    options:
-      - {text: Toronto Raptors, is_correct: true}
-      - {text: Milwaukee Bucks}
-      - {text: Denver Nuggets}
-      - {text: Portland Trail Blazers}
 
   - type: single-answer
     slug: nba-2019-finals-raptors-opponent
@@ -755,17 +547,6 @@ questions:
       - {text: New York Knicks}
       - {text: Chicago Bulls}
       - {text: Los Angeles Clippers}
-
-  - type: single-answer
-    slug: nba-2012-linsanity-franchise
-    description: Which team was Jeremy Lin playing for during his 2012 "Linsanity" run?
-    level: 4
-    tags: {topic: players, era: 2010s}
-    options:
-      - {text: New York Knicks, is_correct: true}
-      - {text: Houston Rockets}
-      - {text: Golden State Warriors}
-      - {text: Brooklyn Nets}
 
   - type: single-answer
     slug: nba-2016-durant-free-agency-departure
