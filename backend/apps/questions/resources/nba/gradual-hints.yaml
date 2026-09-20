@@ -19,6 +19,16 @@
 #                           spelling that fills it, and `kind: number` on the
 #                           ones that want digits (the default is `text`).
 #
+#                           WARNING — DO NOT AUTHOR A THIRD FIELD. Two boxes
+#                           is the cap. At phone resolution a third one makes
+#                           the answer area look crowded and is not displayed
+#                           in a user-friendly way: the player has to scroll
+#                           down and tap back into a box to keep typing, which
+#                           costs them seconds on a clock that never stops.
+#                           The loader still accepts more for legacy rows —
+#                           this cap is an authoring rule, not a load error.
+#                           Every question in this file stops at two.
+#
 # The first clue lands the moment the clock starts and each of the others one
 # interval later, on the server's own stamp, so both players watch the same
 # reveal at the same instant. A player who answers on clue one is answering a
@@ -32,9 +42,9 @@
 # names the series has made the other three decorative, and a file whose last
 # clue is still cryptic is a ten-second question wearing a forty-second clock.
 #
-# SCORING IS PER FIELD. A player who gets the year and the round but not the
-# game number scored two thirds, exactly the way a matrix grid is credited per
-# cell (see matrix.yaml). So fields should be independently knowable: "year"
+# SCORING IS PER FIELD. A player who gets the year but not the game number
+# scored half, exactly the way a matrix grid is credited per cell (see
+# matrix.yaml). So fields should be independently knowable: "year"
 # and "round" are two facts, "year" and "the last two digits of the year" are
 # one fact asked twice.
 #
@@ -44,6 +54,13 @@
 # that is not digits — a box wanting "Game 7" is a text box, even though it is
 # mostly a number. Nothing about the *answer* reaches the board: the width comes
 # from the kind, never from how long the accepted answers happen to be.
+#
+# NO CLUE MAY CONTAIN AN ANSWER. A hint that says "in 2016" beside a Year box,
+# or "he finished with 70 points" beside a Points box, is not a clue — it is the
+# answer key on a timer, and it makes the two fields one fact. Name the thing
+# around the answer (the opponent, the arena, the record it broke) and let the
+# player supply the number. The same goes for arithmetic giveaways: "the series
+# ended 4-3" beside a Game number box spells out seven.
 #
 # ACCEPTED ANSWERS ARE SHORT. Matching is case- and whitespace-insensitive but
 # nothing else, so list every honest spelling — a player racing a clock types
@@ -79,13 +96,11 @@ questions:
       - The final score was 93-89.
       - Draymond Green hit six three-pointers.
       - '"OH, BLOCKED BY JAMES!" — LeBron James with the rejection.'
-      - The series ended 4-3 to the Cleveland Cavaliers.
+      - Cleveland won the first championship in franchise history that night.
     answer_fields:
       - label: Year
         kind: number
         accepted_answers: [2016, 16]
-      - label: Round
-        accepted_answers: [Finals, NBA Finals, The Finals]
       # Text, not number: "Game 7" and "Seven" fill it too, and a box that
       # promised digits would be lying about half its answer key.
       - label: Game number
@@ -100,13 +115,11 @@ questions:
       - The home team trailed by five with 28 seconds left and won.
       - Chris Bosh got the offensive rebound that kept the possession alive.
       - Ray Allen backpedalled into the corner and tied it with 5.2 seconds left.
-      - It went to overtime and forced a game seven in Miami.
+      - It went to overtime and kept the series alive.
     answer_fields:
       - label: Year
         kind: number
         accepted_answers: [2013, 13]
-      - label: Round
-        accepted_answers: [Finals, NBA Finals, The Finals]
       - label: Game number
         accepted_answers: ["6", Game 6, Six, "Game6"]
 
@@ -138,7 +151,7 @@ questions:
     hints:
       - He scored more points in the second half alone than the Raptors had at halftime.
       - His team trailed by 18 points at one stage before storming back to win.
-      - The final line was 81 points on 28-of-46 shooting.
+      - He shot 28-of-46 from the field and 18-of-20 from the line.
       - It is the second-highest single-game scoring total in NBA history.
     answer_fields:
       - label: Year
@@ -517,7 +530,7 @@ questions:
       - The team started the season 24-0.
       - The record they broke had stood since 1996.
       - Their point guard was voted MVP unanimously that spring.
-      - They finished 73-9 and then lost the Finals.
+      - They lost the Finals that June after setting the record.
     answer_fields:
       - label: Season ending year
         kind: number
@@ -586,7 +599,7 @@ questions:
       - He averaged 31.6 points, 10.7 rebounds and 10.4 assists.
       - He sealed the record with a 36-footer to beat Denver.
       - His co-star had left for Golden State the previous summer.
-      - He finished with 42 triple-doubles, one more than Oscar Robertson's record.
+      - He finished with one more triple-double than Oscar Robertson's record.
     answer_fields:
       - label: Season ending year
         kind: number
@@ -604,7 +617,7 @@ questions:
       - His team lost the game by 10 and he still took 40 shots.
       - The crowd at TD Garden chanted for him to get there.
       - He was 20 years old, the youngest ever to do it.
-      - He finished with 70 points against the Boston Celtics in March 2017.
+      - He did it against the Boston Celtics in March 2017.
     answer_fields:
       - label: Player
         accepted_answers: [Devin Booker, Booker]
@@ -621,7 +634,7 @@ questions:
       - He had been trash-talked all series by Paul George.
       - The shot came from 37 feet with the game tied and no time-outs left.
       - He waved goodbye to the visiting bench as it dropped.
-      - It eliminated the Thunder in Game 5 of the 2019 first round.
+      - It eliminated the Thunder in Game 5 of the first round.
     answer_fields:
       - label: Player
         accepted_answers: [Damian Lillard, Lillard, Dame]
@@ -672,7 +685,7 @@ questions:
       - He was a perfect 13-for-13 from the field in the period.
       - Nine of the shots were three-pointers.
       - It happened against the Sacramento Kings in January 2015.
-      - The 37 points broke George Gervin's single-quarter record.
+      - The quarter broke George Gervin's single-quarter scoring record.
     answer_fields:
       - label: Player
         accepted_answers: [Klay Thompson, Klay, Thompson]
