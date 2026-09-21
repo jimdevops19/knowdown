@@ -191,7 +191,7 @@ export function RoomBall({ color, className, ...content }: RoomBallProps) {
       </svg>
 
       {content.logo && (
-        <span className="pointer-events-none absolute inset-0 flex items-center justify-center p-[24%]">
+        <span className="pointer-events-none absolute inset-0 flex items-center justify-center p-[17%]">
           {content.logo}
         </span>
       )}
