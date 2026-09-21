@@ -8,6 +8,7 @@ import { useAuth } from '../features/auth/useAuth'
 import { Avatar } from '../components/Avatar'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
+import { RankingsNumberDisplay } from '../components/RankingsNumberDisplay'
 import { SectionHeading } from '../components/SectionHeading'
 import { EmptyState, ErrorState, Loading } from '../components/states'
 import { formatRecord, ordinal, winRate } from '../lib/format'
@@ -170,11 +171,6 @@ function LadderRow({
   position: number
   isMe: boolean
 }) {
-  // Gold only for the actual podium. A ladder where a dozen rows are gold is a
-  // ladder where gold means nothing — the whole point of the token is that it
-  // is scarce.
-  const podium = position <= 3
-
   return (
     <li>
       <Link
@@ -185,13 +181,11 @@ function LadderRow({
             : 'border-chalk/6 bg-panel/70 hover:border-chalk/15'
         }`}
       >
-        <span
-          className={`nums w-9 shrink-0 text-center font-display text-sm font-bold ${
-            podium ? 'text-gold' : 'text-ash'
-          }`}
-        >
-          {position}
-          <span className="sr-only"> — {ordinal(position)}</span>
+        <span className="shrink-0">
+          <RankingsNumberDisplay rank={position} size={32} />
+          <span className="sr-only">
+            {position} — {ordinal(position)}
+          </span>
         </span>
         <Avatar
           name={entry.player.display_name}

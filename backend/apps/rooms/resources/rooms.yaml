@@ -25,6 +25,40 @@
 # the same thing (it is deactivated, never deleted), because matchups already
 # played in it point at the row.
 #
+# `logo` is what the lobby's ball wears on its face *instead of* the room's own
+# name — leave it out (the common case) and the ball is lettered with the
+# name instead (or a short override the client keeps, e.g. "NBA" or "RW" — see
+# `ROOM_BALL_LABELS` in frontend/src/features/play/RoomCircles.tsx). A ball
+# never wears both a logo and a name.
+#
+# The value is a key, not a picture — the actual artwork lives in
+# `frontend/src/components/icons/roomLogos.tsx`, in the `ROOM_LOGOS` registry.
+# To see what logos exist today, or to add a new one:
+#   1. Open frontend/src/components/icons/roomLogos.tsx and look at ROOM_LOGOS.
+#   2. To add one: draw the icon there, add its key to ROOM_LOGOS, then add the
+#      same key to apps.rooms.constants.ROOM_LOGO_KEYS (the backend allow-list
+#      this file is validated against — an unknown key fails the sync rather
+#      than rendering a blank ball).
+# Known keys as of this writing: tv (a boxy retro CRT — the 2000s room's mark).
+#
+# `color` is which hue the room's ball is drawn in. Leave it out (the common
+# case) and the lobby cycles the default four (orange, violet, pink, lime) by
+# the room's position instead — a room only needs `color:` to break from that
+# rotation on purpose.
+#
+# Like `logo`, the value is a key, not a hex code — the gradients live in
+# `frontend/src/components/avatars/RoomBall.tsx`, in the `PALETTES` object.
+# To see what colors exist, or to add a new one:
+#   1. Open frontend/src/components/avatars/RoomBall.tsx and look at PALETTES.
+#   2. To add one: pick light/mid/dark/rim shades there, add the key to
+#      PALETTES, then add the same key to
+#      apps.rooms.constants.ROOM_BALL_COLOR_KEYS (the backend allow-list this
+#      file is validated against).
+# Known keys as of this writing (28): orange, violet, pink, lime, red, amber,
+# gold, yellow, green, emerald, teal, cyan, sky, blue, indigo, purple,
+# fuchsia, rose, copper, slate, peach, apricot, tangerine, marmalade, rust,
+# sunset, honey, papaya.
+#
 # Loaded by: uv run python manage.py sync_rooms   (after sync_questions)
 
 - name: NBA
@@ -50,11 +84,13 @@
 
 - name: The 2000s
   slug: nba-room-2000s
+  color: copper
   description: >-
     Kobe, Duncan, the Pistons and everything else from the decade the league
     argues hardest about.
   questions_asked_ranges: [4, 5, 6]
   display_order: 3
+  logo: tv
   categories:
     - slug: nba
       filter_tags:
@@ -72,7 +108,7 @@
       filter_tags:
         topic: awards
 
-- name: How much you know Brodie ?
+- name: Russell Westbrook
   slug: nba-room-westbrook
   description: >-
     Celebrating Russell Westbrook's career — let's see if you can beat your

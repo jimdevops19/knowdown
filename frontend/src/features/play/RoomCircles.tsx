@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import { listRooms } from '../../lib/api/endpoints'
 import { queryKeys } from '../../lib/query/queryClient'
 import { ErrorState } from '../../components/states'
+import { RoomBall, BALL_COLOR_KEYS, type BallColor } from '../../components/avatars/RoomBall'
+import { ROOM_LOGOS } from '../../components/icons/roomLogos'
 import type { Room } from '../../lib/api/types'
 
 /*
@@ -75,6 +77,15 @@ import type { Room } from '../../lib/api/types'
  * server-side, so a player who joined would sit in a queue that could only ever
  * fail — and silently dropping a room from the lobby makes an authoring mistake
  * invisible to the person who made it.
+ *
+ * ── The disc is a ball ───────────────────────────────────────────────────────
+ * A playable disc renders as `RoomBall`: a gradient sphere rather than the flat
+ * fill this used to be. That is a deliberate departure from the flat-fill rule
+ * elsewhere in the lobby — a room is the one place in the app shaped like a
+ * literal ball, so it is allowed to look like one. The room's name (or a short
+ * override, see `ROOM_BALL_LABELS`) is lettered across the face; `RoomBall`
+ * also accepts a `logo` badge in place of that name, for a room that earns one,
+ * but never both at once.
  */
 export function RoomCircles() {
   const rooms = useQuery({
@@ -116,38 +127,62 @@ function contents(room: Room): string {
   return room.categories.map((category) => category.name).join(' · ')
 }
 
-/* The four fills a room can take, in the order rooms appear. Each carries its
-   own lip, so the disc is an object rather than a circle of colour. */
-const ROOM_FILLS = [
-  'bg-court shadow-lip-court',
-  'bg-room-a shadow-lip-room-a',
-  'bg-room-b shadow-lip-room-b',
-  'bg-room-c shadow-lip-room-c',
-] as const
+/* The default hues a ball cycles through when its room authors no `color` —
+   position is stable, and a player learns "the orange one" from where it
+   sits — see the header comment. Left at the founding four rather than
+   widened to the full 28-color set: a *default* rotation should stay small
+   and predictable, and a room that wants one of the other 24 says so with
+   `color:` in rooms.yaml. */
+const ROOM_BALL_COLORS: readonly BallColor[] = ['orange', 'violet', 'pink', 'lime']
+
+const KNOWN_BALL_COLORS = new Set<string>(BALL_COLOR_KEYS)
+
+/** A room's own `color` (authored in rooms.yaml, see the comment above
+ *  `color:` there), or the position-cycled default for a room that named
+ *  none — the same "unknown key falls back rather than renders blank" rule
+ *  `logo` follows. */
+function ballColor(room: Room, index: number): BallColor {
+  if (room.color && KNOWN_BALL_COLORS.has(room.color)) return room.color as BallColor
+  return ROOM_BALL_COLORS[index % ROOM_BALL_COLORS.length]
+}
+
+/* What a ball is lettered with, for a room whose own `logo` is blank.
+   Defaults to the room's own name; a handful of rooms are overridden with a
+   short mark instead, because "Ring Chasing" or "Russell Westbrook" spelled
+   out across a ball this size reads as a label, not as an object. Keyed by
+   slug (stable) rather than by position. */
+const ROOM_BALL_LABELS: Record<string, string> = {
+  'nba-room-general': 'NBA',
+  'nba-room-finals': 'B',
+  'nba-room-awards': 'A',
+  'nba-room-westbrook': 'RW',
+}
 
 function RoomCircle({ room, index }: { room: Room; index: number }) {
   const playable = room.question_pool_size >= shortestMatch(room)
+  const color = ballColor(room, index)
+  // The room's own `logo` (authored in rooms.yaml, see the comment there) —
+  // a key this client does not recognise renders as no logo, the same as a
+  // blank one, rather than a blank ball.
+  const Logo = room.logo ? ROOM_LOGOS[room.logo] : undefined
 
-  const disc = (
-    <span
-      className={[
-        'flex aspect-square w-full max-w-[9rem] items-center justify-center rounded-full px-[8%] text-center transition-[filter,background-color,border-color] duration-150',
-        playable
-          ? // Solid fill, dark ink, its own lip, and the lip is consumed when the
-            // link around it is pressed. Brightness rather than a second fill
-            // colour on hover: four hues would otherwise need four hover values,
-            // and the disc is already the loudest thing on the screen.
-            `text-void group-hover:brightness-110 group-active:translate-y-1 group-active:shadow-none ${ROOM_FILLS[index % ROOM_FILLS.length]}`
-          : // An empty room is a plate, not a colour. It cannot be played, and
-            // painting it in the same bright fill as a live one would be the
-            // lobby's most prominent lie.
-            'border-2 border-idle/40 bg-panel text-idle',
-      ].join(' ')}
-    >
-      {/* The whole name, wrapped, not initials and not truncated: the name is
-          the only thing that distinguishes one room from the next. Three lines
-          is what a disc this size holds at this step; a room named past that
-          is an authoring problem, and clamping says so. */}
+  const disc = playable ? (
+    // Its own lip, consumed when the link around it is pressed. Brightness
+    // rather than a second fill colour on hover: four hues would otherwise
+    // need four hover values, and the ball is already the loudest thing on
+    // the screen.
+    <span className="block aspect-square w-full max-w-[9rem] transition-[filter] duration-150 group-hover:brightness-110 group-active:translate-y-1">
+      {Logo ? (
+        <RoomBall color={color} logo={<Logo />} />
+      ) : (
+        <RoomBall color={color} label={ROOM_BALL_LABELS[room.slug] ?? room.name} />
+      )}
+    </span>
+  ) : (
+    // An empty room is a plate, not a ball. It cannot be played, and giving it
+    // the same dimensional fill as a live one would be the lobby's most
+    // prominent lie.
+    <span className="flex aspect-square w-full max-w-[9rem] items-center justify-center rounded-full border-2 border-idle/40 bg-panel px-[8%] text-center text-idle">
       <span className="line-clamp-3 font-display text-[clamp(0.8125rem,3.2vw,1rem)] font-bold uppercase leading-[1.15] tracking-[0.04em] [font-stretch:var(--display-wide)]">
         {room.name}
       </span>

@@ -32,6 +32,8 @@ const ROOM: Room = {
   categories: [{ slug: 'nba', name: 'NBA', filter_tags: { topic: 'finals' } }],
   question_pool_size: 40,
   is_rated: true,
+  logo: '',
+  color: '',
 }
 
 function renderLobby(rooms: Room[]) {

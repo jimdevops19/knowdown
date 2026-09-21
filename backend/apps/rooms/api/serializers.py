@@ -66,6 +66,8 @@ class RoomSerializer(serializers.ModelSerializer):
             "categories",
             "question_pool_size",
             "is_rated",
+            "logo",
+            "color",
         )
         read_only_fields = fields
 

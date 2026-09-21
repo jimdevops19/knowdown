@@ -68,6 +68,24 @@ class RoomApiTests(TestCase):
         self.assertNotIn("parked", slugs)
         self.assertEqual(self.client.get("/api/v1/rooms/parked/").status_code, 404)
 
+    def test_a_room_carries_its_logo_key(self):
+        """Blank for a room with none — the client letters its name instead."""
+        room = self.client.get("/api/v1/rooms/").json()["data"][0]
+        self.assertEqual(room["logo"], "")
+
+        logoed = make_room(slug="logoed", logo="tv", categories=[(self.nba, {})])
+        payload = self.client.get(f"/api/v1/rooms/{logoed.slug}/").json()["data"]
+        self.assertEqual(payload["logo"], "tv")
+
+    def test_a_room_carries_its_color_key(self):
+        """Blank for a room with none — the client cycles the default four."""
+        room = self.client.get("/api/v1/rooms/").json()["data"][0]
+        self.assertEqual(room["color"], "")
+
+        colored = make_room(slug="colored", color="sunset", categories=[(self.nba, {})])
+        payload = self.client.get(f"/api/v1/rooms/{colored.slug}/").json()["data"]
+        self.assertEqual(payload["color"], "sunset")
+
     def test_an_unknown_room_is_a_404(self):
         self.assertEqual(self.client.get("/api/v1/rooms/nope/").status_code, 404)
 

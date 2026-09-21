@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type CSSProperties } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { Logo, LogoMark } from '../../components/Logo'
@@ -49,9 +49,6 @@ function SidebarLink({ item }: { item: NavItem }) {
   // prefix its `to` doesn't cover, so activeness is computed the same way the
   // phone tab bar computes it (`isNavItemActive`), and both navs agree.
   const isActive = isNavItemActive(pathname, item)
-  // Play is an ordinary row in every respect but one: its triangle stays lit.
-  // The glyph carries the invitation; the row itself doesn't need to.
-  const litIcon = isActive || item.accent === 'court'
 
   return (
     <NavLink
@@ -80,7 +77,7 @@ function SidebarLink({ item }: { item: NavItem }) {
           : 'border-transparent text-ash hover:bg-raised hover:text-chalk',
       ].join(' ')}
     >
-      <Icon size={18} className={litIcon ? 'text-court' : undefined} />
+      <Icon size={18} />
       {item.label}
     </NavLink>
   )
@@ -160,9 +157,18 @@ export function AppShell() {
   const { isAuthenticated } = useAuth()
   const [navOpen, toggleNav] = useNavOpen()
   const navItems = navItemsFor(isAuthenticated)
+  const { pathname } = useLocation()
+  // The live game claims the whole screen: no sidebar, no bottom tab bar,
+  // on phone or on desk. `--nav-bar-inset` is zeroed to match, so `--page-fit`
+  // (index.css) grows to reclaim the room the tab bar would otherwise have
+  // reserved.
+  const inMatch = /^\/match\//.test(pathname)
 
   return (
-    <div className="relative flex min-h-dvh">
+    <div
+      className="relative flex min-h-dvh"
+      style={inMatch ? ({ '--nav-bar-inset': '0px' } as CSSProperties) : undefined}
+    >
       {/* Sidebar — an opaque column beside the body's layered background. Closing
           it animates the width to zero; the inner column keeps its own width so
           the links slide out of view instead of reflowing on the way. `inert`
@@ -175,9 +181,9 @@ export function AppShell() {
           height the device isn't actually showing. */}
       <aside
         id="app-nav"
-        inert={!navOpen}
+        inert={!navOpen || inMatch}
         className={`sticky top-0 hidden h-dvh shrink-0 flex-col overflow-hidden bg-void transition-[width] duration-300 desk:flex ${
-          navOpen ? 'w-60 border-r border-chalk/10' : 'w-0'
+          navOpen && !inMatch ? 'w-60 border-r border-chalk/10' : 'w-0'
         }`}
       >
         {/* Top padding is spelled out rather than using `pt-safe`: that utility
@@ -230,11 +236,14 @@ export function AppShell() {
 
         {/* Clearance for the fixed bottom bar, so the last row of a page is
             never parked under it. A spacer rather than padding on <main>: the
-            padding there is already set at three breakpoints. */}
-        <div aria-hidden className="desk:hidden" style={{ height: 'var(--nav-bar-inset)' }} />
+            padding there is already set at three breakpoints. Skipped in a
+            live match — there's no bar to clear. */}
+        {!inMatch && (
+          <div aria-hidden className="desk:hidden" style={{ height: 'var(--nav-bar-inset)' }} />
+        )}
       </div>
 
-      <MobileTabBar items={navItems} />
+      {!inMatch && <MobileTabBar items={navItems} />}
     </div>
   )
 }

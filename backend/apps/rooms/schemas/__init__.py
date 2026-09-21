@@ -20,7 +20,12 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from apps.rooms.constants import MAX_ROOM_QUESTION_COUNT, MIN_ROOM_QUESTION_COUNT
+from apps.rooms.constants import (
+    MAX_ROOM_QUESTION_COUNT,
+    MIN_ROOM_QUESTION_COUNT,
+    ROOM_BALL_COLOR_KEYS,
+    ROOM_LOGO_KEYS,
+)
 
 __all__ = ["RoomCategorySpec", "RoomSpec"]
 
@@ -95,6 +100,39 @@ class RoomSpec(BaseModel):
 
     is_active: bool = True
     display_order: int = Field(default=0, ge=0)
+
+    #: A key from ``constants.ROOM_LOGO_KEYS``, or left out for "no logo" —
+    #: the ball letters the room's name instead. See the comment above
+    #: ``logo:`` in ``rooms.yaml`` for where the artwork behind a key lives.
+    logo: str = ""
+
+    #: A key from ``constants.ROOM_BALL_COLOR_KEYS``, or left out for "cycle
+    #: the default four by position." See the comment above ``color:`` in
+    #: ``rooms.yaml`` for where the confirmed palette lives.
+    color: str = ""
+
+    @field_validator("logo")
+    @classmethod
+    def _known_logo(cls, value: str) -> str:
+        if value and value not in ROOM_LOGO_KEYS:
+            raise ValueError(
+                f"Unknown logo {value!r}. Known logos: {', '.join(sorted(ROOM_LOGO_KEYS))}. "
+                "Add the artwork to frontend/src/components/icons/roomLogos.tsx and its key "
+                "to apps.rooms.constants.ROOM_LOGO_KEYS first."
+            )
+        return value
+
+    @field_validator("color")
+    @classmethod
+    def _known_color(cls, value: str) -> str:
+        if value and value not in ROOM_BALL_COLOR_KEYS:
+            raise ValueError(
+                f"Unknown color {value!r}. Known colors: "
+                f"{', '.join(sorted(ROOM_BALL_COLOR_KEYS))}. Add the palette to "
+                "frontend/src/components/avatars/RoomBall.tsx and its key to "
+                "apps.rooms.constants.ROOM_BALL_COLOR_KEYS first."
+            )
+        return value
 
     @field_validator("questions_asked_ranges")
     @classmethod

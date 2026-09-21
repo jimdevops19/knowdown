@@ -1,5 +1,5 @@
-import { BookOpen, Home, Medal, Play, User } from 'lucide-react'
 import type { ComponentType } from 'react'
+import { HomeIcon, PlayIcon, RankingsIcon, RulesIcon } from '../../components/icons/navIcons'
 
 /*
  * The app's top-level destinations, in one place because two navs render them:
@@ -10,22 +10,15 @@ export interface NavItem {
   to: string
   label: string
   icon: ComponentType<{ size?: number; className?: string }>
-  /** Shorter name for the phone tab bar, where a slot is ~a fifth of the screen
-   *  and the full label would truncate. Falls back to `label`, which is what
-   *  the sidebar and every accessible name always use. */
+  /** Shorter name for the phone tab bar, where a slot is ~a quarter of the
+   *  screen and the full label would truncate. Falls back to `label`, which is
+   *  what the sidebar and every accessible name always use. */
   tabLabel?: string
   /** Highlight only on an exact URL match, not on nested routes. */
   exact?: boolean
   /** Extra path prefixes that also count as "here", beyond `to` itself — e.g.
    *  Play stays lit while a match found through it is in progress. */
   matchPrefixes?: string[]
-  /** Marks the one item whose *icon* stays orange while idle. Nothing else about
-   *  the row changes — same plate, same label colour, same hover as every other
-   *  destination. The earlier version tinted the whole row gold, which made a
-   *  permanent second accent out of a nav item and gave the app two loud colours
-   *  again; a lit glyph is enough to say "start here" without the chrome
-   *  competing with the screen it frames. */
-  accent?: 'court'
   /** Only shown once signed in — a guest sees neither the nav slot nor the
    *  page it points at with real content (see `RankingsPage`'s own guard for
    *  the case where the URL is reached directly). */
@@ -37,8 +30,7 @@ export interface NavItem {
 const PLAY_ITEM: NavItem = {
   to: '/play',
   label: 'Play',
-  icon: Play,
-  accent: 'court',
+  icon: PlayIcon,
   matchPrefixes: ['/play', '/match'],
 }
 
@@ -46,37 +38,30 @@ const PLAY_ITEM: NavItem = {
  * Every destination other than Play, in order around it. Play itself is
  * inserted at the dead centre of the final list (see `navItemsFor`) rather
  * than living at a fixed index here, because the centre slot moves — 2nd of 3
- * for a guest, 3rd of 5 once Rankings and Profile are in the mix — and a fixed
+ * for a guest, 3rd of 4 once Rankings joins them signed in — and a fixed
  * position would only be right for one of those two counts.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { to: '/', label: 'Home', icon: Home },
-  // `Ranks` in the bar: at five tabs on a 320px phone the slot is 58px and
-  // "Rankings" is the one label that runs past it, so the tab showed
-  // "Rankin…". The accessible name stays the full word.
-  { to: '/rankings', label: 'Rankings', tabLabel: 'Ranks', icon: Medal, authOnly: true },
+  { to: '/', label: 'Home', icon: HomeIcon },
+  // `Ranks` in the bar: even at four tabs on a 320px phone "Rankings" is the
+  // one label that runs past the slot, so the tab showed "Rankin…". The
+  // accessible name stays the full word.
+  { to: '/rankings', label: 'Rankings', tabLabel: 'Ranks', icon: RankingsIcon, authOnly: true },
   // Public: the rules are the clearest answer there is to "what would I be
   // signing up for", so they cannot sit behind signing up.
-  { to: '/how-to-play', label: 'How to play', tabLabel: 'Rules', icon: BookOpen },
+  { to: '/how-to-play', label: 'How to play', tabLabel: 'Rules', icon: RulesIcon },
 ]
 
 /*
- * Destinations that only make sense — and only route — when signed in.
- *
- * Profile is a plain link in both navs: a tab that looks like every other tab
- * has to behave like every other tab, and tapping it goes to the profile page.
- * The account *menu* (Matches history, Sign out) hangs off the avatar in the
- * header instead, which is where a menu is expected and which is on screen at
- * every width. That also keeps the tab bar's five-slot budget without giving
- * "My matches" a slot of its own.
+ * Profile has no slot of its own here: it would be the fifth tab and a
+ * duplicate of the account menu that already hangs off the avatar in the
+ * header, on screen at every width. That menu (Profile, Matches history, Sign
+ * out) is the one place account destinations live — the dock stays four.
  */
-export const AUTH_NAV_ITEMS: NavItem[] = [{ to: '/me', label: 'Profile', icon: User }]
 
 /** Every top-level destination, Play centred, for the signed-in state given. */
 export function navItemsFor(isAuthenticated: boolean): NavItem[] {
-  const rest = isAuthenticated
-    ? [...NAV_ITEMS, ...AUTH_NAV_ITEMS]
-    : NAV_ITEMS.filter((item) => !item.authOnly)
+  const rest = isAuthenticated ? NAV_ITEMS : NAV_ITEMS.filter((item) => !item.authOnly)
   const center = Math.floor(rest.length / 2)
   return [...rest.slice(0, center), PLAY_ITEM, ...rest.slice(center)]
 }

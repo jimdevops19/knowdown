@@ -69,6 +69,21 @@ class Room(SluggedModel, BaseModel):
     #: after") and alphabetical would make it an accident of naming.
     display_order = models.PositiveSmallIntegerField(default=0)
 
+    #: Which badge the room's ball wears, in place of its own name lettered
+    #: across the face — a key from ``constants.ROOM_LOGO_KEYS``, or blank for
+    #: "no logo, letter the name instead." The client owns the artwork
+    #: (`frontend/src/components/icons/roomLogos.tsx`); this column only ever
+    #: carries the key, the same split ``players.Player.mascot`` draws.
+    logo = models.CharField(max_length=50, blank=True, default="")
+
+    #: Which hue the room's ball is drawn in — a key from
+    #: ``constants.ROOM_BALL_COLOR_KEYS``, or blank for "cycle the default
+    #: four by position" (the client's own rule, `RoomCircles.ballColor`).
+    #: Same split as ``logo``: the gradients live in
+    #: `frontend/src/components/avatars/RoomBall.tsx`, this column only ever
+    #: carries the key.
+    color = models.CharField(max_length=20, blank=True, default="")
+
     class Meta(BaseModel.Meta):
         ordering = ("display_order", "name")
 

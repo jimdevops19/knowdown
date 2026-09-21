@@ -151,6 +151,18 @@ export interface Room {
    *  the second. Server-decided — the rule lives in `Room.is_rated` and is
    *  frozen onto the matchup as `is_ranked` when the match is created. */
   is_rated: boolean
+  /** A key into `ROOM_LOGOS` (`components/icons/roomLogos.tsx`) for the badge
+   *  this room's ball wears in place of its own name, or `''` for none.
+   *  Authored in `rooms.yaml`, validated server-side against the same
+   *  allow-list — a key this client does not recognise is treated the same
+   *  as `''` rather than rendered blank. */
+  logo: string
+  /** A key into `RoomBall`'s `PALETTES` for the ball's own hue, or `''` for
+   *  "cycle the default four by position" (`RoomCircles.ballColor`).
+   *  Authored in `rooms.yaml`, validated server-side the same way `logo` is —
+   *  an unrecognised key falls back to the cycle rather than rendering a
+   *  blank ball. */
+  color: string
 }
 
 /** One player's standing in one category. Embedded in a profile, one per

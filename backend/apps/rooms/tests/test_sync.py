@@ -190,6 +190,40 @@ class SyncRoomsTests(TestCase):
         sync_rooms(path=self._write(ONE_ROOM))
         self.assertTrue(Room.objects.filter(slug="finals-room").exists())
 
+    def test_a_room_with_no_logo_gets_none(self):
+        sync_rooms(path=self._write(ONE_ROOM))
+        self.assertEqual(Room.objects.get().logo, "")
+
+    def test_a_room_may_name_a_known_logo(self):
+        sync_rooms(path=self._write(ONE_ROOM.replace("[4, 5, 6]", "[4, 5, 6]\n  logo: tv")))
+        self.assertEqual(Room.objects.get().logo, "tv")
+
+    def test_refuses_an_unknown_logo(self):
+        with self.assertRaises(ValidationFailed) as caught:
+            sync_rooms(
+                path=self._write(
+                    ONE_ROOM.replace("[4, 5, 6]", "[4, 5, 6]\n  logo: bogus-icon")
+                )
+            )
+        self.assertIn("bogus-icon", str(caught.exception.details))
+
+    def test_a_room_with_no_color_gets_none(self):
+        sync_rooms(path=self._write(ONE_ROOM))
+        self.assertEqual(Room.objects.get().color, "")
+
+    def test_a_room_may_name_a_known_color(self):
+        sync_rooms(path=self._write(ONE_ROOM.replace("[4, 5, 6]", "[4, 5, 6]\n  color: sunset")))
+        self.assertEqual(Room.objects.get().color, "sunset")
+
+    def test_refuses_an_unknown_color(self):
+        with self.assertRaises(ValidationFailed) as caught:
+            sync_rooms(
+                path=self._write(
+                    ONE_ROOM.replace("[4, 5, 6]", "[4, 5, 6]\n  color: mystery-hue")
+                )
+            )
+        self.assertIn("mystery-hue", str(caught.exception.details))
+
 
 class SyncRoomsCommandTests(TestCase):
     def setUp(self):

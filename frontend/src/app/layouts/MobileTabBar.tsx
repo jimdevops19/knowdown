@@ -13,7 +13,7 @@ import { isNavItemActive, type NavItem } from './navItems'
  *
  * Every tab spells its label out, not just the active one: an icon alone is a
  * guess, and the guess is worst for exactly the people who can least afford it.
- * Being *here* is carried by colour and the lit plate instead, which is what
+ * Being *here* is carried by colour and the lit tile instead, which is what
  * the active state was really saying all along.
  *
  * The bar itself is opaque, not frosted. It sits over scrolling content on the
@@ -32,37 +32,20 @@ import { isNavItemActive, type NavItem } from './navItems'
  * truncating on a small phone.
  */
 
+/*
+ * Each glyph (see `../../components/icons/navIcons.tsx`) is a free-standing
+ * dimensional object now — its own gradient, its own drop shadow — not a flat
+ * badge on a plate, so it has no `currentColor` outline to recolour for "you
+ * are here" the way a lucide icon would. That state moves to the tile behind
+ * it instead: the active tab gets a lit `raised` panel under the whole
+ * icon+label stack, the same "you are here" surface `SidebarLink` already uses
+ * for the desktop nav.
+ */
 const TAB_CLASS =
   'flex min-w-0 flex-1 flex-col items-center gap-1 rounded-btn px-0.5 py-1.5 transition-colors duration-200 short:flex-row short:justify-center short:gap-1.5'
 
-/*
- * The icon plate behind each tab.
- *
- * Squared off, and "you are here" is a solid orange fill with dark ink rather
- * than a tinted, glowing circle. A row of softly lit coloured circles along the
- * bottom edge is the stock mobile tab bar; a row of cut plates with exactly one
- * lit is a control panel, which is what this app should feel bolted to. It is
- * also plainly more legible — a filled plate carries across a room, where a
- * 15%-tint behind a coloured glyph does not.
- *
- * The lit plate is the brand orange — the same colour as the primary button and
- * the search rings. There is no longer a separate "live" hue to reserve: the
- * app has one loud colour, and "the thing you are on" is one of the things it
- * is for.
- *
- * Play gets no special plate of its own. It used to sit in a gold-bordered,
- * gold-tinted key that made it a second, permanently-lit accent along the bottom
- * of every screen. Now it is an ordinary tab whose *triangle* happens to be
- * orange — the glyph is already an unmistakable "start", and it doesn't need a
- * frame around it to say so.
- */
-function plateClass(active: boolean, accent?: NavItem['accent']): string {
-  const base =
-    'flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px] border transition-all duration-200 short:h-8 short:w-8'
-  if (active) return `${base} border-court bg-court text-void`
-  return `${base} border-transparent active:bg-chalk/10 ${
-    accent === 'court' ? 'text-court' : 'text-ash'
-  }`
+function tabClass(active: boolean): string {
+  return active ? `${TAB_CLASS} bg-raised` : TAB_CLASS
 }
 
 function labelClass(active: boolean): string {
@@ -90,11 +73,9 @@ export function MobileTabBar({ items }: { items: NavItem[] }) {
             to={item.to}
             end={item.exact || item.to === '/'}
             aria-label={item.label}
-            className={TAB_CLASS}
+            className={tabClass(active)}
           >
-            <span className={plateClass(active, item.accent)}>
-              <Icon size={20} />
-            </span>
+            <Icon size={30} className="shrink-0" />
             {/* aria-hidden: the link already names itself via aria-label, with
                 the full name rather than the abbreviated one. */}
             <span aria-hidden className={labelClass(active)}>

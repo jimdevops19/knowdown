@@ -64,6 +64,7 @@ const CARD: TesterQuestionCard = {
   // there from the file, and that gap is the subject of a test.
   time_limit_seconds: 10,
   image: null,
+  created_at: '2026-01-01T00:00:00Z',
 }
 
 const SOURCE: TesterQuestionSource = {

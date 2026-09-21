@@ -34,6 +34,7 @@ const CARD: TesterQuestionCard = {
   is_active: true,
   time_limit_seconds: 12,
   image: null,
+  created_at: '2026-01-01T00:00:00Z',
 }
 
 function renderCard(question: TesterQuestionCard) {

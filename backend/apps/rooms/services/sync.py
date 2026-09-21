@@ -147,6 +147,8 @@ def sync_rooms(*, path: Path | None = None) -> LoadReport:
                 "question_count_choices": spec.questions_asked_ranges,
                 "is_active": spec.is_active,
                 "display_order": spec.display_order,
+                "logo": spec.logo,
+                "color": spec.color,
                 # A room that was soft-deleted and is back in the file is being
                 # un-deleted, not duplicated: the unique index still holds its
                 # slug, so the row has to be revived rather than inserted.
