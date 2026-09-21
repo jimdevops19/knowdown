@@ -29,7 +29,11 @@ to ``apps.questions``, because it is the loader's own file format it is writing.
 
 from __future__ import annotations
 
+from datetime import datetime, time
+
 from django.conf import settings
+from django.utils import timezone
+from django.utils.dateparse import parse_date, parse_datetime
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.generics import ListAPIView
 from rest_framework.response import Response
@@ -90,6 +94,28 @@ def _parse_level_range(request) -> tuple[int, int] | None:
     if low > high:
         raise ValidationFailed("level_min may not be greater than level_max.")
     return (low, high)
+
+
+def _parse_created_after(request) -> datetime | None:
+    """``?created_after=`` as the cutoff the selector takes, or nothing.
+
+    Accepts a bare date (``2026-09-21``, midnight that day) or a full ISO
+    timestamp — a maintainer filtering "what did today's sync add" reaches for
+    the date, and a client re-polling after a specific write can pass the exact
+    moment.
+    """
+    raw = request.query_params.get("created_after")
+    if not raw:
+        return None
+    parsed = parse_datetime(raw)
+    if parsed is None:
+        as_date = parse_date(raw)
+        if as_date is None:
+            raise ValidationFailed("created_after must be an ISO date or datetime.")
+        parsed = datetime.combine(as_date, time.min)
+    if timezone.is_naive(parsed):
+        parsed = timezone.make_aware(parsed)
+    return parsed
 
 
 class TesterConfigView(APIView):
@@ -163,8 +189,11 @@ class CatalogListView(ListAPIView):
     ``POST`` to add to it.
 
     Filters: ``search``, ``category``, ``type``, ``level_min``/``level_max``,
-    and ``include_inactive`` (**on** by default — see the selector module for
-    why this surface's default is the opposite of the match engine's).
+    ``include_inactive`` (**on** by default — see the selector module for
+    why this surface's default is the opposite of the match engine's), and
+    ``created_after`` — a date or timestamp, for "show me what a sync just
+    wrote". Set, the list also sorts newest-first instead of by
+    category/level/slug, since that is the order a review pass reads in.
 
     ``filter_backends`` is emptied because there is no queryset to filter: a
     question is eight tables and this list is assembled in Python
@@ -192,6 +221,15 @@ class CatalogListView(ListAPIView):
                 bool,
                 description="Default true — a deactivated question is often the one being debugged.",
             ),
+            OpenApiParameter(
+                "created_after",
+                str,
+                description=(
+                    "ISO date or datetime. Only questions created at or after this "
+                    "moment — e.g. today's date, right after a sync, to review what "
+                    "it just added. Sorts newest-first when set."
+                ),
+            ),
         ],
         responses=CatalogCardSerializer(many=True),
     )
@@ -207,6 +245,7 @@ class CatalogListView(ListAPIView):
             question_type=request.query_params.get("type"),
             level_range=_parse_level_range(request),
             include_inactive=include_inactive.strip().lower() not in {"0", "false", "no"},
+            created_after=_parse_created_after(request),
         )
 
     @extend_schema(

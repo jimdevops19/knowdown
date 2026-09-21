@@ -471,3 +471,77 @@ questions:
       - The franchise wins its first championship in 40 years
       - The team sets the record for regular-season wins
       - Kevin Durant signs with the club in free agency
+
+  - type: ordering
+    slug: nba-order-westbrook-teams-part-one
+    description: Russell Westbrook's first four NBA teams, before his final stretch of one-year stops.
+    instruction: Order these teams by the season Westbrook joined them, earliest first.
+    level: 5
+    tags: {topic: teams, era: all-time, player: westbrook}
+    items:
+      - Oklahoma City Thunder
+      - Houston Rockets
+      - Washington Wizards
+      - Los Angeles Lakers
+
+  - type: ordering
+    slug: nba-order-westbrook-teams-part-two
+    description: The final stretch of Russell Westbrook's NBA career, one-year stop after one-year stop.
+    instruction: Order these teams by the season Westbrook joined them, earliest first.
+    level: 6
+    tags: {topic: teams, era: 2020s, player: westbrook}
+    items:
+      - Los Angeles Lakers
+      - Los Angeles Clippers
+      - Denver Nuggets
+      - Sacramento Kings
+
+  - type: ordering
+    slug: nba-order-westbrook-career-milestones
+    description: Four milestones across Russell Westbrook's career.
+    instruction: Order these milestones by when they happened, earliest first.
+    level: 5
+    tags: {topic: records, era: all-time, player: westbrook}
+    items:
+      - Drafted 4th overall by the Seattle SuperSonics
+      - Wins his first NBA scoring title
+      - Wins the NBA Most Valuable Player award
+      - Becomes the NBA's all-time triple-double leader
+
+  - type: ordering
+    slug: nba-order-westbrook-trades-chronologically
+    description: Four trades that moved Russell Westbrook to a new team.
+    instruction: Order these trades by when they happened, earliest first.
+    level: 6
+    tags: {topic: teams, era: 2020s, player: westbrook}
+    items:
+      - Traded from Oklahoma City to Houston for Chris Paul
+      - Traded from Houston to Washington for John Wall
+      - Traded from Washington to the Lakers in a multi-player deal
+      - Traded from the Lakers to Utah in a three-team deal
+
+  - type: ordering
+    slug: nba-order-2008-draft-picks-early
+    description: Four names from the top of the 2008 NBA Draft, Russell Westbrook's draft class.
+    instruction: Order these players by their draft pick number, lowest first.
+    level: 4
+    tags: {topic: draft, era: 2000s, player: westbrook}
+    items:
+      - Derrick Rose
+      - Michael Beasley
+      - O.J. Mayo
+      - Russell Westbrook
+
+  - type: ordering
+    slug: nba-order-2008-draft-picks-later
+    description: >-
+      Four more names from the 2008 NBA Draft, taken after Russell Westbrook
+      came off the board at number four.
+    instruction: Order these players by their draft pick number, lowest first.
+    level: 7
+    tags: {topic: draft, era: 2000s, player: westbrook}
+    items:
+      - Kevin Love
+      - Danilo Gallinari
+      - Eric Gordon
+      - Brook Lopez

@@ -221,6 +221,41 @@ class CatalogTests(APITestCase):
 
         self.assertEqual(response.status_code, 400)
 
+    def test_created_after_filters_to_what_a_sync_just_wrote(self):
+        """The review workflow this filter exists for: skim today's batch."""
+        old = make_single_answer(slug="old", category=self.nba)
+        type(old).objects.filter(slug="old").update(
+            created_at="2020-01-01T00:00:00Z"
+        )
+        make_single_answer(slug="fresh", category=self.nba)
+
+        rows = self.rows("?created_after=2026-01-01")
+
+        self.assertEqual([row["slug"] for row in rows], ["fresh"])
+
+    def test_created_after_accepts_a_full_timestamp_and_sorts_newest_first(self):
+        first = make_single_answer(slug="first", category=self.nba)
+        type(first).objects.filter(slug="first").update(
+            created_at="2020-01-01T00:00:00Z"
+        )
+        make_single_answer(slug="second", category=self.nba)
+        type(first).objects.filter(slug="second").update(
+            created_at="2020-01-02T00:00:00Z"
+        )
+        make_single_answer(slug="third", category=self.nba)
+        type(first).objects.filter(slug="third").update(
+            created_at="2020-01-03T00:00:00Z"
+        )
+
+        rows = self.rows("?created_after=2020-01-01T12:00:00Z")
+
+        self.assertEqual([row["slug"] for row in rows], ["third", "second"])
+
+    def test_a_malformed_created_after_is_refused(self):
+        response = self.client.get("/api/v1/tester/questions/?created_after=not-a-date")
+
+        self.assertEqual(response.status_code, 400)
+
     def test_config_counts_the_catalog_for_the_filter_bar(self):
         make_single_answer(slug="one", category=self.nba)
         make_free_text(slug="two", category=self.f1)

@@ -238,3 +238,70 @@ questions:
     level: 5
     tags: {topic: awards, era: 2010s}
     answer: true
+
+  - type: true-false
+    slug: nba-wilt-never-fouled-out
+    description: Wilt Chamberlain never fouled out of a single game across his entire NBA career.
+    level: 8
+    tags: {topic: records, era: 1960s}
+    answer: true
+
+  - type: true-false
+    slug: nba-jordan-scoring-title-every-bulls-season
+    description: Michael Jordan won the scoring title in every season he played for the Chicago Bulls.
+    level: 7
+    tags: {topic: records, era: 1990s}
+    answer: false
+
+  - type: true-false
+    slug: nba-westbrook-durant-college-teammates
+    description: Russell Westbrook and Kevin Durant were college teammates at UCLA.
+    level: 4
+    tags: {topic: college, era: 2000s, player: westbrook}
+    answer: false
+
+  - type: true-false
+    slug: nba-westbrook-drafted-by-chicago-relocated
+    description: >-
+      The team that drafted Russell Westbrook was based in Chicago before
+      relocating to Oklahoma City.
+    level: 3
+    tags: {topic: draft, era: 2000s, player: westbrook}
+    answer: false
+
+  - type: true-false
+    slug: nba-westbrook-alltime-triple-double-leader
+    description: Russell Westbrook retired as the NBA's all-time career leader in triple-doubles.
+    level: 3
+    tags: {topic: records, era: 2020s, player: westbrook}
+    answer: true
+
+  - type: true-false
+    slug: nba-westbrook-never-averaged-triple-double
+    description: Russell Westbrook never averaged a triple-double for an entire NBA season.
+    level: 3
+    tags: {topic: records, era: 2010s, player: westbrook}
+    answer: false
+
+  - type: true-false
+    slug: nba-westbrook-won-championship
+    description: Russell Westbrook won an NBA championship during his career.
+    level: 3
+    tags: {topic: awards, era: all-time, player: westbrook}
+    answer: false
+
+  - type: true-false
+    slug: nba-westbrook-durant-eight-seasons-together
+    description: >-
+      Russell Westbrook and Kevin Durant played together in Oklahoma City for
+      eight seasons.
+    level: 5
+    tags: {topic: teammates, era: 2010s, player: westbrook}
+    answer: true
+
+  - type: true-false
+    slug: nba-westbrook-rookie-of-the-year
+    description: Russell Westbrook won the NBA Rookie of the Year award in 2009.
+    level: 5
+    tags: {topic: awards, era: 2000s, player: westbrook}
+    answer: false

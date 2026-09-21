@@ -46,6 +46,10 @@ export interface TesterQuestionFilters {
   /** Defaults to true on the backend. Sent explicitly anyway so a change of
    *  default there cannot silently change what this page shows. */
   include_inactive?: boolean
+  /** ISO date (`2026-09-21`) or datetime. Only questions created at or after
+   *  this moment — how a maintainer reviews exactly what a sync just wrote.
+   *  Set, the backend also sorts newest-first instead of by category/level/slug. */
+  created_after?: string
   page?: number
   page_size?: number
 }

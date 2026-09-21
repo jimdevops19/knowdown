@@ -269,3 +269,60 @@ questions:
       - Klay Thompson
       - Klay
       - Thompson
+
+  - type: free-text
+    slug: nba-first-round-best-of-seven-year
+    description: >-
+      In what year did the NBA change its first-round playoff series from
+      best-of-five to best-of-seven?
+    level: 5
+    tags: {topic: history, era: 2000s}
+    accepted_answers:
+      - "2003"
+
+  - type: free-text
+    slug: nba-finals-format-2-2-1-1-1-return-year
+    description: >-
+      In what year did the NBA Finals switch back to a 2-2-1-1-1 format,
+      after nearly three decades of using 2-3-2?
+    level: 6
+    tags: {topic: history, era: 2010s}
+    accepted_answers:
+      - "2014"
+
+  - type: free-text
+    slug: nba-lebron-total-finals-appearances
+    description: As of 2026, how many NBA Finals has LeBron James appeared in?
+    level: 5
+    tags: {topic: finals, era: 2020s}
+    accepted_answers:
+      - "10"
+      - Ten
+
+  - type: free-text
+    slug: nba-bill-russell-career-championships
+    description: How many NBA championships did Bill Russell win as a player with the Celtics?
+    level: 5
+    tags: {topic: records, era: 1960s}
+    accepted_answers:
+      - "11"
+      - Eleven
+
+  - type: free-text
+    slug: nba-bird-inaugural-three-point-contest
+    description: >-
+      Who won the inaugural NBA Three-Point Contest in 1986, reportedly
+      asking the other competitors who was playing for second place?
+    level: 5
+    tags: {topic: awards, era: 1980s}
+    accepted_answers:
+      - Larry Bird
+      - Bird
+
+  - type: free-text
+    slug: nba-shot-clock-introduced-year
+    description: In what year did the NBA introduce the 24-second shot clock?
+    level: 6
+    tags: {topic: history, era: 1950s}
+    accepted_answers:
+      - "1954"

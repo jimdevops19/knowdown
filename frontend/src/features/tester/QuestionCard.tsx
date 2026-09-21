@@ -50,6 +50,7 @@ export function QuestionCatalogCard({
   onToggleActive,
   busy = false,
   lockedReason,
+  filterQuery,
 }: {
   question: TesterQuestionCard
   /** The human name of the answer shape, from `GET /tester/config/` — the
@@ -70,11 +71,15 @@ export function QuestionCatalogCard({
    *  "it is not here" leaves them to guess why, while "not here, do it from
    *  local" is the entire answer. See `TesterConfig.editable`. */
   lockedReason?: string
+  /** The catalog's current filtration, as a URL query string (no leading
+   *  `?`). Carried onto the rehearsal link so that page can offer Previous/
+   *  Next over the same set of questions this card was clicked out of. */
+  filterQuery?: string
 }) {
   const card = (
     <Card
       as={Link}
-      to={`/tester/${question.type}/${question.id}`}
+      to={`/tester/${question.type}/${question.id}${filterQuery ? `?${filterQuery}` : ''}`}
       interactive
       edge={question.is_active ? 'court' : undefined}
       className={`flex flex-col ${question.is_active ? '' : 'opacity-75'}`}

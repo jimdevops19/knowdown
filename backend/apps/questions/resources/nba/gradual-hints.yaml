@@ -690,3 +690,669 @@ questions:
       - label: Year
         kind: number
         accepted_answers: [2010]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-arenas-sixteen-in-overtime
+    description: Guess the game.
+    level: 8
+    tags: {topic: records, era: 2000s}
+    hints:
+      - He forced overtime with a buzzer-beating three, then set an NBA record with his output in the extra period alone.
+      - The final score was 147-141, one of the highest-scoring games of the decade.
+      - The opposing team's superstar countered with 45 points of his own in a loss.
+      - It came in his 60-point outburst against the Los Angeles Lakers.
+    answer_fields:
+      - label: Points scored in overtime
+        kind: number
+        accepted_answers: [16]
+      - label: Year
+        kind: number
+        accepted_answers: [2006]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-kobe-sixty-five-blazers
+    description: Guess the game.
+    level: 5
+    tags: {topic: records, era: 2000s}
+    hints:
+      - It was part of a stretch in which he scored 50 or more points in four consecutive games.
+      - The opponent was a Western Conference team from the Pacific Northwest.
+      - He finished 16 points short of the career high he'd set against Toronto the year before.
+      - The game was played in March 2007.
+    answer_fields:
+      - label: Opponent
+        accepted_answers: [Portland Trail Blazers, Trail Blazers, Portland]
+      - label: Points scored
+        kind: number
+        accepted_answers: [65]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-kobe-42-first-half-wizards
+    description: Guess the game.
+    level: 6
+    tags: {topic: records, era: 2000s}
+    hints:
+      - He broke a franchise record for points in a half that had stood since Elgin Baylor set it.
+      - His coach had given him the green light to shoot as much as he wanted that night.
+      - The opposing team's 40-year-old superstar managed only 23 points in reply.
+      - It was Kobe and Michael Jordan's final meeting on an NBA court.
+    answer_fields:
+      - label: Points scored in the first half
+        kind: number
+        accepted_answers: [42]
+      - label: Year
+        kind: number
+        accepted_answers: [2003]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-dirk-forty-points-2011-wcf-game-four
+    description: Guess the game.
+    level: 6
+    tags: {topic: playoffs, era: 2010s}
+    hints:
+      - His team trailed by 14 points with under five minutes left, on the road.
+      - He forced overtime almost single-handedly down the stretch.
+      - He was 14-of-15 from the free-throw line for the night.
+      - The win put his team up 3-1 in the series over a young Thunder squad.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Dirk Nowitzki, Dirk, Nowitzki]
+      - label: Points scored
+        kind: number
+        accepted_answers: [40]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-westbrook-perfect-ending-quote
+    description: Guess the moment.
+    level: 6
+    tags: {topic: records, era: 2010s}
+    hints:
+      - '"WHAT A PERFECT ENDING, TO A HISTORIC DAY!" was the call as the shot fell.'
+      - He had broken a 55-year-old single-season record earlier that same afternoon.
+      - Steven Adams grabbed the inbound and found him with under three seconds left.
+      - The 36-footer beat the Denver Nuggets at the buzzer.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Russell Westbrook, Westbrook]
+      - label: Year
+        kind: number
+        accepted_answers: [2017]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-jordan-sixty-nine-points
+    description: Guess the game.
+    level: 5
+    tags: {topic: records, era: 1990s}
+    hints:
+      - He got hurt on a hard foul, and when the home crowd cheered, it lit a fire under him.
+      - He grabbed 18 rebounds to go with his scoring that night.
+      - The game needed overtime, and he supplied eight of his points in the extra period.
+      - It remains the highest single-game total of his career, set against a Cleveland team in March 1990.
+    answer_fields:
+      - label: Points scored
+        kind: number
+        accepted_answers: [69]
+      - label: Year
+        kind: number
+        accepted_answers: [1990]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-magic-johnson-center-1980-finals
+    description: Guess the game.
+    level: 6
+    tags: {topic: finals, era: 1980s}
+    hints:
+      - The team's regular starting center was sidelined by a severely sprained ankle.
+      - He played all five positions that night, spending most of it at center.
+      - He made all 14 of his free-throw attempts, a Finals record.
+      - The Lakers closed out the series in six games, their first title since 1972.
+    answer_fields:
+      - label: Points scored
+        kind: number
+        accepted_answers: [42]
+      - label: Year
+        kind: number
+        accepted_answers: [1980]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-kawhi-buzzer-beater-sixers
+    description: Guess the moment.
+    level: 5
+    tags: {topic: playoffs, era: 2010s}
+    hints:
+      - His fadeaway over a seven-footer bounced on the rim four times before falling through.
+      - It was the first winning buzzer-beater in a Game 7 in NBA history.
+      - He finished with 41 points, 15 of them in the fourth quarter alone.
+      - It sent his team to the Eastern Conference Finals in May 2019.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Kawhi Leonard, Kawhi, Leonard]
+      - label: Opponent
+        accepted_answers: [76ers, Philadelphia 76ers, Sixers, Philadelphia]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-steve-kerr-1997-finals-shot
+    description: Guess the moment.
+    level: 6
+    tags: {topic: finals, era: 1990s}
+    hints:
+      - The game was tied when a double-team on the league's biggest star left a role player wide open.
+      - That shooter had spent the previous timeout being told by his teammate to be ready.
+      - It clinched a fifth championship in seven years for his team.
+      - A dunk with 0.6 seconds left sealed it moments later.
+    answer_fields:
+      - label: Player who hit the shot
+        accepted_answers: [Steve Kerr, Kerr]
+      - label: Year
+        kind: number
+        accepted_answers: [1997]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-horry-2002-wcf-buzzer-three
+    description: Guess the moment.
+    level: 7
+    tags: {topic: playoffs, era: 2000s}
+    hints:
+      - His team trailed by two points with about ten seconds left, on the road.
+      - A driving shot from his team's superstar guard missed, but the rebound found him alone in the corner.
+      - It came in Game 4 of a series his team trailed at the time.
+      - He later called it the best moment of his career.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Robert Horry, Horry]
+      - label: Year
+        kind: number
+        accepted_answers: [2002]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-miller-eight-points-nine-seconds
+    description: Guess the moment.
+    level: 6
+    tags: {topic: playoffs, era: 1990s}
+    hints:
+      - His team trailed by six points with under 20 seconds left, on the road.
+      - He made two three-pointers and two free throws in a span of nine seconds.
+      - A courtside superfan and film director watched it happen in disbelief.
+      - It happened at Madison Square Garden in the 1995 playoffs.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Reggie Miller, Miller]
+      - label: Points scored in the sequence
+        kind: number
+        accepted_answers: [8]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-isiah-thomas-25-in-a-quarter
+    description: Guess the moment.
+    level: 7
+    tags: {topic: finals, era: 1980s}
+    hints:
+      - He badly rolled an ankle mid-quarter, left briefly, then came back and kept scoring.
+      - It remains an NBA Finals record for points in a single quarter.
+      - He finished with 43 points and eight assists despite the injury.
+      - His team still lost the game by a single point after a controversial late foul call.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Isiah Thomas, Isiah]
+      - label: Points scored in the quarter
+        kind: number
+        accepted_answers: [25]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-bird-steal-1987-ecf
+    description: Guess the moment.
+    level: 6
+    tags: {topic: playoffs, era: 1980s}
+    hints:
+      - His team trailed by one point with five seconds left, and the other team had the ball.
+      - The inbounder ignored his own coach's call for a timeout.
+      - He stepped in front of the pass and found a teammate cutting to the basket.
+      - His Celtics escaped Game 5 by one point on the way to the Finals.
+    answer_fields:
+      - label: Player who made the steal
+        accepted_answers: [Larry Bird, Bird]
+      - label: Year
+        kind: number
+        accepted_answers: [1987]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-baylor-71-points
+    description: Guess the game.
+    level: 6
+    tags: {topic: records, era: 1960s}
+    hints:
+      - He became the first player in NBA history to top 70 points in a single game.
+      - His record lasted less than two years before an even bigger man broke it.
+      - He did it against a New York team.
+      - It happened in November 1960.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Elgin Baylor, Baylor]
+      - label: Points scored
+        kind: number
+        accepted_answers: [71]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-robinson-71-points-scoring-title
+    description: Guess the game.
+    level: 7
+    tags: {topic: records, era: 1990s}
+    hints:
+      - He trailed a younger rival center by just six-hundredths of a point per game entering the finale.
+      - His coach fed him the ball on almost every possession that day to chase the scoring title.
+      - He shot 26-of-41 from the field.
+      - It happened on the final day of the 1994 season, and he passed his rival for the scoring crown.
+    answer_fields:
+      - label: Player
+        accepted_answers: [David Robinson, Robinson]
+      - label: Points scored
+        kind: number
+        accepted_answers: [71]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-ray-allen-threes-record
+    description: Guess the moment.
+    level: 6
+    tags: {topic: records, era: 2010s}
+    hints:
+      - He had deliberately delayed reaching the milestone so it would happen in a specific city.
+      - The record he broke belonged to a player who was sitting courtside that night, working the broadcast.
+      - He celebrated with a hug for that same rival right after the shot.
+      - It happened in Boston in February 2011, against the Lakers.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Ray Allen, Allen]
+      - label: Year
+        kind: number
+        accepted_answers: [2011]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-stockton-buzzer-three-1997-wcf
+    description: Guess the moment.
+    level: 6
+    tags: {topic: playoffs, era: 1990s}
+    hints:
+      - His team had never reached the NBA Finals before that night.
+      - He popped out near midcourt, caught a pass, and was left open by a defender rushing over too late.
+      - The 26-footer beat a hard-charging former MVP to the spot.
+      - It won Game 6 for the Jazz over the Rockets.
+    answer_fields:
+      - label: Player
+        accepted_answers: [John Stockton, Stockton]
+      - label: Year
+        kind: number
+        accepted_answers: [1997]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-fisher-0-4-seconds
+    description: Guess the moment.
+    level: 7
+    tags: {topic: playoffs, era: 2000s}
+    hints:
+      - The opposing team's superstar had just hit a go-ahead fadeaway with almost no time left.
+      - He caught, turned and shot in the same sliver of a second the clock still allowed.
+      - His sprint off the court into the tunnel became as famous as the shot itself.
+      - It won Game 5 of a 2004 series for the Lakers over the Spurs.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Derek Fisher, Fisher]
+      - label: Time left on the clock (seconds)
+        accepted_answers: ["0.4", "0.4 seconds", ".4"]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-jordan-the-shot-ehlo
+    description: Guess the moment.
+    level: 5
+    tags: {topic: playoffs, era: 1980s}
+    hints:
+      - It was a decisive Game 5 of a best-of-five first-round series, tied at two games apiece.
+      - He double-clutched in the air before releasing the jumper as time expired.
+      - His defender covered the shot about as well as anyone could have.
+      - It beat the Cavaliers in Cleveland in May 1989.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Michael Jordan, Jordan]
+      - label: Year
+        kind: number
+        accepted_answers: [1989]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-jordan-flu-game
+    description: Guess the moment.
+    level: 5
+    tags: {topic: finals, era: 1990s}
+    hints:
+      - He looked exhausted and dehydrated for most of the night, barely able to stand upright at times.
+      - His team trailed by eight points in the third quarter before a big run turned it around.
+      - He scored 38 points despite the illness.
+      - The road win put his team one game from the title, in Utah.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Michael Jordan, Jordan]
+      - label: Year
+        kind: number
+        accepted_answers: [1997]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-jordan-last-shot-1998
+    description: Guess the moment.
+    level: 4
+    tags: {topic: finals, era: 1990s}
+    hints:
+      - He stole the ball from an opposing power forward in the post with under 20 seconds left.
+      - He crossed his defender over before rising for the jumper.
+      - It gave his team an 87-86 lead with 5.2 seconds to go, and it held up.
+      - It was his sixth championship in eight seasons, in Salt Lake City.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Michael Jordan, Jordan]
+      - label: Year
+        kind: number
+        accepted_answers: [1998]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-jordan-double-nickel
+    description: Guess the game.
+    level: 6
+    tags: {topic: records, era: 1990s}
+    hints:
+      - It was only his fifth game back after a lengthy retirement.
+      - He scored 20 points in the first quarter alone.
+      - The opponent was a defensive-minded team from the same city as the arena.
+      - He finished with 55 points, in a building famous for hosting the sport.
+    answer_fields:
+      - label: Points scored
+        kind: number
+        accepted_answers: [55]
+      - label: Year
+        kind: number
+        accepted_answers: [1995]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-jordan-shrug-game
+    description: Guess the moment.
+    level: 6
+    tags: {topic: finals, era: 1990s}
+    hints:
+      - He made a Finals-record six three-pointers in a single half, a shot he wasn't known for.
+      - After the sixth one, he turned to the scorer's table and shrugged, as if even he couldn't explain it.
+      - His team led by 15 at halftime and blew the game open from there.
+      - It was Game 1 of the 1992 Finals against Portland.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Michael Jordan, Jordan]
+      - label: Threes made in the half
+        kind: number
+        accepted_answers: [6]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-kareem-scoring-record-1984
+    description: Guess the moment.
+    level: 7
+    tags: {topic: records, era: 1980s}
+    hints:
+      - He passed a record that had stood for over a decade, set by a man who once scored 100 in a game.
+      - His longtime teammate fed him the ball in the post for the record-breaking basket.
+      - He reached the mark using his signature shot, nearly unblockable for two decades.
+      - It happened in Las Vegas, of all places, against the Jazz.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Kareem Abdul-Jabbar, Kareem, Abdul-Jabbar]
+      - label: Year
+        kind: number
+        accepted_answers: [1984]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-magic-junior-junior-skyhook
+    description: Guess the moment.
+    level: 7
+    tags: {topic: finals, era: 1980s}
+    hints:
+      - His team trailed by one point with seven seconds left, deep in enemy territory.
+      - He hesitated, froze one defender, then rose into the lane before a second one arrived.
+      - The shot was a smaller version of one usually associated with his own center.
+      - It gave the Lakers a 3-1 lead in the 1987 Finals over Boston.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Magic Johnson, Magic]
+      - label: Year
+        kind: number
+        accepted_answers: [1987]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-willis-reed-1970-finals
+    description: Guess the moment.
+    level: 6
+    tags: {topic: finals, era: 1970s}
+    hints:
+      - He had torn a thigh muscle and missed the previous game entirely.
+      - He limped out of the tunnel to a deafening ovation before the opening tip.
+      - He scored the game's first two baskets, then didn't score again, but it didn't matter.
+      - His team won its first championship that night, in New York.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Willis Reed, Reed]
+      - label: Year
+        kind: number
+        accepted_answers: [1970]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-spud-webb-1986-dunk-contest
+    description: Guess the moment.
+    level: 4
+    tags: {topic: awards, era: 1980s}
+    hints:
+      - He stood just 5-foot-7, shorter than nearly everyone who has ever played at his level.
+      - He beat his own teammate, the defending champion, in the final round.
+      - Two perfect 50s in the final round sealed the win.
+      - It happened at the 1986 All-Star Weekend.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Spud Webb, Webb]
+      - label: Year
+        kind: number
+        accepted_answers: [1986]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-bird-wilkins-1988-duel
+    description: Guess the moment.
+    level: 7
+    tags: {topic: playoffs, era: 1980s}
+    hints:
+      - Two of the era's best scorers traded basket for basket in the fourth quarter of a Game 7.
+      - One of them scored 20 of his points in that final period alone.
+      - The other finished with 47 points but still lost.
+      - The Celtics won 118-116 at home.
+    answer_fields:
+      - label: Player who scored 47
+        accepted_answers: [Dominique Wilkins, Wilkins]
+      - label: Year
+        kind: number
+        accepted_answers: [1988]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-vince-carter-dunk-of-death
+    description: Guess the moment.
+    level: 5
+    tags: {topic: history, era: 2000s}
+    hints:
+      - It happened at the Olympics, not in an NBA arena.
+      - His opponent was a 7-foot-2 Frenchman who later admitted "people can fly."
+      - He jumped completely over the defender's head to finish it.
+      - It is remembered as the "Dunk of Death," from Sydney in 2000.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Vince Carter, Carter]
+      - label: Year
+        kind: number
+        accepted_answers: [2000]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-kobe-achilles-free-throws
+    description: Guess the moment.
+    level: 5
+    tags: {topic: players, era: 2010s}
+    hints:
+      - He felt a pop in his lower leg while trying to drive past a defender.
+      - He waved off help and insisted on shooting his free throws first.
+      - He made both shots before finally leaving for the locker room.
+      - It ended his season with a torn Achilles, in April 2013.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Kobe Bryant, Kobe]
+      - label: Year
+        kind: number
+        accepted_answers: [2013]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-pierce-nets-comeback-2002
+    description: Guess the moment.
+    level: 7
+    tags: {topic: playoffs, era: 2000s}
+    hints:
+      - His team trailed by 21 points entering the fourth quarter of a conference finals game.
+      - He alone outscored the entire opposing team in the final period.
+      - It remains the largest fourth-quarter comeback in NBA playoff history.
+      - His Celtics beat New Jersey in Game 3 of the 2002 Eastern Conference Finals.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Paul Pierce, Pierce]
+      - label: Year
+        kind: number
+        accepted_answers: [2002]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-curry-logo-three-okc-2016
+    description: Guess the moment.
+    level: 6
+    tags: {topic: records, era: 2010s}
+    hints:
+      - He tied the NBA single-game record for three-pointers made that same night.
+      - The shot came from 32 feet with well under a second left in overtime.
+      - He finished with 46 points and broke his own single-season three-point record in the process.
+      - It beat the Thunder on the road in February 2016.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Stephen Curry, Steph Curry, Curry]
+      - label: Year
+        kind: number
+        accepted_answers: [2016]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-lebron-buzzer-beater-pacers-2018
+    description: Guess the moment.
+    level: 6
+    tags: {topic: playoffs, era: 2010s}
+    hints:
+      - He blocked a potential go-ahead layup moments earlier on the other end.
+      - He took the inbound pass, two dribbles, and rose over a power forward for the winner.
+      - He finished with 44 points and went a perfect 15-for-15 from the free-throw line.
+      - It gave the Cavaliers a 3-2 series lead over Indiana in the 2018 playoffs.
+    answer_fields:
+      - label: Player
+        accepted_answers: [LeBron James, LeBron]
+      - label: Year
+        kind: number
+        accepted_answers: [2018]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-iverson-crossover-jordan
+    description: Guess the players.
+    level: 5
+    tags: {topic: players, era: 1990s}
+    hints:
+      - He was a 21-year-old rookie facing his own childhood hero for the first time.
+      - He broke his defender's ankles with a double crossover before rising for the jumper.
+      - His team still lost the game despite the iconic sequence.
+      - It happened in Philadelphia in March 1997.
+    answer_fields:
+      - label: Player who made the move
+        accepted_answers: [Allen Iverson, Iverson, AI]
+      - label: Player who was crossed up
+        accepted_answers: [Michael Jordan, Jordan, MJ]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-wilt-hundred-points
+    description: Guess the game.
+    level: 3
+    tags: {topic: records, era: 1960s}
+    hints:
+      - The game was played at a neutral site in Pennsylvania, not his team's home arena.
+      - He made 28 of 32 free throws, unusually accurate for him at the line.
+      - His teammates fed him the ball on nearly every possession down the stretch to help him reach the mark.
+      - No player has come within 20 points of his total since.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Wilt Chamberlain, Chamberlain, Wilt]
+      - label: Points scored
+        kind: number
+        accepted_answers: [100]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-bulls-seventy-two-wins-1996
+    description: Guess the season.
+    level: 5
+    tags: {topic: records, era: 1990s}
+    hints:
+      - The team's average margin of victory that season was over 12 points a game.
+      - Their record stood as the best in NBA history for two decades.
+      - A newly signed rebounding specialist joined a scoring champion and a two-way forward on the roster.
+      - They finished the regular season 72-10 and went on to win the title.
+    answer_fields:
+      - label: Season ending year
+        kind: number
+        accepted_answers: [1996]
+      - label: Wins
+        kind: number
+        accepted_answers: [72]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-miller-1994-ecf-game-five-choke
+    description: Guess the moment.
+    level: 7
+    tags: {topic: playoffs, era: 1990s}
+    hints:
+      - His team trailed by 12 points entering the final period, on the road.
+      - A courtside film director had been taunting him with a hand gesture all series.
+      - He scored 25 of his 39 points in the fourth quarter alone, a conference finals record.
+      - He returned the taunt to that same film director after the buzzer.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Reggie Miller, Miller]
+      - label: Year
+        kind: number
+        accepted_answers: [1994]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-bird-sixty-points-1985
+    description: Guess the game.
+    level: 6
+    tags: {topic: records, era: 1980s}
+    hints:
+      - He set his career high on a neutral court, not his own team's arena.
+      - The previous record for his franchise had been set just nine days earlier by a teammate.
+      - He scored 32 of his points in the final 14 minutes.
+      - It came against the Atlanta Hawks in March 1985.
+    answer_fields:
+      - label: Player
+        accepted_answers: [Larry Bird, Bird]
+      - label: Points scored
+        kind: number
+        accepted_answers: [60]
+
+  - type: gradual-hints
+    slug: nba-guess-the-game-dream-team-1992-barcelona
+    description: Guess the tournament.
+    level: 4
+    tags: {topic: history, era: 1990s}
+    hints:
+      - It was the first US Olympic team allowed to include active NBA players.
+      - The roster included Magic Johnson and Larry Bird playing together for the only time in their careers.
+      - They won every game by an average margin of more than 40 points.
+      - They won gold that summer, in Barcelona.
+    answer_fields:
+      - label: Year
+        kind: number
+        accepted_answers: [1992]
+      - label: Host city
+        accepted_answers: [Barcelona]

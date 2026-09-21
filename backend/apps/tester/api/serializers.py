@@ -79,6 +79,10 @@ class CatalogCardSerializer(serializers.Serializer):
     #: default is". Null is meaningful, so it is sent rather than resolved —
     #: the resolved figure rides on the rehearsal payload as `time_limit_ms`.
     time_limit_seconds = serializers.IntegerField(read_only=True, allow_null=True)
+    #: When this row was written — from ``BaseModel``, on every question
+    #: already. What makes "show me what I just synced" a filter rather than a
+    #: migration.
+    created_at = serializers.DateTimeField(read_only=True)
     image = serializers.SerializerMethodField()
 
     def get_image(self, question) -> str | None:

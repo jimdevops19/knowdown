@@ -21,6 +21,7 @@ ordering at the cost of losing the model instances the serializer needs.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
 
 from django.db.models import Q
 
@@ -42,6 +43,7 @@ def search_questions(
     question_type: str | None = None,
     level_range: tuple[int, int] | None = None,
     include_inactive: bool = True,
+    created_after: datetime | None = None,
 ) -> list[BaseQuestion]:
     """Every question matching the filters, across every answer shape.
 
@@ -54,6 +56,11 @@ def search_questions(
     case-insensitively, as one ``icontains`` each. Not full-text search: the
     catalog is thousands of rows, not millions, and a maintainer typing "kobe"
     wants the same three questions either way.
+
+    ``created_after`` is what turns "review what I just synced" into a filter:
+    ``created_at`` is already on every question via ``BaseModel``
+    (``auto_now_add``, indexed), so this is a plain ``gte`` on a column that was
+    always there — nothing to add to any question, just a way to ask for it.
     """
     filters = Q()
     if category_slug:
@@ -63,6 +70,8 @@ def search_questions(
         filters &= Q(level__gte=low, level__lte=high)
     if not include_inactive:
         filters &= Q(is_active=True)
+    if created_after is not None:
+        filters &= Q(created_at__gte=created_after)
     if search:
         term = search.strip()
         if term:
@@ -89,7 +98,15 @@ def search_questions(
     # maintainer scanning for a question thinks "NBA, the easy ones", not "all
     # the true/false ones first". Slug last, so the order is total and a
     # paginated list cannot show the same row on two pages.
-    found.sort(key=lambda q: (q.category.name, q.level, q.slug))
+    #
+    # Except when reviewing a fresh batch (`created_after` set): there, newest
+    # first is the order that matters — the whole point is skimming the rows a
+    # sync just wrote, not re-deriving which ones those were from a category
+    # sort.
+    if created_after is not None:
+        found.sort(key=lambda q: q.created_at, reverse=True)
+    else:
+        found.sort(key=lambda q: (q.category.name, q.level, q.slug))
     return found
 
 

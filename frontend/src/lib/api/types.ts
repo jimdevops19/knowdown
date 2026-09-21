@@ -733,6 +733,10 @@ export interface TesterQuestionCard {
    *  `time_limit_ms` on a rehearsal. */
   time_limit_seconds: number | null
   image: string | null
+  /** When this row was written. What `created_after` on the list filters and
+   *  sorts by — reviewing a batch right after a sync reads this column, not a
+   *  new one. */
+  created_at: string
 }
 
 /** One clue of a gradual-hints question, and when the server would pay it out. */

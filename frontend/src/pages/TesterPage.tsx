@@ -26,6 +26,16 @@ import type { TesterQuestionCard } from '../lib/api/types'
 const LOCKED_REASON =
   "Can't edit questions in staging — do it from local so it's also saved in the questions resources' YAML files."
 
+/** Today, in the browser's local timezone, as the `YYYY-MM-DD` the `created_after`
+ *  filter and the `<input type="date">` both speak. `toISOString` would answer in
+ *  UTC, which reads as yesterday for part of the evening in a timezone ahead of it. */
+function todayIso(): string {
+  const now = new Date()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${month}-${day}`
+}
+
 /*
  * `/tester` — every question in the database, searchable, one card each.
  *
@@ -102,6 +112,9 @@ export function TesterPage() {
     type: '',
     level: '',
     includeInactive: true,
+    // "" means unset. Otherwise an ISO date, so the request and the checkbox
+    // that sets it agree on what "today" means.
+    createdAfter: '',
     page: 1,
   })
 
@@ -130,8 +143,26 @@ export function TesterPage() {
     level_min: selectedLevel?.level_min,
     level_max: selectedLevel?.level_max,
     include_inactive: query.includeInactive,
+    created_after: query.createdAfter || undefined,
     page: query.page,
   }
+
+  /* The same filtration, restated as a URL query string, carried onto every
+   * card's link into `/tester/:type/:id`. That page has no other way to know
+   * "which 50 questions was this one clicked out of" — it is a fresh route,
+   * not a panel of this one — and Previous/Next there has nothing to iterate
+   * over without it. `page` is left out on purpose: rehearsing question 1 of
+   * page 2 should still be able to walk back into page 1's last question. */
+  const filterQuery = new URLSearchParams(
+    Object.entries({
+      search: query.search,
+      category: query.category,
+      type: query.type,
+      level: query.level,
+      createdAfter: query.createdAfter,
+      includeInactive: query.includeInactive ? '' : 'false',
+    }).filter(([, value]) => value !== ''),
+  ).toString()
 
   const questions = useQuery({
     queryKey: queryKeys.tester.questions(filters),
@@ -291,6 +322,28 @@ export function TesterPage() {
             />
             Include inactive
           </label>
+          {/* Review-a-sync filter: what got added on a given day, newest first
+              (the backend sorts that way once `created_after` is set). "Today"
+              is one click at the value a maintainer wants right after running
+              `sync_questions`; the date field is there for any other day. */}
+          <Button
+            size="sm"
+            variant={query.createdAfter === todayIso() ? 'primary' : 'secondary'}
+            onClick={() =>
+              narrow({ createdAfter: query.createdAfter === todayIso() ? '' : todayIso() })
+            }
+          >
+            Added today
+          </Button>
+          <label className="flex items-center gap-2 text-sm text-ash">
+            Added since
+            <input
+              type="date"
+              value={query.createdAfter}
+              onChange={(event) => narrow({ createdAfter: event.target.value })}
+              className="h-11 rounded-input border border-chalk/8 bg-raised px-3 text-sm text-chalk outline-none transition-all duration-150 focus:border-volt focus:ring-2 focus:ring-volt/25"
+            />
+          </label>
         </div>
       </Card>
 
@@ -306,6 +359,7 @@ export function TesterPage() {
             key={`${question.type}:${question.id}`}
             question={question}
             typeLabel={typeLabels.get(question.type) ?? question.type}
+            filterQuery={filterQuery}
             onEdit={() => setEditing(question)}
             onToggleActive={() => toggleActive.mutate(question)}
             lockedReason={editable ? undefined : LOCKED_REASON}

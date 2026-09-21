@@ -420,3 +420,94 @@ questions:
       - {text: Kawhi Leonard, is_correct: true}
       - {text: LaMarcus Aldridge}
       - {text: DeMar DeRozan}
+
+  - type: multiple-answer
+    slug: nba-mvp-and-dpoy-career
+    description: >-
+      Which of these players have won both the regular-season MVP award and
+      Defensive Player of the Year at some point in their career?
+    level: 6
+    tags: {topic: awards, era: all-time}
+    options:
+      - {text: Hakeem Olajuwon, is_correct: true}
+      - {text: Kevin Garnett, is_correct: true}
+      - {text: David Robinson, is_correct: true}
+      - {text: Giannis Antetokounmpo, is_correct: true}
+      - {text: Karl Malone}
+      - {text: Shaquille O'Neal}
+
+  - type: multiple-answer
+    slug: nba-westbrook-teams-played-for
+    description: Which of these teams did Russell Westbrook play for during his NBA career?
+    level: 5
+    tags: {topic: teams, era: all-time, player: westbrook}
+    options:
+      - {text: Oklahoma City Thunder, is_correct: true}
+      - {text: Houston Rockets, is_correct: true}
+      - {text: Denver Nuggets, is_correct: true}
+      - {text: Sacramento Kings, is_correct: true}
+      - {text: Miami Heat}
+      - {text: Boston Celtics}
+
+  - type: multiple-answer
+    slug: nba-westbrook-career-honors
+    description: Which of these honors did Russell Westbrook earn during his career?
+    level: 5
+    tags: {topic: awards, era: all-time, player: westbrook}
+    options:
+      - {text: NBA Most Valuable Player, is_correct: true}
+      - {text: NBA scoring champion, is_correct: true}
+      - {text: NBA assists leader, is_correct: true}
+      - {text: NBA championship}
+      - {text: Defensive Player of the Year}
+      - {text: Rookie of the Year}
+
+  - type: multiple-answer
+    slug: nba-westbrook-triple-double-seasons
+    description: >-
+      Which of these seasons did Russell Westbrook average a triple-double
+      for the entire season?
+    level: 6
+    tags: {topic: records, era: 2010s, player: westbrook}
+    options:
+      - {text: "2016-17", is_correct: true}
+      - {text: "2017-18", is_correct: true}
+      - {text: "2018-19", is_correct: true}
+      - {text: "2020-21", is_correct: true}
+      - {text: "2019-20"}
+      - {text: "2021-22"}
+
+  - type: multiple-answer
+    slug: nba-westbrook-okc-teammates
+    description: Which of these players were Russell Westbrook's teammates in Oklahoma City?
+    level: 5
+    tags: {topic: teammates, era: 2010s, player: westbrook}
+    options:
+      - {text: Kevin Durant, is_correct: true}
+      - {text: James Harden, is_correct: true}
+      - {text: Paul George, is_correct: true}
+      - {text: Chris Paul}
+      - {text: LeBron James}
+
+  - type: multiple-answer
+    slug: nba-westbrook-2008-draft-classmates
+    description: Which of these players were selected in the same 2008 NBA Draft as Russell Westbrook?
+    level: 5
+    tags: {topic: draft, era: 2000s, player: westbrook}
+    options:
+      - {text: Derrick Rose, is_correct: true}
+      - {text: Kevin Love, is_correct: true}
+      - {text: Brook Lopez, is_correct: true}
+      - {text: Stephen Curry}
+      - {text: Kevin Durant}
+
+  - type: multiple-answer
+    slug: nba-westbrook-ucla-career-facts
+    description: Which of these are true about Russell Westbrook's college career at UCLA?
+    level: 6
+    tags: {topic: college, era: 2000s, player: westbrook}
+    options:
+      - {text: He was a teammate of Kevin Love, is_correct: true}
+      - {text: He was coached by Ben Howland, is_correct: true}
+      - {text: He played two seasons before turning pro, is_correct: true}
+      - {text: He won an NCAA championship}
