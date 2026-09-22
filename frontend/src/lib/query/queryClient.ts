@@ -54,9 +54,18 @@ export const queryKeys = {
   },
   rankings: {
     ladder: (category: string, page: number) => ['rankings', category, page] as const,
+    /* The home page's "where you stand" lookup — the head of one ladder, asked
+     * for at a page size of its own so it cannot share a cache entry with the
+     * paginated ladder screen and hand it a short page. */
+    standing: (category: string) => ['rankings', 'standing', category] as const,
   },
   matches: {
     mine: (page: number) => ['matches', 'mine', page] as const,
+    /* The last few finished matches, for the home page's form and totals.
+     * Keyed by the limit as well as the page: a window of 20 and a page of 25
+     * are different documents, and keying on the page alone would let whichever
+     * screen asked first answer for the other. */
+    recent: (limit: number) => ['matches', 'recent', limit] as const,
     detail: (id: string) => ['matches', 'detail', id] as const,
     participants: (id: string) => ['matches', 'participants', id] as const,
   },

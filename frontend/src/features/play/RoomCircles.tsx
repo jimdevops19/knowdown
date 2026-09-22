@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Info } from 'lucide-react'
 import { listRooms } from '../../lib/api/endpoints'
@@ -102,6 +102,24 @@ import type { Room } from '../../lib/api/types'
  * the big line under the disc, so it is set at one size for every room instead
  * of shrinking to fit the longest one, and a room can have both a mark and a
  * readable name — which the lettered face made a choice between.
+ *
+ * ── And it floats ──────────────────────────────────────────────────────────
+ * Every playable ball idles on a slow rise-and-settle with a ground shadow
+ * that shrinks under it (`--animate-ball-float` / `-shadow`, index.css). This
+ * is the one place in the app with an idle loop this large, and the lobby is
+ * why it is allowed: nothing here is on a clock, so movement in the corner of
+ * the eye costs a player nothing — the same amplitude beside a live question
+ * would be the distraction `hint-breathe` was twice cut back to avoid.
+ *
+ * It is what makes the grid read as a pick-one screen in a game rather than a
+ * list of settings with circles on it, and it is also what the flat plate now
+ * says by *not* doing it: an empty room sits still, so "playable" is legible
+ * from across the grid before any word on the tile is.
+ *
+ * The rise is a percentage, so it scales with the disc instead of being a
+ * fixed 6px that is a lot on a phone and nothing on a desktop, and each tile
+ * starts at a different phase (`floatDelay`) — balls moving in lockstep read
+ * as one sheet sliding, which is the opposite of the effect.
  */
 export function RoomCircles() {
   const rooms = useQuery({
@@ -164,6 +182,10 @@ function ballColor(room: Room, index: number): BallColor {
 
 function RoomCircle({ room, index }: { room: Room; index: number }) {
   const [infoOpen, setInfoOpen] = useState(false)
+  // Which lobby this tile was tapped in. The grid renders on both `/` and
+  // `/play`, and `PlayPage` reads this to send a cancelled search back to the
+  // screen the player chose from rather than to a fixed one.
+  const location = useLocation()
   const playable = room.question_pool_size >= shortestMatch(room)
   const color = ballColor(room, index)
   // The room's own `logo` (authored in rooms.yaml, see the comment there) —
@@ -171,13 +193,41 @@ function RoomCircle({ room, index }: { room: Room; index: number }) {
   // blank one, rather than a blank ball.
   const Logo = room.logo ? ROOM_LOGOS[room.logo] : undefined
 
+  // Where this ball is in the float's cycle at mount. Negative, so every ball
+  // is already mid-rise on the first frame rather than the whole grid starting
+  // from rest together — and spread across the 3.4s period by position, which
+  // is stable for the same reason the default colours are cycled by position
+  // rather than hashed from the slug.
+  const floatDelay = `-${((index % 5) * 0.68).toFixed(2)}s`
+
   const disc = playable ? (
-    // Its own lip, consumed when the link around it is pressed. Brightness
-    // rather than a second fill colour on hover: four hues would otherwise
-    // need four hover values, and the ball is already the loudest thing on
-    // the screen.
-    <span className="block aspect-square w-full max-w-[9rem] transition-[filter] duration-150 group-hover:brightness-110 group-active:translate-y-1">
-      <RoomBall color={color} logo={Logo ? <Logo /> : undefined} />
+    // Three nested spans, because three different things move this disc and
+    // they must not fight over one `transform`: the outer one takes the press
+    // travel (a CSS animation beats a class-set transform outright, so putting
+    // `group-active:translate-y-1` on the floating element would silently do
+    // nothing), the shadow sits on the ground and stays there, and only the
+    // innermost one floats.
+    <span className="relative block aspect-square w-full max-w-[9rem] group-active:translate-y-1">
+      {/* The contact shadow. Not the ball's own drop shadow — that one is
+          inside the SVG and rides up with it, which is what an object's
+          shading does. This is the mark it leaves on the ground, and it
+          shrinks and fades as the ball rises: without it a ball that only
+          translates reads as a sticker sliding, not as a thing with air
+          under it. */}
+      <span
+        className="pointer-events-none absolute inset-x-[20%] bottom-[-2%] block h-[9%] rounded-[50%] bg-void/70 blur-[5px] motion-safe:animate-ball-float-shadow"
+        style={{ animationDelay: floatDelay }}
+        aria-hidden
+      />
+      {/* Brightness rather than a second fill colour on hover: four hues would
+          otherwise need four hover values, and the ball is already the loudest
+          thing on the screen. */}
+      <span
+        className="relative block h-full w-full transition-[filter] duration-150 group-hover:brightness-110 motion-safe:animate-ball-float"
+        style={{ animationDelay: floatDelay }}
+      >
+        <RoomBall color={color} logo={Logo ? <Logo /> : undefined} />
+      </span>
     </span>
   ) : (
     // An empty room is a plate, not a ball. It cannot be played, and giving it
@@ -257,6 +307,7 @@ function RoomCircle({ room, index }: { room: Room; index: number }) {
       {info}
       <Link
         to={`/play/${room.slug}`}
+        state={{ from: `${location.pathname}${location.search}` }}
         className="group flex w-full flex-col items-center gap-2 rounded-card outline-offset-4 sm:gap-2.5"
         aria-label={`Play in ${room.name}${room.is_rated ? '' : ' (unrated)'} — ${contents(room)}`}
       >

@@ -4,7 +4,6 @@
 resources:
   - free-text.yaml
   - gradual-hints.yaml
-  - image-answer.yaml
   - matrix.yaml
   - multiple-answer.yaml
   - name-as-many.yaml

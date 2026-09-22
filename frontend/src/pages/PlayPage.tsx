@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { getRoom } from '../lib/api/endpoints'
 import { queryKeys } from '../lib/query/queryClient'
@@ -26,10 +26,33 @@ import { ErrorState, Loading } from '../components/states'
  * entry. Back from a live match should go to where the player came from, not to
  * a search screen that would immediately re-queue them for a second match while
  * the first one is still running.
+ *
+ * ── Cancelling puts the player back where they were ─────────────────────────
+ * Cancel used to go to `/`, which is wrong for the common path: the lobby is
+ * on `/play` as well as on Home, and a player who picked a ball on the Play tab
+ * and changed their mind was moved to a different screen for it. Backing out of
+ * a choice should return you to the menu you made it from, so the tile that
+ * opened this search says where it was (`RoomCircles` puts `state.from` on the
+ * link) and Cancel goes back there.
+ *
+ * `/play` is the fallback rather than `/`, and it is the answer for every
+ * entrance that carries no origin: a deep link, a refresh (React Router does
+ * keep history state across one, but a pasted URL has none), and the detour
+ * through sign-in, which comes back via `?next=` and cannot bring state with
+ * it. All of those are a player who has no previous screen in this app, and
+ * the lobby is the one place a cancelled search is certainly still useful.
+ *
+ * `navigate(-1)` would be the same thing for one of those cases and wrong for
+ * the rest — with no history to pop it leaves the player on the search screen,
+ * still queued.
  */
 export function PlayPage() {
   const { room = '' } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
+  // Where the tile that started this search was tapped — see the header.
+  const from = (location.state as { from?: unknown } | null)?.from
+  const origin = typeof from === 'string' && from.startsWith('/') ? from : '/play'
   const { user } = useAuth()
 
   const lobby = useQuery({
@@ -58,8 +81,8 @@ export function PlayPage() {
         <Button size="full" onClick={() => navigate(0)}>
           Try again
         </Button>
-        <Button variant="ghost" size="full" onClick={() => navigate('/')}>
-          Back home
+        <Button variant="ghost" size="full" onClick={() => navigate(origin)}>
+          Back to rooms
         </Button>
       </div>
     )
@@ -82,7 +105,7 @@ export function PlayPage() {
       waitingSeconds={search.waitingSeconds}
       onCancel={() => {
         search.cancel()
-        navigate('/', { replace: true })
+        navigate(origin, { replace: true })
       }}
     />
   )

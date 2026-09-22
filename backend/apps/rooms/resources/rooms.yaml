@@ -38,7 +38,11 @@
 #      same key to apps.rooms.constants.ROOM_LOGO_KEYS (the backend allow-list
 #      this file is validated against — an unknown key fails the sync rather
 #      than rendering a blank ball).
-# Known keys as of this writing: tv (a boxy retro CRT — the 2000s room's mark).
+# Known keys as of this writing (5): tv (a boxy retro CRT), leagueball (a
+# basketball drawn in reverse, navy body and chalk seams — the one way a ball
+# reads on an orange ball), banner (a championship pennant with a notched
+# hem), medal (a ribboned disc), hungupjersey (a jersey on a peg — "hang 'em
+# up", retirement itself rather than the player retiring).
 #
 # `color` is which hue the room's ball is drawn in. Leave it out (the common
 # case) and the lobby cycles the default four (orange, violet, pink, lime) by
@@ -67,6 +71,7 @@
   questions_asked_ranges: [3, 5, 7]
   display_order: 1
   color: orange
+  logo: leagueball
   categories:
     - slug: nba
 
@@ -78,6 +83,7 @@
   questions_asked_ranges: [4, 5, 6]
   color: gold
   display_order: 2
+  logo: banner
   categories:
     - slug: nba
       filter_tags:
@@ -105,6 +111,7 @@
   questions_asked_ranges: [3, 5]
   display_order: 4
   color: slate
+  logo: medal
   categories:
     - slug: nba
       filter_tags:
@@ -117,6 +124,7 @@
     opponent on your knowledge of Russell Westbrook.
   questions_asked_ranges: [4, 5, 6]
   display_order: 5
+  logo: hungupjersey
   categories:
     - slug: nba
       filter_tags:

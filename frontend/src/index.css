@@ -364,6 +364,29 @@
      than a paragraph flashing in as a block. */
   --animate-word-in: word-in 0.22s ease-out both;
 
+  /* ── The lobby's balls, idling ────────────────────────────────────────
+   * A room ball rises and settles on a slow loop, with a contact shadow that
+   * shrinks and fades as it goes up. The pair is the whole trick: a thing that
+   * only translates reads as a sliding sticker, and a thing whose shadow tracks
+   * it reads as an object with air under it — which is what every game's
+   * pick-one screen is doing when its buttons bob.
+   *
+   * This is the lobby only, and it is allowed to be the one *idle* loop in the
+   * app that moves something the size of a ball. Nothing is on a clock here:
+   * the lobby is the one screen a player is reading rather than racing, so
+   * peripheral movement costs nothing, where the same amplitude beside a
+   * question prompt would be the distraction `hint-breathe` was cut back to
+   * avoid being.
+   *
+   * 3.4s, slower than any status pulse, because a float is not a heartbeat —
+   * it is weight. The amplitude is in percent so it scales with the disc
+   * rather than being a fixed 6px that is a lot on a 320px phone and nothing
+   * on a desktop. Staggered per tile by the caller (`RoomCircles`), so the
+   * grid breathes rather than marching: balls moving in lockstep read as one
+   * sheet sliding, which is the exact opposite of the effect. */
+  --animate-ball-float: ball-float 3.4s ease-in-out infinite;
+  --animate-ball-float-shadow: ball-float-shadow 3.4s ease-in-out infinite;
+
   /* ── The reward tier ────────────────────────────────────────────────────
    * Every duration above is tuned "shorter than a dashboard's", because a
    * question is open for ten seconds and an entrance that takes 400ms has spent
@@ -511,6 +534,19 @@
 @keyframes word-in {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+/* The ball, and the ground shadow it casts. Same duration and same delay, read
+   in opposite directions: at the top of the rise the shadow is smallest and
+   faintest. */
+@keyframes ball-float {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -5.5%, 0); }
+}
+
+@keyframes ball-float-shadow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.26; transform: scale(0.84); }
 }
 
 /* ── Custom utilities ─────────────────────────────────────────────────────

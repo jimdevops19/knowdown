@@ -45,7 +45,7 @@ MAX_ROOM_QUESTION_COUNT = 20
 #: Append-only, the same as ``MASCOT_KEYS``: a room's ``logo`` is read back out
 #: of the database by key, so re-spelling one silently blanks every room that
 #: named it.
-ROOM_LOGO_KEYS = frozenset({"tv"})
+ROOM_LOGO_KEYS = frozenset({"tv", "leagueball", "banner", "medal", "hungupjersey"})
 
 #: Every hue a room's ball may take, as the keys ``resources/rooms.yaml``
 #: authors under ``color:``. Confirmed against a rendered preview of all of

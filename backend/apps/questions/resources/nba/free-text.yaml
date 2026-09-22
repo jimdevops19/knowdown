@@ -55,9 +55,12 @@ questions:
     level: 3
     tags: {topic: awards, era: 2000s}
     accepted_answers:
+      - Shaquille ONeal
       - Shaquille O'Neal
+      - Shaquille
       - Shaq
       - O'Neal
+      - ONeal
 
   - type: free-text
     slug: nba-the-answer-2001-mvp
@@ -79,6 +82,7 @@ questions:
     accepted_answers:
       - Gilbert Arenas
       - Arenas
+      - Agent Zero
 
   - type: free-text
     slug: nba-spurs-finals-mvp-2003-2005
@@ -88,6 +92,9 @@ questions:
     accepted_answers:
       - Tim Duncan
       - Duncan
+      - Timmy
+      - The Big Fundamental
+      - Big Fundamental
 
   - type: free-text
     slug: nba-grizzlies-vancouver-relocation
@@ -206,7 +213,7 @@ questions:
     accepted_answers:
       - Damian Lillard
       - Lillard
-      - Dame
+      - Dame Time
 
   - type: free-text
     slug: nba-2014-first-overall-pick
@@ -246,7 +253,9 @@ questions:
       - Giannis Antetokounmpo
       - Giannis
       - Antetokounmpo
+      - Antetokounmpo
       - Greek Freak
+      - The Greek Freak
 
   - type: free-text
     slug: nba-2018-regular-season-mvp

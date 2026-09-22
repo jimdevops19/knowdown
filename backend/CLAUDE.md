@@ -188,6 +188,38 @@ band stops being the same board every time) prints as a shortfall and does
 **not** fail the command — refusing there would take a category out of service
 for being merely repetitive.
 
+### `purge_inactive_questions` — the one command that really deletes a question
+
+```bash
+uv run python manage.py purge_inactive_questions                    # dry run
+uv run python manage.py purge_inactive_questions --no-dry-run       # one by one
+uv run python manage.py purge_inactive_questions --no-dry-run --yes # all of them
+uv run python manage.py purge_inactive_questions --type image-answer --slug nba-x
+```
+
+The deliberate exception to "nothing is deleted". `sync_questions` deactivates
+a question dropped from its YAML because a matchup that already played it
+points at the row — right for a question being *parked*, and no answer at all
+for one that should never have been written. This hard-deletes every
+**inactive** (or soft-deleted — such a row still holds its slug in the unique
+index) question the filters allow, and pays the price the rule was
+protecting: the `MatchupQuestion` rows pointing at it and the `PlayerAnswer`
+rows under them go too, so a match that played it comes back from
+`GET /api/v1/matches/{id}/` one question shorter. Leaving them would be worse
+than untidy — a dangling `(question_type, question_id)` pair is a box score
+that raises `NotFound` out of `questions.selectors.get_question`.
+
+**Dry run is the default**, the inverse of `purge_stress`: that one sweeps rows
+it created itself under a tag nothing else uses, this one is pointed at the
+real catalog by hand. `--no-dry-run` alone asks about each question in turn
+(`y`/`n`/`a`/`q`, showing what each takes with it) and refuses outright with no
+terminal to ask at; `--yes` purges the whole list. Frozen results are never
+recomputed — `Matchup.question_count` stays the length both players agreed to,
+scores, ratings and badges stay what was earned at the whistle, and the
+`Matchup` itself is never deleted. It lives in **`apps.matches`** because it
+has to know both halves and the dependency runs one way: `apps.questions` has
+never heard of a match.
+
 Config is 12-factor via environment / a repo-root `.env` (see `.env.example`);
 `DJANGO_SETTINGS_MODULE` selects the module (`config.settings.{local,test,production}`,
 default `local`). With no `.env` it falls back to local sqlite, an in-memory

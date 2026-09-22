@@ -1364,6 +1364,16 @@ class ShippedCatalogTests(TestCase):
     thing a bad merge breaks.
     """
 
+    #: Types the shipped catalog deliberately has no question of, so the
+    #: coverage check below can still speak for the other eight. Being here is
+    #: a statement that the *type* works and nobody has written a question
+    #: worth asking yet: ``image-answer`` lost its two court-diagram questions
+    #: and has no resource file until somebody authors a better one (the
+    #: authoring path creates both the file and its ``_active.yaml`` line —
+    #: ``questions.services.authoring._ensure_file``). Delete the entry when
+    #: the first one lands.
+    UNSTOCKED_TYPES = frozenset({QuestionType.IMAGE_ANSWER})
+
     def test_the_shipped_resources_load(self) -> None:
         with TemporaryDirectory() as media:
             with override_settings(MEDIA_ROOT=media):
@@ -1376,6 +1386,8 @@ class ShippedCatalogTests(TestCase):
         # that stops loading is caught here rather than the first time somebody
         # writes one of that kind.
         for question_type, model in QUESTION_MODELS.items():
+            if question_type in self.UNSTOCKED_TYPES:
+                continue
             self.assertTrue(
                 model.objects.exists(),
                 f"the shipped catalog has no {question_type} question",
