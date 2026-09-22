@@ -1,60 +1,162 @@
+import { useId } from 'react'
+
 /*
- * The mark and the wordmark.
+ * The mark, the badge and the wordmark lockup.
  *
- * The mark is the brand's own letter — a wide, flat-sided K cut out of the
- * orange tile, drawn in the same widened display voice the wordmark beside it
- * is set in. Inline SVG rather than an asset: it is four path commands, it has
- * to take the current colour in four different contexts, and shipping it as a
- * file would mean a network request on the first paint of the sign-in screen.
+ * The mark is one ball cut on the diagonal: brand orange on the upper half,
+ * the logo's azure on the lower, a dark seam between them. It is the oldest
+ * picture this app has of itself — two kits that never clash, your side and
+ * theirs — drawn as a single object rather than as two things side by side.
  *
- * ## Why not the buzzer
+ * ## Why not the K, and why not the buzzer before it
  *
- * This was a buzzer: a filled dot inside a ring cut open at the top right, the
- * thing you slam when you know the answer. The idea was sound and the drawing
- * was not — a dot centred in a broken ring is the diagram of a camera lens, and
- * that is what it read as on every screen, most painfully on the profile page,
- * which at the time had a camera glyph on an upload button a thumb's width
- * away. A mark whose first reading is "photo app" is not carrying the brand,
- * however good the story behind it is.
+ * The mark has been three things. A buzzer (a dot inside a ring cut open at
+ * the top right) read as a camera lens on every screen. The K that replaced it
+ * solved that — a letter cannot be mistaken for an object — but it solved it by
+ * saying nothing at all: a single flat-sided letter on an orange tile is the
+ * shape of roughly half the app icons on a home screen, and it carried none of
+ * what the product is. It was a correct mark for a company and a dull one for
+ * a game.
  *
- * A letter has none of that ambiguity. It cannot be mistaken for an object
- * because it is not one, it is unmistakably *this* app rather than a genre, and
- * it survives the size the mark is actually judged at: at 16px in a browser tab
- * a ring's 2.8-unit stroke and the gap in it are two or three pixels that blur
- * into a smudge, while a K's stem and arms stay separate strokes. The three
- * alternatives that were drawn and looked at beside it all failed on the same
- * test — a side-on buzzer reads as a siren, a chevron over a bar is the
- * universal download glyph, and two facing wedges collapse into a bowtie.
+ * The ball keeps the letter's virtue (it is a shape, not a diagram, so it
+ * cannot be misread as another object) and adds the thing the letter lacked:
+ * it is a *match*. Two colours meeting on a hard edge is the whole premise —
+ * 1v1, one clock — and it is legible the instant it is seen, at any size, in
+ * any culture, without reading a word. It also finally uses the opposition the
+ * design system already argued for, instead of leaving the azure to appear
+ * only as a marker on a scoreboard.
  *
- * The geometry is one set of numbers on a 32-unit grid, and it is repeated in
- * exactly two other places: `frontend/public/favicon.svg` (which a browser
- * fetches before any of this runs) and `scripts/generate_pwa_icons.py` (which
+ * ## Three forms, and when each one is used
+ *
+ *   LogoMark   the ball alone, no type. Every small surface: the phone header,
+ *              a browser tab, a launcher icon, an install prompt. The wordless
+ *              form *is* the mark — the ball has to work at 16px, where any
+ *              lettering inside it is a grey smear.
+ *   LogoBadge  the ball with KNOWDOWN struck across it on a dark band. The
+ *              signed piece: a doorway screen, a share image, merchandise.
+ *              Needs ~72px before the band is worth reading, so it is never
+ *              the one in a row of chrome.
+ *   Logo       the mark with the wordmark set beside it. The lockup for
+ *              anywhere with horizontal room — the sidebar, the desk header,
+ *              the home hero.
+ *
+ * `LogoMark` and `LogoBadge` are the same drawing plus one band, which is why
+ * they share `Ball` below rather than being two sets of coordinates. The badge
+ * is never built by putting `<Logo>` next to the ball: the band already says
+ * the name, and a lockup around it would say it twice.
+ *
+ * ## The geometry
+ *
+ * One 64-unit grid, the same grid the mascots and room logos are drawn on. The
+ * numbers here are repeated in exactly two other places — `public/favicon.svg`
+ * (fetched before any of this runs) and `scripts/generate_pwa_icons.py` (which
  * bakes the launcher PNGs). Change it here and change it there.
  */
+
+/** Disc radius. Leaves room for the 1.5-wide keyline to sit inside the box. */
+const R = 29.25
+
+/*
+ * The seam runs corner to corner on the anti-diagonal (x + y = 64), and both
+ * halves are drawn past the edge of the box so the clip circle — not the
+ * polygon — decides where the colour stops. A half traced to the ball's own
+ * curve would need the arc spelled out twice and would still leave a hairline
+ * of ground at some zoom levels.
+ */
+const UPPER_LEFT = '-8,72 72,-8 -8,-8'
+
+function Ball({ clipId, band }: { clipId: string; band?: boolean }) {
+  return (
+    <>
+      <defs>
+        <clipPath id={clipId}>
+          <circle cx="32" cy="32" r={R} />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clipId})`}>
+        {/* Azure first as a full disc, orange laid over its upper half: two
+            polygons meeting on a shared edge leave that edge to the rasteriser,
+            and it shows as a lighter line down the middle of the seam. */}
+        <circle cx="32" cy="32" r={R} fill="var(--color-kit-azure)" />
+        <polygon points={UPPER_LEFT} fill="var(--color-court)" />
+        {/* The seam is the app's deepest ink, not a tint of either half — the
+            two kits are separated by the pitch they are played on. */}
+        <line x1="-8" y1="72" x2="72" y2="-8" stroke="var(--color-void)" strokeWidth="2.25" />
+        {band && <rect x="-8" y="26.5" width="80" height="12" fill="var(--color-void)" />}
+      </g>
+      {/* A keyline in the same ink, so the ball keeps its edge on a light
+          ground and simply disappears into a dark one. */}
+      <circle
+        cx="32"
+        cy="32"
+        r={R}
+        fill="none"
+        stroke="var(--color-void)"
+        strokeWidth="1.5"
+      />
+    </>
+  )
+}
+
+/**
+ * The ball alone — the form that has to survive 16px.
+ */
 export function LogoMark({ size = 32, className = '' }: { size?: number; className?: string }) {
+  const clipId = useId()
   return (
     <svg
       width={size}
       height={size}
-      viewBox="0 0 32 32"
+      viewBox="0 0 64 64"
       fill="none"
       aria-hidden
       className={className}
     >
-      {/* A flat orange tile, cut to the shape scale rather than pillowed.
-          This was a violet→cyan diagonal gradient — the app's logo was itself
-          the clearest statement of the look the design system has moved off,
-          and a two-stop diagonal gradient on a rounded square is the most
-          copied logo form there is. One solid colour is both stronger at 24px
-          in a tab bar and honest about the palette: the brand *is* the orange. */}
-      <rect width="32" height="32" rx="5" fill="var(--color-court)" />
-      {/* The stem, and the two arms as one path that meets it *inside* its own
-          width (the arms' inner edge is x=12.2, the stem runs to 12.4). They
-          overlap rather than butt together: a seam at exactly the same
-          coordinate is a hairline of orange at some zoom levels on some
-          renderers, and the one place it would show is the 512px launcher icon. */}
-      <path d="M8 7h4.4v18H8z" fill="var(--color-void)" />
-      <path d="M24.4 7L16 15.2l8.8 9.8h-5.6l-7-8.1v-1.7L19 7z" fill="var(--color-void)" />
+      <Ball clipId={clipId} />
+    </svg>
+  )
+}
+
+/**
+ * The ball with the name struck across it.
+ *
+ * The wordmark is live text rather than outlines: it is set in the app's own
+ * display face at the width the rest of the app is set in, so the badge
+ * restyles with the type system instead of drifting away from it.
+ *
+ * `textLength` is what holds the setting together. The band is a fixed chord
+ * of a circle, so the word has exactly one width it may be — and letting the
+ * glyphs fall where they land would either overrun the ball's curve or leave
+ * the name floating in the middle of a plate. Spelling the width out (and
+ * letting the renderer put the difference *between* the letters, never inside
+ * them) also opens the tracking, which is what the word needs at this weight:
+ * eight widened caps set solid read as one long shape rather than as a name.
+ */
+export function LogoBadge({ size = 96, className = '' }: { size?: number; className?: string }) {
+  const clipId = useId()
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 64 64"
+      fill="none"
+      role="img"
+      aria-label="knowdown"
+      className={className}
+    >
+      <Ball clipId={clipId} band />
+      <text
+        x="32"
+        y="35.5"
+        textAnchor="middle"
+        textLength="50.5"
+        lengthAdjust="spacing"
+        fontSize="8"
+        className="font-display font-extrabold [font-stretch:115%]"
+        fill="var(--color-chalk)"
+      >
+        KNOWDOWN
+      </text>
     </svg>
   )
 }
@@ -62,23 +164,19 @@ export function LogoMark({ size = 32, className = '' }: { size?: number; classNa
 /**
  * The wordmark, with the mark in front of it.
  *
- * The mark alone would be a poor brand at this size — it is one letter, and a
- * letter on a tile is the shape half the app icons on a home screen have — so
- * the two ship together wherever the brand appears: the tile carries the
- * identity, the word carries the name. The mark goes alone only where there is
- * no room for the word (the phone header, a browser tab, a launcher), and those
- * are the places the reader already knows which app they opened. The two halves
- * stay near-touching because it is one word.
+ * The mark alone names nothing — it is a ball, and a ball is a genre — so the
+ * two ship together wherever there is room: the ball carries the identity, the
+ * word carries the name. The mark goes alone only where there is no room for
+ * the word (the phone header, a browser tab, a launcher), and those are the
+ * places the reader already knows which app they opened.
  */
 export function Logo({ size = 32 }: { size?: number }) {
   return (
     <div className="flex items-center gap-2 px-1">
       <LogoMark size={size} />
-      {/* Widened display caps, set solid. The second half carried a blurred
-          cyan text-shadow before — neon glow on a wordmark is decoration that
-          smears the letterforms at exactly the sizes a wordmark is read at, and
-          it is the same halo the rest of the system dropped. The two halves are
-          now told apart the way a jersey does it: by colour, cleanly. */}
+      {/* Widened display caps, set solid. The two halves are told apart the way
+          a jersey does it: by colour, cleanly — and by the same two colours the
+          ball beside them is cut from. */}
       <span className="text-headline flex items-center text-2xl leading-none">
         <span className="text-chalk">KNOW</span>
         <span className="text-court">DOWN</span>

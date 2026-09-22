@@ -69,9 +69,10 @@ class Room(SluggedModel, BaseModel):
     #: after") and alphabetical would make it an accident of naming.
     display_order = models.PositiveSmallIntegerField(default=0)
 
-    #: Which badge the room's ball wears, in place of its own name lettered
-    #: across the face — a key from ``constants.ROOM_LOGO_KEYS``, or blank for
-    #: "no logo, letter the name instead." The client owns the artwork
+    #: Which badge the room's ball wears — a key from
+    #: ``constants.ROOM_LOGO_KEYS``, or blank for a plain ball. Optional
+    #: either way: the room's name is set *under* the ball in the lobby, so a
+    #: logo adds a mark rather than replacing the name. The client owns the artwork
     #: (`frontend/src/components/icons/roomLogos.tsx`); this column only ever
     #: carries the key, the same split ``players.Player.mascot`` draws.
     logo = models.CharField(max_length=50, blank=True, default="")

@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { RoomCircles } from './RoomCircles'
@@ -13,9 +14,10 @@ import type { Room } from '../../lib/api/types'
  *  1. **A room is a link to its own queue.** The slug in that href is what the
  *     matchmaking socket is opened on, so a wrong one is a player queued
  *     somewhere else entirely.
- *  2. **A room says what is in it.** The name is inside the disc and the line
- *     under it is the description (or, unauthored, the categories) — the only
- *     thing telling a player these rooms apart.
+ *  2. **A room says what is in it.** The name is under the disc, and the
+ *     description (or, unauthored, the categories) is behind the tile's `i` —
+ *     the only thing telling a player these rooms apart, so it has to be
+ *     reachable rather than merely present in a title attribute.
  *  3. **A room that cannot fill its own shortest match is not tappable.**
  *     `select_room_questions` refuses such a draw server-side, so a link there
  *     is a queue that can only ever fail.
@@ -55,13 +57,22 @@ describe('RoomCircles', () => {
     expect(link).toHaveAttribute('href', '/play/nba-room-finals')
   })
 
-  it('says what the room draws from under its name', async () => {
+  it('names the room under its ball', async () => {
     renderLobby([ROOM])
+    expect(await screen.findByText('Ring Chasing')).toBeInTheDocument()
+  })
+
+  it('keeps the description behind the info button', async () => {
+    renderLobby([ROOM])
+    const info = await screen.findByRole('button', { name: /What is in Ring Chasing/ })
+    expect(screen.queryByText('June basketball only.')).not.toBeInTheDocument()
+    await userEvent.click(info)
     expect(await screen.findByText('June basketball only.')).toBeInTheDocument()
   })
 
   it('falls back to the category names when a room has no description', async () => {
     renderLobby([{ ...ROOM, description: '' }])
+    await userEvent.click(await screen.findByRole('button', { name: /What is in Ring Chasing/ }))
     expect(await screen.findByText('NBA')).toBeInTheDocument()
   })
 

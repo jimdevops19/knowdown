@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
-import { Logo } from '../../components/Logo'
+import { LogoBadge } from '../../components/Logo'
 
 /*
  * The frame around every doorway screen — sign in, sign up, choose a name,
@@ -30,8 +30,12 @@ export function AuthLayout({
   return (
     <div className="px-safe flex min-h-dvh flex-col items-center justify-center py-10">
       <div className="flex w-full max-w-sm flex-col gap-6">
+        {/* The one screen that gets the badge rather than the lockup: it is a
+            single centred column with nothing else in the row, which is the
+            only condition under which the full mark is readable, and a doorway
+            screen is where a brand is meant to introduce itself. */}
         <Link to="/" aria-label="knowdown — home" className="self-center">
-          <Logo size={40} />
+          <LogoBadge size={92} />
         </Link>
 
         <div className="flex flex-col gap-1 text-center">

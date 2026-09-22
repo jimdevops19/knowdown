@@ -198,6 +198,19 @@
      thing on their side of the scoreboard rather than a slightly bluer blue. */
   --color-rival: #5fd9ff;
 
+  /* The logo's azure, and nothing else's.
+     The mark (see components/Logo.tsx) is the orange/azure opposition cut
+     across one ball, and there the azure is not a *marker on* a surface but
+     half the surface itself — a whole hemisphere of `rival` next to a whole
+     hemisphere of `court` reads as a pale wash losing to the orange, because
+     `rival` was lightened specifically so a small bright token would separate
+     from the pitch. Filling an area that size wants saturation instead of
+     lightness. This is that same azure taken down in lightness and up in
+     chroma until the two halves weigh the same.
+     It is deliberately not in the UI palette: a brand colour that also means
+     something on a scoreboard stops being a brand colour. */
+  --color-kit-azure: #00bdf5;
+
   /* Everything that is neither verdict nor side: waiting, idle, disabled.
      Held above 4.5:1 on `panel` — "waiting for your opponent" is ordinary text
      that people read, not decoration. */

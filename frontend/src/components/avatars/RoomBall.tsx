@@ -13,19 +13,14 @@ import { useId, type ReactNode } from 'react'
  * (`components/icons/navIcons.tsx`) — gradient + highlight + `feDropShadow`
  * — applied to a sphere instead of a free-standing glyph.
  *
- * Content is either a small logo (`logo`) or — with no logo — the room's own
- * name lettered across the face. Never both: a badge and a name competing for
- * the same small circle reads worse than either alone, so the component only
- * ever renders one, and both sit dead center — the one spot on a sphere that
- * reads as "on it" rather than "stuck to it" at every size this renders at.
- *
- * The label is drawn as native SVG `<text>`, not HTML laid over the sphere:
- * a viewport-unit (`vw`) font size looked right on the screen it was tuned on
- * and wrong on every other one, because it scales with the *window* rather
- * than the ball. Text inside the same 0..100 viewBox as the sphere scales
- * with the ball itself, and `text-anchor`/`dominant-baseline` center it
- * exactly regardless of how many letters it holds — no wrapping, no
- * clipping, no eyeballed padding.
+ * Nothing is lettered across the face. A ball wears an optional `logo` badge,
+ * dead center — the one spot on a sphere that reads as "on it" rather than
+ * "stuck to it" at every size this renders at — and a ball given no logo is a
+ * plain sphere. The room's *name* is not the ball's job: it is set under the
+ * ball, in display caps, by whatever renders it (`features/play/RoomCircles`).
+ * A name lettered onto the face had to shrink to fit, which made the longest
+ * room name the one that read smallest — exactly backwards — and left a room
+ * with a logo unable to say its name at all.
  *
  * Gradient/filter ids are per-instance (`useId`) because the lobby renders
  * several balls at once — a literal id would collide and every ball would
@@ -78,52 +73,19 @@ const PALETTES = {
  *  default, the same way an unknown `logo` falls back to no logo. */
 export const BALL_COLOR_KEYS = Object.keys(PALETTES) as BallColor[]
 
-type RoomBallContent = { logo: ReactNode; label?: never } | { label: string; logo?: never }
-
-type RoomBallProps = RoomBallContent & {
+type RoomBallProps = {
   color: BallColor
+  /** An optional badge worn on the face. A ball without one is plain. */
+  logo?: ReactNode
   className?: string
 }
 
-/* A label's size in the ball's own 0..100 units, by character count — tuned
-   so one to three letters (every mark this app authors today: "A", "RW",
-   "NBA") each read as large and centered as the others, rather than sharing
-   one size that is right for one length and cramped or oversized for the
-   rest. Longer text (an un-overridden room name) steps down further, since
-   at that point fitting is the goal rather than filling the face. */
-function labelFontSize(label: string): number {
-  if (label.length <= 1) return 46
-  if (label.length === 2) return 38
-  if (label.length === 3) return 30
-  return 22
-}
-
-/* Greedy word-wrap into at most 3 lines, for the fallback case — a room with
-   no short override renders its own name. Short marks (<= 3 chars, the
-   common case) never reach this: they are always one word and fit `x="50"`
-   dead center on a single line. */
-function wrapLabel(label: string): string[] {
-  const words = label.split(' ')
-  const lines: string[] = []
-  for (const word of words) {
-    const last = lines[lines.length - 1]
-    const grown = last ? `${last} ${word}` : word
-    if (last !== undefined && grown.length > 10 && lines.length < 3) {
-      lines.push(word)
-    } else {
-      lines[lines.length - 1 >= 0 ? lines.length - 1 : 0] = grown
-    }
-  }
-  return lines.slice(0, 3)
-}
-
-export function RoomBall({ color, className, ...content }: RoomBallProps) {
+export function RoomBall({ color, logo, className }: RoomBallProps) {
   const gradId = useId()
   const shadeId = useId()
   const highlightId = useId()
   const shadowId = useId()
   const palette = PALETTES[color]
-  const label = 'label' in content ? content.label : undefined
 
   return (
     <span className={['relative isolate block', className].filter(Boolean).join(' ')}>
@@ -166,33 +128,11 @@ export function RoomBall({ color, className, ...content }: RoomBallProps) {
             transform="rotate(-30 35 28)"
           />
         </g>
-        {label !== undefined && (
-          <text
-            x="50"
-            y="51"
-            textAnchor="middle"
-            dominantBaseline="central"
-            fontSize={labelFontSize(label)}
-            fill="var(--color-void)"
-            className="pointer-events-none font-display font-bold uppercase [font-stretch:var(--display-wide)]"
-            style={{ letterSpacing: '0.02em' }}
-          >
-            {label.length <= 3 ? (
-              label
-            ) : (
-              wrapLabel(label).map((line, index, lines) => (
-                <tspan key={line} x="50" dy={index === 0 ? `${-(lines.length - 1) * 0.6}em` : '1.2em'}>
-                  {line}
-                </tspan>
-              ))
-            )}
-          </text>
-        )}
       </svg>
 
-      {content.logo && (
+      {logo && (
         <span className="pointer-events-none absolute inset-0 flex items-center justify-center p-[17%]">
-          {content.logo}
+          {logo}
         </span>
       )}
     </span>

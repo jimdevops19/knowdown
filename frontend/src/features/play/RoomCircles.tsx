@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { Info } from 'lucide-react'
 import { listRooms } from '../../lib/api/endpoints'
 import { queryKeys } from '../../lib/query/queryClient'
 import { ErrorState } from '../../components/states'
+import { Modal } from '../../components/Modal'
 import { RoomBall, BALL_COLOR_KEYS, type BallColor } from '../../components/avatars/RoomBall'
 import { ROOM_LOGOS } from '../../components/icons/roomLogos'
 import type { Room } from '../../lib/api/types'
@@ -23,8 +26,18 @@ import type { Room } from '../../lib/api/types'
  *
  * A stories ring frames a face and truncates its label outside the ring,
  * because the face is the content. A room has no face — its *name* is the
- * content — so the disc is sized to hold the whole name, unclipped, in display
- * type, and the line under it says what is in the room.
+ * content — so the name is set under the disc, whole and unclipped, in display
+ * caps at the largest size the tile allows, and it is the only text a tile
+ * spends on itself.
+ *
+ * What the room *contains* sits behind an `i` in the tile's top-right corner.
+ * Printed under every tile, those sentences were most of the ink on the
+ * screen and none of the decision — a grid of eight rooms read as a page of
+ * paragraphs with some balls in it. Behind a button, the lobby is balls and
+ * names, and the description is one tap away for the player who wants it.
+ * `title` on the button covers the pointer case; the tap opens the app's own
+ * `Modal`, because a hover tooltip is not reachable on a phone, which is what
+ * most of this grid is looked at on.
  *
  * And the rooms do not sit on a horizontally scrolling rail. A rail is the
  * right shape for a feed of many equal, disposable things; the room list is a
@@ -78,14 +91,17 @@ import type { Room } from '../../lib/api/types'
  * fail — and silently dropping a room from the lobby makes an authoring mistake
  * invisible to the person who made it.
  *
- * ── The disc is a ball ───────────────────────────────────────────────────────
+ * ── The disc is a ball, and the name is under it ─────────────────────────────
  * A playable disc renders as `RoomBall`: a gradient sphere rather than the flat
  * fill this used to be. That is a deliberate departure from the flat-fill rule
  * elsewhere in the lobby — a room is the one place in the app shaped like a
- * literal ball, so it is allowed to look like one. The room's name (or a short
- * override, see `ROOM_BALL_LABELS`) is lettered across the face; `RoomBall`
- * also accepts a `logo` badge in place of that name, for a room that earns one,
- * but never both at once.
+ * literal ball, so it is allowed to look like one.
+ *
+ * Nothing is lettered across the face. A room that authors a `logo` wears it
+ * as a badge; a room that authors none is a plain ball. Either way the name is
+ * the big line under the disc, so it is set at one size for every room instead
+ * of shrinking to fit the longest one, and a room can have both a mark and a
+ * readable name — which the lettered face made a choice between.
  */
 export function RoomCircles() {
   const rooms = useQuery({
@@ -146,19 +162,8 @@ function ballColor(room: Room, index: number): BallColor {
   return ROOM_BALL_COLORS[index % ROOM_BALL_COLORS.length]
 }
 
-/* What a ball is lettered with, for a room whose own `logo` is blank.
-   Defaults to the room's own name; a handful of rooms are overridden with a
-   short mark instead, because "Ring Chasing" or "Russell Westbrook" spelled
-   out across a ball this size reads as a label, not as an object. Keyed by
-   slug (stable) rather than by position. */
-const ROOM_BALL_LABELS: Record<string, string> = {
-  'nba-room-general': 'NBA',
-  'nba-room-finals': 'B',
-  'nba-room-awards': 'A',
-  'nba-room-westbrook': 'RW',
-}
-
 function RoomCircle({ room, index }: { room: Room; index: number }) {
+  const [infoOpen, setInfoOpen] = useState(false)
   const playable = room.question_pool_size >= shortestMatch(room)
   const color = ballColor(room, index)
   // The room's own `logo` (authored in rooms.yaml, see the comment there) —
@@ -172,30 +177,30 @@ function RoomCircle({ room, index }: { room: Room; index: number }) {
     // need four hover values, and the ball is already the loudest thing on
     // the screen.
     <span className="block aspect-square w-full max-w-[9rem] transition-[filter] duration-150 group-hover:brightness-110 group-active:translate-y-1">
-      {Logo ? (
-        <RoomBall color={color} logo={<Logo />} />
-      ) : (
-        <RoomBall color={color} label={ROOM_BALL_LABELS[room.slug] ?? room.name} />
-      )}
+      <RoomBall color={color} logo={Logo ? <Logo /> : undefined} />
     </span>
   ) : (
     // An empty room is a plate, not a ball. It cannot be played, and giving it
     // the same dimensional fill as a live one would be the lobby's most
-    // prominent lie.
-    <span className="flex aspect-square w-full max-w-[9rem] items-center justify-center rounded-full border-2 border-idle/40 bg-panel px-[8%] text-center text-idle">
-      <span className="line-clamp-3 font-display text-[clamp(0.8125rem,3.2vw,1rem)] font-bold uppercase leading-[1.15] tracking-[0.04em] [font-stretch:var(--display-wide)]">
-        {room.name}
-      </span>
-    </span>
+    // prominent lie. Its name is under it like every other room's, so the two
+    // states differ in the disc alone.
+    <span className="block aspect-square w-full max-w-[9rem] rounded-full border-2 border-idle/40 bg-panel" />
   )
 
-  // The caption is wider than the disc it sits under: a description reads as a
-  // sentence, and a column narrow enough to be a disc's diameter breaks one
-  // into a ragged stack of two-word lines.
+  // Wider than the disc it sits under, so a two-word room name is not broken
+  // into a ragged stack by a column the width of a ball.
   const caption = (
     <span className="flex w-full flex-col items-center gap-1">
-      <span className="line-clamp-3 text-center text-xs leading-snug text-balance text-ash">
-        {contents(room)}
+      {/* The room's name, and the largest type in the lobby: it is the thing
+          being chosen between. White rather than the caption's ash — the line
+          under it is support, this is the label. */}
+      <span
+        className={[
+          'text-center font-display text-[clamp(1rem,4.4vw,1.25rem)] font-bold uppercase leading-[1.1] tracking-[0.02em] text-balance [font-stretch:var(--display-wide)]',
+          playable ? 'text-chalk' : 'text-idle',
+        ].join(' ')}
+      >
+        {room.name}
       </span>
       {!playable && (
         <span className="text-[0.625rem] uppercase tracking-[0.1em] text-idle">Empty</span>
@@ -211,27 +216,54 @@ function RoomCircle({ room, index }: { room: Room; index: number }) {
     </span>
   )
 
+  // The `i` is a sibling of the link, never a child of it: a button inside an
+  // anchor is invalid markup, and a tap on it would follow the link as well as
+  // open the window. Positioned against the tile's own corner, so it lands in
+  // the same place whether the tile below it is a ball or an empty plate.
+  const info = (
+    <>
+      <button
+        type="button"
+        onClick={() => setInfoOpen(true)}
+        title={contents(room)}
+        aria-label={`What is in ${room.name}?`}
+        className="absolute right-0 top-0 z-10 flex h-7 w-7 items-center justify-center rounded-full border border-chalk/15 bg-panel/80 text-ash backdrop-blur transition-colors hover:border-chalk/30 hover:text-chalk"
+      >
+        <Info className="h-4 w-4" aria-hidden />
+      </button>
+      <Modal open={infoOpen} title={room.name} onClose={() => setInfoOpen(false)}>
+        <p className="text-sm leading-relaxed text-ash">{contents(room)}</p>
+      </Modal>
+    </>
+  )
+
   if (!playable) {
     return (
-      <div
-        className="flex w-full max-w-[11rem] flex-col items-center gap-2 opacity-55 sm:gap-2.5"
-        title={`${room.name} has no questions to draw from right now.`}
-      >
-        {disc}
-        {caption}
+      <div className="relative w-full max-w-[11rem]">
+        {info}
+        <div
+          className="flex w-full flex-col items-center gap-2 opacity-55 sm:gap-2.5"
+          title={`${room.name} has no questions to draw from right now.`}
+        >
+          {disc}
+          {caption}
+        </div>
       </div>
     )
   }
 
   return (
-    <Link
-      to={`/play/${room.slug}`}
-      className="group flex w-full max-w-[11rem] flex-col items-center gap-2 rounded-card outline-offset-4 sm:gap-2.5"
-      aria-label={`Play in ${room.name}${room.is_rated ? '' : ' (unrated)'} — ${contents(room)}`}
-    >
-      {disc}
-      {caption}
-    </Link>
+    <div className="relative w-full max-w-[11rem]">
+      {info}
+      <Link
+        to={`/play/${room.slug}`}
+        className="group flex w-full flex-col items-center gap-2 rounded-card outline-offset-4 sm:gap-2.5"
+        aria-label={`Play in ${room.name}${room.is_rated ? '' : ' (unrated)'} — ${contents(room)}`}
+      >
+        {disc}
+        {caption}
+      </Link>
+    </div>
   )
 }
 
@@ -248,6 +280,7 @@ function RoomGridSkeleton() {
         <li key={index} className="flex justify-center">
           <div className="flex w-full max-w-[11rem] flex-col items-center gap-2 sm:gap-2.5">
             <div className="skeleton-fill aspect-square w-full max-w-[9rem] rounded-full bg-chalk/5 motion-safe:animate-skeleton" />
+            <div className="skeleton-fill h-4 w-20 rounded-btn bg-chalk/5 motion-safe:animate-skeleton" />
             <div className="skeleton-fill h-3 w-24 rounded-btn bg-chalk/5 motion-safe:animate-skeleton" />
           </div>
         </li>

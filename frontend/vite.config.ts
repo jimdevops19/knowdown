@@ -54,11 +54,13 @@ export default defineConfig(({ mode }) => {
           // and the tiles stop fitting together (see the `short` variant in
           // index.css for how hard the landscape case already has to be fought).
           orientation: 'portrait',
-          // The app chrome (index.css --color-court-black / --color-void), so
-          // the OS status bar and the splash screen are the app's own dark
-          // rather than a white flash before the first paint.
-          theme_color: '#101210',
-          background_color: '#0b0b0b',
+          // The app chrome (index.css --color-void / --color-pitch), so the OS
+          // status bar and the splash screen are the app's own deep blue
+          // rather than a white flash before the first paint. Both moved with
+          // the ground itself when the palette left grey for the pitch — a
+          // splash in the old graphite now reads as a different app opening.
+          theme_color: '#04202e',
+          background_color: '#0a2637',
           categories: ['games', 'sports', 'trivia'],
           icons: [
             { src: '/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },

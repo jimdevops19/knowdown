@@ -1,8 +1,9 @@
 import { useId, type ComponentType } from 'react'
 
 /*
- * Logos a `RoomBall` can wear instead of a lettered name (see `RoomBall`'s
- * `logo` prop). Small on purpose — these render centered on the ball at
+ * Logos a `RoomBall` can wear (see `RoomBall`'s `logo` prop) — optional: a
+ * room that authors none is a plain ball, and the name is under it either
+ * way. Small on purpose — these render centered on the ball at
  * roughly half its diameter — so each is two or three shapes, never fine
  * detail that would vanish at that size.
  *

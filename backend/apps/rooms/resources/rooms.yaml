@@ -25,11 +25,10 @@
 # the same thing (it is deactivated, never deleted), because matchups already
 # played in it point at the row.
 #
-# `logo` is what the lobby's ball wears on its face *instead of* the room's own
-# name — leave it out (the common case) and the ball is lettered with the
-# name instead (or a short override the client keeps, e.g. "NBA" or "RW" — see
-# `ROOM_BALL_LABELS` in frontend/src/features/play/RoomCircles.tsx). A ball
-# never wears both a logo and a name.
+# `logo` is an optional badge the lobby's ball wears on its face. Leave it out
+# (the common case) and the ball is plain. Either way the room's `name` is set
+# in big display caps *under* the ball, so a logo never costs the room its
+# name.
 #
 # The value is a key, not a picture — the actual artwork lives in
 # `frontend/src/components/icons/roomLogos.tsx`, in the `ROOM_LOGOS` registry.
@@ -61,21 +60,23 @@
 #
 # Loaded by: uv run python manage.py sync_rooms   (after sync_questions)
 
-- name: NBA
+- name: All NBA
   slug: nba-room-general
   description: >-
     The whole catalog, no filters — every era, every corner of the league.
   questions_asked_ranges: [3, 5, 7]
   display_order: 1
+  color: orange
   categories:
     - slug: nba
 
-- name: Ring Chasing
+- name: June Basketball
   slug: nba-room-finals
   description: >-
-    June basketball only: the series, the shots and the runs that decided a
-    title.
+    June basketball only: Best finals moments and series, the shots and the runs that decided a
+    title and changed the history of basketball
   questions_asked_ranges: [4, 5, 6]
+  color: gold
   display_order: 2
   categories:
     - slug: nba
@@ -96,13 +97,14 @@
       filter_tags:
         era: "2000s"
 
-- name: Hardware
+- name: Awards
   slug: nba-room-awards
   description: >-
     MVPs, Rookies of the Year, Defensive Players — who took home what, and
     when.
   questions_asked_ranges: [3, 5]
   display_order: 4
+  color: slate
   categories:
     - slug: nba
       filter_tags:

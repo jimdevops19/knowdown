@@ -1,11 +1,19 @@
-<!-- The knowdown mark: a wide, flat-sided K cut out of the brand orange tile.
-     Hand-kept in step with LogoMark in frontend/src/components/Logo.tsx and
-     with scripts/generate_pwa_icons.py — same 32-unit grid, same coordinates.
+<!-- The knowdown mark: one ball cut on the diagonal, brand orange against the
+     logo's azure. Hand-kept in step with LogoMark in
+     frontend/src/components/Logo.tsx and with scripts/generate_pwa_icons.py —
+     same 64-unit grid, same coordinates.
      Colours are literals, not tokens: a favicon is fetched before any
-     stylesheet and cannot read a CSS variable. #ff6b00 is --color-court and
-     #0b0b0b is --color-void. -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="5" fill="#ff6b00"/>
-  <path d="M8 7h4.4v18H8z" fill="#0b0b0b"/>
-  <path d="M24.4 7L16 15.2l8.8 9.8h-5.6l-7-8.1v-1.7L19 7z" fill="#0b0b0b"/>
+     stylesheet and cannot read a CSS variable. #ff7a14 is --color-court,
+     #00bdf5 is --color-kit-azure and #04202e is --color-void.
+     The ball sits on a void tile rather than running to the edge: a tab strip
+     and a launcher both put this on a ground of their own choosing, and a
+     bare disc on a white one loses its dark keyline. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs><clipPath id="b"><circle cx="32" cy="32" r="26"/></clipPath></defs>
+  <rect width="64" height="64" rx="10" fill="#04202e"/>
+  <g clip-path="url(#b)">
+    <circle cx="32" cy="32" r="26" fill="#00bdf5"/>
+    <polygon points="-8,72 72,-8 -8,-8" fill="#ff7a14"/>
+    <line x1="-8" y1="72" x2="72" y2="-8" stroke="#04202e" stroke-width="2"/>
+  </g>
 </svg>
